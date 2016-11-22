@@ -71,15 +71,15 @@ Table of Contents
      4.1.  Terminating a stream  . . . . . . . . . . . . . . . . . .   4
    5.  Writing data to QUIC streams  . . . . . . . . . . . . . . . .   5
    6.  Stream Mapping  . . . . . . . . . . . . . . . . . . . . . . .   5
-     6.1.  Reserved Streams  . . . . . . . . . . . . . . . . . . . .   6
+     6.1.  Reserved Streams  . . . . . . . . . . . . . . . . . . . .   5
        6.1.1.  Stream 3: headers . . . . . . . . . . . . . . . . . .   6
-       6.1.2.  Stream states . . . . . . . . . . . . . . . . . . . .   7
+       6.1.2.  Stream states . . . . . . . . . . . . . . . . . . . .   6
    7.  Stream Priorities . . . . . . . . . . . . . . . . . . . . . .   7
    8.  Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .   8
    9.  Server Push . . . . . . . . . . . . . . . . . . . . . . . . .   8
-   10. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .   9
+   10. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .   8
    11. Other HTTP/2 frames . . . . . . . . . . . . . . . . . . . . .   9
-     11.1.  GOAWAY frame . . . . . . . . . . . . . . . . . . . . . .  10
+     11.1.  GOAWAY frame . . . . . . . . . . . . . . . . . . . . . .   9
      11.2.  PING frame . . . . . . . . . . . . . . . . . . . . . . .  10
      11.3.  PADDING frame  . . . . . . . . . . . . . . . . . . . . .  10
    12. Security Considerations . . . . . . . . . . . . . . . . . . .  10
@@ -97,8 +97,8 @@ Table of Contents
    subsumed by QUIC, and describes how the other features can be
    implemented atop QUIC.
 
-   QUIC is described in [I-D.hamilton-quic-transport-protocol].  For a
-   full description of HTTP/2, see [RFC7540].
+   QUIC is described in [QUIC-TRANSPORT].  For a full description of
+   HTTP/2, see [RFC7540].
 
 1.1.  Notational Conventions
 
@@ -139,16 +139,15 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
 3.  Connection establishment
 
    HTTP/2-over-QUIC connections are established as described in
-   [I-D.hamilton-quic-transport-protocol].  The QUIC crypto handshake
-   MUST use TLS [I-D.thomson-quic-tls].
+   [QUIC-TRANSPORT].  The QUIC crypto handshake MUST use TLS [QUIC-TLS].
 
    While connection-level options pertaining to the core QUIC protocol
-   are set in the initial crypto handshake [I-D.thomson-quic-tls],
-   HTTP/2-specific settings are conveyed in the HTTP/2 SETTINGS frame.
-   After the QUIC connection is established, an HTTP/2 SETTINGS frame
-   may be sent as the initial frame of the QUIC headers stream (StreamID
-   3, See Section 6).  As in HTTP/2, additional SETTINGS frames may be
-   sent mid-connection by either endpoint.
+   are set in the initial crypto handshake [QUIC-TLS].  HTTP/2-specific
+   settings are conveyed in the HTTP/2 SETTINGS frame.  After the QUIC
+   connection is established, an HTTP/2 SETTINGS frame may be sent as
+   the initial frame of the QUIC headers stream (StreamID 3, See
+   Section 6).  As in HTTP/2, additional SETTINGS frames may be sent
+   mid-connection by either endpoint.
 
    TODO: decide whether to acknowledge receipt of SETTINGS through empty
    SETTINGS frames with ACK bit set, as in HTTP/2, or rely on transport-
@@ -161,7 +160,8 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
 
    SETTINGS_HEADER_TABLE_SIZE:  Sent in HTTP/2 SETTINGS frame.
 
-
+   SETTINGS_ENABLE_PUSH:  Sent in HTTP/2 SETTINGS frame (TBD, currently
+      set using QUIC "SPSH" connection option)
 
 
 
@@ -169,9 +169,6 @@ Shade & Warres            Expires May 26, 2017                  [Page 3]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-   SETTINGS_ENABLE_PUSH:  Sent in HTTP/2 SETTINGS frame (TBD, currently
-      set using QUIC "SPSH" connection option)
 
    SETTINGS_MAX_CONCURRENT_STREAMS  QUIC requires the maximum number of
       incoming streams per connection to be specified in the initial
@@ -218,6 +215,9 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
       frame with the END_STREAM bit set ends the stream specified in the
       HEADERS frame
 
+   o  the request/response has headers and body but no trailing headers,
+      in which case the final QUIC STREAM frame will have the FIN bit
+      set
 
 
 
@@ -225,10 +225,6 @@ Shade & Warres            Expires May 26, 2017                  [Page 4]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-   o  the request/response has headers and body but no trailing headers,
-      in which case the final QUIC STREAM frame will have the FIN bit
-      set
 
    o  the request/response has headers, body, and trailing headers, in
       which case the final QUIC STREAM frame will not have the FIN bit
@@ -270,9 +266,13 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    push) streams.  Unlike HTTP/2 there are a couple of reserved (or
    dedicated) StreamIDs in QUIC.
 
+6.1.  Reserved Streams
 
-
-
+   StreamID 1 is reserved for crypto operations (the handshake, crypto
+   config updates), and MUST NOT be used for HTTP/2 headers or body, see
+   [QUIC-TRANSPORT].  StreamID 3 is reserved for sending and receiving
+   HTTP/2 HEADERS frames.  Therefore the first client initiated data
+   stream has StreamID 5.
 
 
 
@@ -281,14 +281,6 @@ Shade & Warres            Expires May 26, 2017                  [Page 5]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-6.1.  Reserved Streams
-
-   StreamID 1 is reserved for crypto operations (the handshake, crypto
-   config updates), and MUST NOT be used for HTTP/2 headers or body, see
-   [I-D.hamilton-quic-transport-protocol].  StreamID 3 is reserved for
-   sending and receiving HTTP/2 HEADERS frames.  Therefore the first
-   client initiated data stream has StreamID 5.
 
    There are no reserved server initiated StreamIDs, so the first server
    initiated (i.e. server push) stream has an ID of 2, followed by 4,
@@ -328,16 +320,6 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    down local stream state.  The ":final-offset" pseudo header is
    stripped from the HEADERS before passing to the HTTP/2 layer.
 
-
-
-
-
-
-Shade & Warres            Expires May 26, 2017                  [Page 6]
-
-Internet-Draft              HTTP/2 Over QUIC               November 2016
-
-
 6.1.2.  Stream states
 
    The mapping of HTTP/2-over-QUIC with potential out of order delivery
@@ -347,6 +329,14 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    from "half closed (local)" to "closed" takes place only when:
 
    o  the peer has explicitly ended the stream via either
+
+
+
+
+Shade & Warres            Expires May 26, 2017                  [Page 6]
+
+Internet-Draft              HTTP/2 Over QUIC               November 2016
+
 
       *  an HTTP/2 HEADERS frame with END_STREAM bit set and, in the
          case of trailing headers, the :final-offset pseudo-header
@@ -387,18 +377,22 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    resources according to the most recent stream priority information
    that it has received.
 
+   ALTERNATIVE DESIGN: if the core QUIC protocol implements priorities,
+   then this document should map the HTTP/2 priorities scheme to that
+   provided by the core protocol.  This would likely involve prohibiting
+   the sending of HTTP/2 PRIORITY frames and setting of the PRIORITY
+   flag in HTTP/2 HEADERS frames, to avoid conflicting directives.
+
+
+
+
+
 
 
 Shade & Warres            Expires May 26, 2017                  [Page 7]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-   ALTERNATIVE DESIGN: if the core QUIC protocol implements priorities,
-   then this document should map the HTTP/2 priorities scheme to that
-   provided by the core protocol.  This would likely involve prohibiting
-   the sending of HTTP/2 PRIORITY frames and setting of the PRIORITY
-   flag in HTTP/2 HEADERS frames, to avoid conflicting directives.
 
 8.  Flow Control
 
@@ -416,7 +410,7 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
 
    Relatively small initial windows can be used, as QUIC will attempt to
    auto-tune the flow control windows based on usage.  See
-   [I-D.hamilton-quic-transport-protocol] for more details.
+   [QUIC-TRANSPORT] for more details.
 
 9.  Server Push
 
@@ -441,6 +435,12 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    response body (if any) sent via QUIC stream frames on the stream
    specified in the corresponding PUSH_PROMISE frame.
 
+10.  Error Codes
+
+   The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
+   error codes as follows:
+
+   NO_ERROR (0x0):  Maps to QUIC_NO_ERROR
 
 
 
@@ -449,13 +449,6 @@ Shade & Warres            Expires May 26, 2017                  [Page 8]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-10.  Error Codes
-
-   The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
-   error codes as follows:
-
-   NO_ERROR (0x0):  Maps to QUIC_NO_ERROR
 
    PROTOCOL_ERROR (0x1):  No single mapping?
 
@@ -497,15 +490,6 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    present in HTTP/2.  In these cases the HTTP/2 mapping need not re-
    implement them.  As a result some HTTP/2 frame types are not required
    when using QUIC, as they either are directly implemented in the QUIC
-
-
-
-
-Shade & Warres            Expires May 26, 2017                  [Page 9]
-
-Internet-Draft              HTTP/2 Over QUIC               November 2016
-
-
    layer, or their functionality is provided via other means.  This
    section of the document describes these cases.
 
@@ -514,11 +498,18 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    QUIC has its own GOAWAY frame, and QUIC implementations may to expose
    the sending of a GOAWAY to the application.  The semantics of sending
    a GOAWAY in QUIC are identical to HTTP/2: an endpoint sending a
+
+
+
+Shade & Warres            Expires May 26, 2017                  [Page 9]
+
+Internet-Draft              HTTP/2 Over QUIC               November 2016
+
+
    GOAWAY will continue processing open streams, but will not accept
    newly created streams.
 
-   QUIC's GOAWAY frame is described in detail in the
-   [I-D.hamilton-quic-transport-protocol].
+   QUIC's GOAWAY frame is described in detail in the [QUIC-TRANSPORT].
 
 11.2.  PING frame
 
@@ -526,8 +517,7 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
    application.  QUIC clients send periodic PINGs to servers if there
    are no currently active data streams on the connection.
 
-   QUIC's PING frame is described in detail in the
-   [I-D.hamilton-quic-transport-protocol].
+   QUIC's PING frame is described in detail in the [QUIC-TRANSPORT].
 
 11.3.  PADDING frame
 
@@ -549,11 +539,21 @@ Internet-Draft              HTTP/2 Over QUIC               November 2016
 
 14.  Normative References
 
-   [I-D.hamilton-quic-transport-protocol]
-              Hamilton, R., Iyengar, J., Swett, I., and A. Wilk, "QUIC:
-              A UDP-Based Multiplexed and Secure Transport", draft-
-              hamilton-quic-transport-protocol-01 (work in progress),
-              October 2016.
+   [QUIC-TLS]
+              Thomson, M., Ed. and S. Turner, Ed, Ed., "Using Transport
+              Layer Security (TLS) to Secure QUIC", November 2016.
+
+   [QUIC-TRANSPORT]
+              Iyengar, J., Ed. and M. Thomson, Ed., "QUIC: A UDP-Based
+              Multiplexed and Secure Transport", November 2016.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+
+
 
 
 
@@ -561,16 +561,6 @@ Shade & Warres            Expires May 26, 2017                 [Page 10]
 
 Internet-Draft              HTTP/2 Over QUIC               November 2016
 
-
-   [I-D.thomson-quic-tls]
-              Thomson, M. and R. Hamilton, "Using Transport Layer
-              Security (TLS) to Secure QUIC", draft-thomson-quic-tls-01
-              (work in progress), October 2016.
-
-   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
-              Requirement Levels", BCP 14, RFC 2119,
-              DOI 10.17487/RFC2119, March 1997,
-              <http://www.rfc-editor.org/info/rfc2119>.
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -593,6 +583,16 @@ Authors' Addresses
    Google
 
    Email: mpw@google.com
+
+
+
+
+
+
+
+
+
+
 
 
 

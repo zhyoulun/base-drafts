@@ -146,9 +146,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    13. Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  44
    14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  44
    15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  44
-     15.1.  Normative References . . . . . . . . . . . . . . . . . .  45
+     15.1.  Normative References . . . . . . . . . . . . . . . . . .  44
      15.2.  Informative References . . . . . . . . . . . . . . . . .  45
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  46
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  45
 
 1.  Introduction
 
@@ -175,8 +175,8 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    for connection establishment, stream multiplexing, stream and
    connection-level flow control, and data reliability.  Accompanying
    documents describe QUIC's loss detection and congestion control
-   [I-D.iyengar-quic-loss-recovery], and the use of TLS 1.3 for key
-   negotiation [I-D.thomson-quic-tls].
+   [QUIC-LOSS-RECOVERY], and the use of TLS 1.3 for key negotiation
+   [QUIC-TLS].
 
 1.1.  Notational Conventions
 
@@ -260,8 +260,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    the crypto handshake and QUIC options negotiation.  The format of the
    QUIC options and parameters used during negotiation are described in
    this document, but the handshake protocol that runs on Stream ID 1 is
-   described in the accompanying crypto handshake draft {{!I-D.thomson-
-   quic-tls}}.
+   described in the accompanying crypto handshake draft [QUIC-TLS].
 
 3.3.  Stream Multiplexing
 
@@ -274,6 +273,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    QUIC ensures that lost packets carrying data for an individual stream
    only impact that specific stream.  Data received on other streams can
    continue to be reassembled and delivered to the application.
+
 
 
 
@@ -886,9 +886,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    handshake protocol, so the details of a specific handshake protocol
    are out of this document's scope.  If not explicitly specified in the
    application mapping, TLS is assumed to be the default crypto
-   handshake protocol, as described in [I-D.thomson-quic-tls].  An
-   application that maps to QUIC MAY however specify an alternative
-   crypto handshake protocol to be used.
+   handshake protocol, as described in [QUIC-TLS].  An application that
+   maps to QUIC MAY however specify an alternative crypto handshake
+   protocol to be used.
 
 
 
@@ -1553,7 +1553,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
 
    Upon detecting losses, a sender MUST take appropriate congestion
    control action.  The details of loss detection and congestion control
-   are described in [I-D.iyengar-quic-loss-recovery].
+   are described in [QUIC-LOSS-RECOVERY].
 
    A receiver acknowledges receipt of a received packet by sending one
    or more ACK frames containing the packet number of the received
@@ -1574,8 +1574,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    (currently 20) of such packets have been received.
 
    Strategies and implications of the frequency of generating
-   acknowledgments are discussed in more detail in
-   [I-D.iyengar-quic-loss-recovery].
+   acknowledgments are discussed in more detail in [QUIC-LOSS-RECOVERY].
 
 8.  Streams: QUIC's Data Structuring Abstraction
 
@@ -1608,6 +1607,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
+
 
 
 
@@ -1928,8 +1928,7 @@ Internet-Draft           QUIC Transport Protocol           November 2016
       connection-level flow control.
 
    Flow control is described in detail in Section XX, and congestion
-   control is described in the companion document
-   [I-D.iyengar-quic-loss-recovery].
+   control is described in the companion document [QUIC-LOSS-RECOVERY].
 
 9.  Flow Control
 
@@ -1953,7 +1952,8 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    receiver advertises the maximum absolute byte offset in the stream or
    in the connection which the receiver is willing to receive.
 
-
+   The initial flow control credit is 65536 bytes for both the stream
+   and connection flow controllers.
 
 
 
@@ -1961,9 +1961,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 35]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   The initial flow control credit is 65536 bytes for both the stream
-   and connection flow controllers.
 
    A receiver MAY advertise a larger offset at any point in the
    connection by sending a WINDOW_UPDATE frame.  A receiver MUST NOT
@@ -2010,6 +2007,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    stream.  This could result in the endpoints getting out of sync,
    since the RST_STREAM frame may have arrived out of order and there
    may be further bytes in flight.  The data sender would have counted
+   the data against its connection level flow control budget, but a
+   receiver that has not received these bytes would not know to include
+   them as well.  The receiver must learn of the number of bytes that
 
 
 
@@ -2018,9 +2018,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 36]
 Internet-Draft           QUIC Transport Protocol           November 2016
 
 
-   the data against its connection level flow control budget, but a
-   receiver that has not received these bytes would not know to include
-   them as well.  The receiver must learn of the number of bytes that
    were sent on the stream to make the same adjustment in its connection
    flow controller.
 
@@ -2066,6 +2063,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    congestion controller, it is generally considered best to not let the
    sender go into quiescence if avoidable.  To avoid blocking a sender,
    and to reasonably account for the possibiity of loss, a receiver
+   should send a WINDOW_UPDATE frame at least two roundtrips before it
+   expects the sender to get blocked.
+
 
 
 
@@ -2073,9 +2073,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 37]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   should send a WINDOW_UPDATE frame at least two roundtrips before it
-   expects the sender to get blocked.
 
 10.  Error Codes
 
@@ -2121,6 +2118,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    o  0x39: QUIC_INVALID_WINDOW_UPDATE_DATA.  (WINDOW_UPDATE frame data
       is malformed.)
 
+   o  0x3a: QUIC_INVALID_BLOCKED_DATA.  (BLOCKED frame data is
+      malformed.)
+
 
 
 
@@ -2129,9 +2129,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 38]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  0x3a: QUIC_INVALID_BLOCKED_DATA.  (BLOCKED frame data is
-      malformed.)
 
    o  0x3c: QUIC_INVALID_STOP_WAITING_DATA.  (STOP_WAITING frame data is
       malformed.)
@@ -2178,6 +2175,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    o  0x17: QUIC_INVALID_NEGOTIATED_VALUE.  (Negotiable parameter
       received during handshake had invalid value.)
 
+   o  0x18: QUIC_DECOMPRESSION_FAILURE.  (There was an error
+      decompressing data.)
+
 
 
 
@@ -2185,9 +2185,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 39]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  0x18: QUIC_DECOMPRESSION_FAILURE.  (There was an error
-      decompressing data.)
 
    o  0x19: QUIC_NETWORK_IDLE_TIMEOUT.  (The connection timed out due to
       no network activity.)
@@ -2234,6 +2231,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    o  0x46: QUIC_CONNECTION_CANCELLED.  (The quic connection has been
       cancelled.)
 
+   o  0x47: QUIC_BAD_PACKET_LOSS_RATE.  (Disabled QUIC because of high
+      packet loss rate.)
+
 
 
 
@@ -2241,9 +2241,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 40]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  0x47: QUIC_BAD_PACKET_LOSS_RATE.  (Disabled QUIC because of high
-      packet loss rate.)
 
    o  0x49: QUIC_PUBLIC_RESETS_POST_HANDSHAKE.  (Disabled QUIC because
       of too many PUBLIC_RESETs post handshake.)
@@ -2289,6 +2286,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    o  0x25: QUIC_CRYPTO_MESSAGE_INDEX_NOT_FOUND.  (A crypto message was
       received that contained a parameter with too fewvalues.)
 
+   o  0x5e: QUIC_UNSUPPORTED_PROOF_DEMAND.  (A demand for an unsupport
+      proof type was received.)
+
 
 
 
@@ -2297,9 +2297,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 41]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  0x5e: QUIC_UNSUPPORTED_PROOF_DEMAND.  (A demand for an unsupport
-      proof type was received.)
 
    o  0x26: QUIC_CRYPTO_INTERNAL_ERROR.  (An internal error occured in
       crypto processing.)
@@ -2346,6 +2343,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
       involved a version negotiation which appears to have beentampered
       with.)
 
+   o  0x50: QUIC_IP_ADDRESS_CHANGED.  (IP address changed causing
+      connection close.)
+
 
 
 
@@ -2353,9 +2353,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 42]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  0x50: QUIC_IP_ADDRESS_CHANGED.  (IP address changed causing
-      connection close.)
 
    o  0x51: QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS.
       (Connection migration errors.Network changed, but connection had
@@ -2402,6 +2399,9 @@ Internet-Draft           QUIC Transport Protocol           November 2016
 
    The second mitigation is that the server can require that acks for
    sent packets match the encryption level of the sent packet.  This
+   mitigation is useful if the connection has an ephemeral forward-
+   secure key that is generated and used for every new connection.  If a
+   packet sent is encrypted with a forward-secure key, then any acks
 
 
 
@@ -2410,9 +2410,6 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 43]
 Internet-Draft           QUIC Transport Protocol           November 2016
 
 
-   mitigation is useful if the connection has an ephemeral forward-
-   secure key that is generated and used for every new connection.  If a
-   packet sent is encrypted with a forward-secure key, then any acks
    that are received for them must also be forward-secure encrypted.
    Since the attacker will not have the forward secure key, the attacker
    will not be able to generate forward-secure encrypted ack packets.
@@ -2454,8 +2451,11 @@ Internet-Draft           QUIC Transport Protocol           November 2016
 
 15.  References
 
+15.1.  Normative References
 
-
+   [QUIC-LOSS-RECOVERY]
+              Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
+              and Congestion Control", November 2016.
 
 
 
@@ -2466,23 +2466,9 @@ Hamilton, et al.          Expires May 26, 2017                 [Page 44]
 Internet-Draft           QUIC Transport Protocol           November 2016
 
 
-15.1.  Normative References
-
-   [I-D.hamilton-quic-transport-protocol]
-              Hamilton, R., Iyengar, J., Swett, I., and A. Wilk, "QUIC:
-              A UDP-Based Multiplexed and Secure Transport", draft-
-              hamilton-quic-transport-protocol-01 (work in progress),
-              October 2016.
-
-   [I-D.iyengar-quic-loss-recovery]
-              Iyengar, J. and I. Swett, "QUIC Congestion Control And
-              Loss Recovery", draft-iyengar-quic-loss-recovery-01 (work
-              in progress), October 2016.
-
-   [I-D.thomson-quic-tls]
-              Thomson, M. and R. Hamilton, "Using Transport Layer
-              Security (TLS) to Secure QUIC", draft-thomson-quic-tls-01
-              (work in progress), October 2016.
+   [QUIC-TLS]
+              Thomson, M., Ed. and S. Turner, Ed, Ed., "Using Transport
+              Layer Security (TLS) to Secure QUIC", November 2016.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -2504,6 +2490,16 @@ Internet-Draft           QUIC Transport Protocol           November 2016
               Roskind, J., "QUIC: Multiplexed Transport Over UDP",
               December 2013, <https://goo.gl/dMVtFi>.
 
+   [I-D.hamilton-quic-transport-protocol]
+              Hamilton, R., Iyengar, J., Swett, I., and A. Wilk, "QUIC:
+              A UDP-Based Multiplexed and Secure Transport", draft-
+              hamilton-quic-transport-protocol-01 (work in progress),
+              October 2016.
+
+   [QUIC-HTTP]
+              Bishop, M., Ed., "HTTP/2 Semantics Using The QUIC
+              Transport Protocol", November 2016.
+
    [QUICCrypto]
               Langley, A. and W. Chang, "QUIC Crypto", May 2016,
               <http://goo.gl/OuVSxa>.
@@ -2511,8 +2507,12 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    [SST]      Ford, B., "Structured Streams: A New Transport
               Abstraction", ACM SIGCOMM 2007 , August 2007.
 
+Authors' Addresses
 
+   Ryan Hamilton
+   Google
 
+   Email: rch@google.com
 
 
 
@@ -2520,14 +2520,6 @@ Internet-Draft           QUIC Transport Protocol           November 2016
 Hamilton, et al.          Expires May 26, 2017                 [Page 45]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
-
-
-Authors' Addresses
-
-   Ryan Hamilton
-   Google
-
-   Email: rch@google.com
 
 
    Jana Iyengar
@@ -2546,6 +2538,14 @@ Authors' Addresses
    Google
 
    Email: alyssar@google.com
+
+
+
+
+
+
+
+
 
 
 

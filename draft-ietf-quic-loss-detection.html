@@ -5,7 +5,7 @@
 <head profile="http://www.w3.org/2006/03/hcard http://dublincore.org/documents/2008/08/04/dc-html/">
   <meta http-equiv="Content-Type" content="text/html; charset=us-ascii" />
 
-  <title>QUIC loss detection and congestion control</title>
+  <title>QUIC Loss Detection and Congestion Control</title>
 
   <style type="text/css">/*<![CDATA[*/
 @viewport {
@@ -339,7 +339,7 @@ li, p {
     </tbody>
   </table>
 
-  <p class="title">QUIC loss detection and congestion control<br />
+  <p class="title">QUIC Loss Detection and Congestion Control<br />
   <span class="filename">draft-ietf-quic-loss-detection</span></p>
   
   <h1 id="rfc.abstract">
@@ -401,7 +401,7 @@ li, p {
   </ul>
 
   <h1 id="rfc.section.1"><a href="#rfc.section.1">1.</a> <a href="#introduction" id="introduction">Introduction</a></h1>
-<p id="rfc.section.1.p.1">QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  The QUIC protocol is described in ietf-quic-transport-protocol.</p>
+<p id="rfc.section.1.p.1">QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  The QUIC protocol is described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
 <p id="rfc.section.1.p.2">QUIC implements the spirit of known TCP loss recovery mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC congestion control and loss recovery, and where applicable, attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and/or TCP implementations.</p>
 <p id="rfc.section.1.p.3">This document first describes pre-requisite parts of the QUIC transmission machinery, then discusses QUIC&#8217;s default congestion control and loss detection mechanisms, and finally lists the various TCP mechanisms that QUIC loss detection implements (in spirit.)</p>
 <h2 id="rfc.section.1.1"><a href="#rfc.section.1.1">1.1.</a> <a href="#notational-conventions" id="notational-conventions">Notational Conventions</a></h2>
@@ -421,7 +421,7 @@ li, p {
 <h3 id="rfc.section.2.1.1"><a href="#rfc.section.2.1.1">2.1.1.</a> <a href="#monotonically-increasing-packet-numbers" id="monotonically-increasing-packet-numbers">Monotonically Increasing Packet Numbers</a></h3>
 <p id="rfc.section.2.1.1.p.1">TCP conflates transmission sequence number at the sender with delivery sequence number at the receiver, which results in retransmissions of the same data carrying the same sequence number, and consequently to problems caused by &#8220;retransmission ambiguity&#8221;.  QUIC separates the two: QUIC uses a packet sequence number (referred to as the &#8220;packet number&#8221;) for transmissions, and any data that is to be delivered to the receiving application(s) is sent in one or more streams, with stream offsets encoded within STREAM frames inside of packets that determine delivery order.</p>
 <p id="rfc.section.2.1.1.p.2">QUIC&#8217;s packet number is strictly increasing, and directly encodes transmission order.  A higher QUIC packet number signifies that the packet was sent later, and a lower QUIC packet number signifies that the packet was sent earlier.  When a packet containing frames is deemed lost, QUIC rebundles necessary frames in a new packet with a new packet number, removing ambiguity about which packet is acknowledged when an ACK is received.  Consequently, more accurate RTT measurements can be made, spurious retransmissions are trivially detected, and mechanisms such as Fast Retransmit can be applied universally, based only on packet number.</p>
-<p id="rfc.section.2.1.1.p.3">This design point significantly simplifies loss detection mechanisms for QUIC.  Most TCP mechanisms implicitly attempt to infer transmission ordering based on TCP sequence numbers &#8212; a non-trivial task, especially when TCP timestamps are not available.</p>
+<p id="rfc.section.2.1.1.p.3">This design point significantly simplifies loss detection mechanisms for QUIC.  Most TCP mechanisms implicitly attempt to infer transmission ordering based on TCP sequence numbers - a non-trivial task, especially when TCP timestamps are not available.</p>
 <h3 id="rfc.section.2.1.2"><a href="#rfc.section.2.1.2">2.1.2.</a> <a href="#no-reneging" id="no-reneging">No Reneging</a></h3>
 <p id="rfc.section.2.1.2.p.1">QUIC ACKs contain information that is equivalent to TCP SACK, but QUIC does not allow any acked packet to be reneged, greatly simplifying implementations on both sides and reducing memory pressure on the sender.</p>
 <h3 id="rfc.section.2.1.3"><a href="#rfc.section.2.1.3">2.1.3.</a> <a href="#more-ack-ranges" id="more-ack-ranges">More ACK Ranges</a></h3>
@@ -439,7 +439,7 @@ li, p {
   <li>alarm_mode: QUIC maintains a single loss detection alarm, which switches between various modes.  This mode is used to determine the duration of the alarm.</li>
   <li>handshake_count: The number of times the handshake packets have been retransmitted without receiving an ack.</li>
   <li>tlp_count: The number of times a tail loss probe has been sent without receiving an ack.</li>
-  <li>rto_count: The number of times an rto has been sent without receiving and ack.</li>
+  <li>rto_count: The number of times an rto has been sent without receiving an ack.</li>
   <li>smoothed_rtt: The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a>.  TODO: Describe RTT computations.</li>
   <li>reordering_threshold: The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</li>
   <li>time_loss: When true, loss detection operates solely based on reordering threshold in time, rather than in packet number gaps.</li>
@@ -457,7 +457,7 @@ li, p {
 </pre>
 <h2 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#setting-the-loss-detection-alarm" id="setting-the-loss-detection-alarm">Setting the Loss Detection Alarm</a></h2>
 <p id="rfc.section.3.3.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
-<p id="rfc.section.3.3.p.2">Pseudocode for SetLossDetectionAlarm follows.</p>
+<p id="rfc.section.3.3.p.2">Pseudocode for SetLossDetectionAlarm follows:</p>
 <pre>
  SetLossDetectionAlarm():
     if (retransmittable packets are not outstanding):
@@ -486,14 +486,14 @@ li, p {
     loss_detection_alarm.set(now + alarm_duration);
 </pre>
 <h2 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#on-sending-a-packet" id="on-sending-a-packet">On Sending a Packet</a></h2>
-<p id="rfc.section.3.4.p.1">After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called.  The parameters to OnPacketSent are as follows.</p>
+<p id="rfc.section.3.4.p.1">After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called.  The parameters to OnPacketSent are as follows:</p>
 <p/>
 
 <ul>
   <li>packet_number: The packet number of the sent packet.</li>
-  <li>is_retransmittble: A boolean that indicates whether the packet contains at least one frame requiring reliable deliver.  The retransmittability of various QUIC frames is described in ietf-quic-transport-protocol.  If false, it is still acceptable for an ack to be received for this packet.  However, a caller MUST NOT set is_retransmittable to true if an ack is not expected.</li>
+  <li>is_retransmittble: A boolean that indicates whether the packet contains at least one frame requiring reliable deliver.  The retransmittability of various QUIC frames is described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.  If false, it is still acceptable for an ack to be received for this packet.  However, a caller MUST NOT set is_retransmittable to true if an ack is not expected.</li>
 </ul>
-<p id="rfc.section.3.4.p.3">Pseudocode for OnPacketSent follows.</p>
+<p id="rfc.section.3.4.p.3">Pseudocode for OnPacketSent follows:</p>
 <pre>
  OnPacketSent(packet_number, is_retransmittable):
      if is_retransmittable:
@@ -502,7 +502,7 @@ li, p {
 <h2 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5.</a> <a href="#on-packet-acknowledgment" id="on-packet-acknowledgment">On Packet Acknowledgment</a></h2>
 <p id="rfc.section.3.5.p.1">When a packet is acked for the first time, the following OnPacketAcked function is called.  Note that a single ACK frame may newly acknowledge several packets.  OnPacketAcked must be called once for each of these newly acked packets.</p>
 <p id="rfc.section.3.5.p.2">OnPacketAcked takes one parameter, acked_packet, which is the packet number of the newly acked packet, and returns a list of packet numbers that are detected as lost.</p>
-<p id="rfc.section.3.5.p.3">Pseudocode for OnPacketAcked follows.</p>
+<p id="rfc.section.3.5.p.3">Pseudocode for OnPacketAcked follows:</p>
 <pre>
    OnPacketAcked(acked_packet):
      handshake_count = 0;
@@ -514,7 +514,7 @@ li, p {
 </pre>
 <h2 id="rfc.section.3.6"><a href="#rfc.section.3.6">3.6.</a> <a href="#on-alarm-firing" id="on-alarm-firing">On Alarm Firing</a></h2>
 <p id="rfc.section.3.6.p.1">QUIC uses one loss recovery alarm, which when set, can be in one of several modes.  When the alarm fires, the mode determines the action to be performed.  OnAlarm returns a list of packet numbers that are detected as lost.</p>
-<p id="rfc.section.3.6.p.2">Pseudocode for OnAlarm follows.</p>
+<p id="rfc.section.3.6.p.2">Pseudocode for OnAlarm follows:</p>
 <pre>
    OnAlarm(acked_packet):
      lost_packets = DetectLostPackets(acked_packet);
@@ -524,7 +524,7 @@ li, p {
 <h2 id="rfc.section.3.7"><a href="#rfc.section.3.7">3.7.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h2>
 <p id="rfc.section.3.7.p.1">Packets in QUIC are only considered lost once a larger packet number is acknowledged.  DetectLostPackets is called every time there is a new largest packet or if the loss detection alarm fires the previous largest acked packet is supplied.</p>
 <p id="rfc.section.3.7.p.2">DetectLostPackets takes one parameter, acked_packet, which is the packet number of the largest acked packet, and returns a list of packet numbers detected as lost.</p>
-<p id="rfc.section.3.7.p.3">Pseudocode for DetectLostPackets follows.</p>
+<p id="rfc.section.3.7.p.3">Pseudocode for DetectLostPackets follows:</p>
 <pre>
    DetectLostPackets(acked_packet):
      lost_packets = {};
@@ -545,8 +545,7 @@ li, p {
 <p id="rfc.section.5.1.p.1">QUIC calculates SRTT and RTTVAR according to the standard formulas.  An RTT sample is only taken if the delayed ack correction is smaller than the measured RTT (otherwise a negative RTT would result), and the ack&#8217;s contains a new, larger largest observed packet number.  min_rtt is only based on the observed RTT, but SRTT uses the delayed ack correction delta.</p>
 <p id="rfc.section.5.1.p.2">As described above, QUIC implements RTO with the standard timeout and CWND reduction.  However, QUIC retransmits the earliest outstanding packets rather than the latest, because QUIC doesn&#8217;t have retransmission ambiguity.  QUIC uses the commonly accepted min RTO of 200ms instead of the 1s the RFC specifies.</p>
 <h2 id="rfc.section.5.2"><a href="#rfc.section.5.2">5.2.</a> <a href="#fack-loss-recovery-paper" id="fack-loss-recovery-paper">FACK Loss Recovery (paper)</a></h2>
-<p id="rfc.section.5.2.p.1">QUIC implements the algorithm for early loss recovery described in the FACK paper (and implemented in the Linux kernel.)  QUIC uses the packet number to measure the FACK reordering threshold.  Currently</p>
-<p id="rfc.section.5.2.p.2">QUIC does not implement an adaptive threshold as many TCP implementations(ie: the Linux kernel) do.</p>
+<p id="rfc.section.5.2.p.1">QUIC implements the algorithm for early loss recovery described in the FACK paper (and implemented in the Linux kernel.)  QUIC uses the packet number to measure the FACK reordering threshold.  Currently QUIC does not implement an adaptive threshold as many TCP implementations (i.e., the Linux kernel) do.</p>
 <h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#rfc-3782-rfc-6582-newreno-fast-recovery" id="rfc-3782-rfc-6582-newreno-fast-recovery">RFC 3782, RFC 6582 (NewReno Fast Recovery)</a></h2>
 <p id="rfc.section.5.3.p.1">QUIC only reduces its CWND once per congestion window, in keeping with the NewReno RFC.  It tracks the largest outstanding packet at the time the loss is declared and any losses which occur before that packet number are considered part of the same loss event.  It&#8217;s worth noting that some TCP implementations may do this on a sequence number basis, and hence consider multiple losses of the same packet a single loss event.</p>
 <h2 id="rfc.section.5.4"><a href="#rfc.section.5.4">5.4.</a> <a href="#tlp-draft" id="tlp-draft">TLP (draft)</a></h2>
@@ -568,6 +567,18 @@ li, p {
 <h1 id="rfc.references"><a href="#rfc.references">7.</a> Normative References</h1>
 <table>
   <tbody>
+    <tr>
+      <td class="reference">
+        <b id="QUIC-TLS">[QUIC-TLS]</b>
+      </td>
+      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner, Ed</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>", November 2016.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="QUIC-TRANSPORT">[QUIC-TRANSPORT]</b>
+      </td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a>QUIC: A UDP-Based Multiplexed and Secure Transport</a>", November 2016.</td>
+    </tr>
     <tr>
       <td class="reference">
         <b id="RFC2119">[RFC2119]</b>

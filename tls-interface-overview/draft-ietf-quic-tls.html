@@ -711,14 +711,15 @@ Get Handshake
 </pre>
 <h3 id="rfc.section.5.2.3"><a href="#rfc.section.5.2.3">5.2.3.</a> <a href="#packet-protection-key-and-iv" id="packet-protection-key-and-iv">Packet Protection Key and IV</a></h3>
 <p id="rfc.section.5.2.3.p.1">The complete key expansion uses an identical process for key expansion as defined in Section 7.3 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>, using different values for the input secret.  QUIC uses the AEAD function negotiated by TLS.</p>
-<p id="rfc.section.5.2.3.p.2">The key and IV used to protect the 0-RTT packets sent by a client use the QUIC 0-RTT secret.  This uses the HKDF-Expand-Label with the PRF hash function negotiated by TLS.  The length of the output is determined by the requirements of the AEAD function selected by TLS.</p>
+<p id="rfc.section.5.2.3.p.2">The packet protection key and IV used to protect the 0-RTT packets sent by a client use the QUIC 0-RTT secret.  This uses the HKDF-Expand-Label with the PRF hash function negotiated by TLS.</p>
+<p id="rfc.section.5.2.3.p.3">The length of the output is determined by the requirements of the AEAD function selected by TLS.  The key length is the AEAD key size.  As defined in Section 5.3 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>, the IV length is the larger of 8 or N_MIN (see Section 4 of <a href="#RFC5116">[RFC5116]</a>).</p>
 <pre>
    client_0rtt_key = HKDF-Expand-Label(client_0rtt_secret,
                                        "key", "", key_length)
    client_0rtt_iv = HKDF-Expand-Label(client_0rtt_secret,
                                       "iv", "", iv_length)
 </pre>
-<p id="rfc.section.5.2.3.p.3">Similarly, the key and IV used to protect 1-RTT packets sent by both client and server use the current packet protection secret.</p>
+<p id="rfc.section.5.2.3.p.4">Similarly, the packet protection key and IV used to protect 1-RTT packets sent by both client and server use the current packet protection secret.</p>
 <pre>
    client_pp_key_&lt;N&gt; = HKDF-Expand-Label(client_pp_secret_&lt;N&gt;,
                                          "key", "", key_length)
@@ -729,13 +730,14 @@ Get Handshake
    server_pp_iv_&lt;N&gt; = HKDF-Expand-Label(server_pp_secret_&lt;N&gt;,
                                         "iv", "", iv_length)
 </pre>
-<p id="rfc.section.5.2.3.p.4">The QUIC record protection initially starts without keying material.  When the TLS state machine reports that the ClientHello has been sent, the 0-RTT keys can be generated and installed for writing.  When the TLS state machine reports completion of the handshake, the 1-RTT keys can be generated and installed for writing.</p>
+<p id="rfc.section.5.2.3.p.5">The client protects (or encrypts) packets with the client packet protection key and IV; the server protects packets with the server packet protection key.</p>
+<p id="rfc.section.5.2.3.p.6">The QUIC record protection initially starts without keying material.  When the TLS state machine reports that the ClientHello has been sent, the 0-RTT keys can be generated and installed for writing.  When the TLS state machine reports completion of the handshake, the 1-RTT keys can be generated and installed for writing.</p>
 <h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#aead" id="aead">QUIC AEAD Usage</a></h2>
 <p id="rfc.section.5.3.p.1">The Authentication Encryption with Associated Data (AEAD) <a href="#RFC5116">[RFC5116]</a> function used for QUIC packet protection is AEAD that is negotiated for use with the TLS connection.  For example, if TLS is using the TLS_AES_128_GCM_SHA256, the AEAD_AES_128_GCM function is used.</p>
 <p id="rfc.section.5.3.p.2">Regular QUIC packets are protected by an AEAD <a href="#RFC5116">[RFC5116]</a>.  Version negotiation and public reset packets are not protected.</p>
 <p id="rfc.section.5.3.p.3">Once TLS has provided a key, the contents of regular QUIC packets immediately after any TLS messages have been sent are protected by the AEAD selected by TLS.</p>
-<p id="rfc.section.5.3.p.4">The key, K, for the AEAD is either the Client Write Key or the Server Write Key, derived as defined in <a href="#key-expansion">Section 5.2</a>.</p>
-<p id="rfc.section.5.3.p.5">The nonce, N, for the AEAD is formed by combining either the Client Write IV or Server Write IV with packet numbers.  The 64 bits of the reconstructed QUIC packet number in network byte order is left-padded with zeros to the N_MAX parameter of the AEAD (see Section 4 of <a href="#RFC5116">[RFC5116]</a>).  The exclusive OR of the padded packet number and the IV forms the AEAD nonce.</p>
+<p id="rfc.section.5.3.p.4">The key, K, for the AEAD is either the client packet protection key (client_pp_key_n) or the server packet protection key (server_pp_key_n), derived as defined in <a href="#key-expansion">Section 5.2</a>.</p>
+<p id="rfc.section.5.3.p.5">The nonce, N, for the AEAD is formed by combining either the packet protection IV (either client_pp_iv_n or server_pp_iv_n) with packet numbers.  The 64 bits of the reconstructed QUIC packet number in network byte order is left-padded with zeros to the size of the IV.  The exclusive OR of the padded packet number and the IV forms the AEAD nonce.</p>
 <p id="rfc.section.5.3.p.6">The associated data, A, for the AEAD is an empty sequence.</p>
 <p id="rfc.section.5.3.p.7">The input plaintext, P, for the AEAD is the contents of the QUIC frame following the packet number, as described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
 <p id="rfc.section.5.3.p.8">The output ciphertext, C, of the AEAD is transmitted in place of P.</p>
@@ -771,7 +773,7 @@ Get Handshake
 <p id="rfc.section.5.5.p.3">The packet number is not reset and it is not permitted to go higher than its maximum value of 2^64-1.  This establishes a hard limit on the number of packets that can be sent.  Before this limit is reached, some AEAD functions have limits for how many packets can be encrypted under the same key and IV (see for example <a href="#AEBounds">[AEBounds]</a>).  An endpoint MUST initiate a key update (<a href="#key-update">Section 5.4</a>) prior to exceeding any limit set for the AEAD that is in use.</p>
 <p id="rfc.section.5.5.p.4">TLS maintains a separate sequence number that is used for record protection on the connection that is hosted on stream 1.  This sequence number is reset according to the rules in the TLS protocol.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#pre-handshake" id="pre-handshake">Pre-handshake QUIC Messages</a></h1>
-<p id="rfc.section.6.p.1">Implementations MUST NOT exchange data on any stream other than stream 1 prior to the completion of the TLS handshake.  However, QUIC requires the use of several types of frame for managing loss detection and recovery.  In addition, it might be useful to use the data acquired during the exchange of unauthenticated messages for congestion management.</p>
+<p id="rfc.section.6.p.1">Implementations MUST NOT exchange data on any stream other than stream 1 without packet protection.  QUIC requires the use of several types of frame for managing loss detection and recovery during this phase.  In addition, it might be useful to use the data acquired during the exchange of unauthenticated messages for congestion control.</p>
 <p id="rfc.section.6.p.2">This section generally only applies to TLS handshake messages from both peers and acknowledgments of the packets carrying those messages.  In many cases, the need for servers to provide acknowledgments is minimal, since the messages that clients send are small and implicitly acknowledged by the server&#8217;s responses.</p>
 <p id="rfc.section.6.p.3">The actions that a peer takes as a result of receiving an unauthenticated packet needs to be limited.  In particular, state established by these packets cannot be retained once record protection commences.</p>
 <p id="rfc.section.6.p.4">There are several approaches possible for dealing with unauthenticated packets prior to handshake completion:</p>
@@ -808,7 +810,7 @@ Get Handshake
 <p id="rfc.section.6.1.3.p.3">Stream 1 is exempt from the connection-level flow control window.</p>
 <h3 id="rfc.section.6.1.4"><a href="#rfc.section.6.1.4">6.1.4.</a> <a href="#denial-of-service-with-unprotected-packets" id="denial-of-service-with-unprotected-packets">Denial of Service with Unprotected Packets</a></h3>
 <p id="rfc.section.6.1.4.p.1">Accepting unprotected - specifically unauthenticated - packets presents a denial of service risk to endpoints.  An attacker that is able to inject unprotected packets can cause a recipient to drop even protected packets with a matching sequence number.  The spurious packet shadows the genuine packet, causing the genuine packet to be ignored as redundant.</p>
-<p id="rfc.section.6.1.4.p.2">Once the TLS handshake is complete, both peers MUST ignore unprotected packets.  The handshake is complete when the server receives a client&#8217;s Finished message and when a client receives an acknowledgement that their Finished message was received.  From that point onward, unprotected messages can be safely dropped.  Note that the client could retransmit its Finished message to the server, so the server cannot reject such a message.</p>
+<p id="rfc.section.6.1.4.p.2">Once the TLS handshake is complete, both peers MUST ignore unprotected packets.  The handshake is complete when the server receives a client&#8217;s Finished message and when a client receives an acknowledgement that their Finished message was received.  From that point onward, unprotected messages can be safely dropped.</p>
 <p id="rfc.section.6.1.4.p.3">Since only TLS handshake packets and acknowledgments are sent in the clear, an attacker is able to force implementations to rely on retransmission for packets that are lost or shadowed.  Thus, an attacker that intends to deny service to an endpoint has to drop or shadow protected packets in order to ensure that their victim continues to accept unprotected packets.  The ability to shadow packets means that an attacker does not need to be on path.</p>
 <p/>
 
@@ -816,7 +818,7 @@ Get Handshake
   <dt>ISSUE:</dt>
   <dd style="margin-left: 8">This would not be an issue if QUIC had a randomized starting sequence number.  If we choose to randomize, we fix this problem and reduce the denial of service exposure to on-path attackers.  The only possible problem is in authenticating the initial value, so that peers can be sure that they haven&#8217;t missed an initial message.</dd>
 </dl>
-<p id="rfc.section.6.1.4.p.5">In addition to denying endpoints messages, an attacker to generate packets that cause no state change in a recipient.  See <a href="#useless">Section 8.2</a> for a discussion of these risks.</p>
+<p id="rfc.section.6.1.4.p.5">In addition to causing valid packets to be dropped, an attacker to generate packets with an intent of causing the recipient to expend processing resources.  See <a href="#useless">Section 8.2</a> for a discussion of these risks.</p>
 <p id="rfc.section.6.1.4.p.6">To avoid receiving TLS packets that contain no useful data, a TLS implementation MUST reject empty TLS handshake records and any record that is not permitted by the TLS state machine.  Any TLS application data or alerts - other than a single end_of_early_data at the appropriate time - that is received prior to the end of the handshake MUST be treated as a fatal error.</p>
 <h2 id="rfc.section.6.2"><a href="#rfc.section.6.2">6.2.</a> <a href="#using-early-data" id="using-early-data">Use of 0-RTT Keys</a></h2>
 <p id="rfc.section.6.2.p.1">If 0-RTT keys are available, the lack of replay protection means that restrictions on their use are necessary to avoid replay attacks on the protocol.</p>

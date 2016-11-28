@@ -872,23 +872,23 @@ Internet-Draft                QUIC over TLS                November 2016
    different values for the input secret.  QUIC uses the AEAD function
    negotiated by TLS.
 
-   The key and IV used to protect the 0-RTT packets sent by a client use
-   the QUIC 0-RTT secret.  This uses the HKDF-Expand-Label with the PRF
-   hash function negotiated by TLS.  The length of the output is
-   determined by the requirements of the AEAD function selected by TLS.
+   The packet protection key and IV used to protect the 0-RTT packets
+   sent by a client use the QUIC 0-RTT secret.  This uses the HKDF-
+   Expand-Label with the PRF hash function negotiated by TLS.
+
+   The length of the output is determined by the requirements of the
+   AEAD function selected by TLS.  The key length is the AEAD key size.
+   As defined in Section 5.3 of [I-D.ietf-tls-tls13], the IV length is
+   the larger of 8 or N_MIN (see Section 4 of [RFC5116]).
 
       client_0rtt_key = HKDF-Expand-Label(client_0rtt_secret,
                                           "key", "", key_length)
       client_0rtt_iv = HKDF-Expand-Label(client_0rtt_secret,
                                          "iv", "", iv_length)
 
-   Similarly, the key and IV used to protect 1-RTT packets sent by both
-   client and server use the current packet protection secret.
-
-
-
-
-
+   Similarly, the packet protection key and IV used to protect 1-RTT
+   packets sent by both client and server use the current packet
+   protection secret.
 
 
 
@@ -906,6 +906,10 @@ Internet-Draft                QUIC over TLS                November 2016
                                             "key", "", key_length)
       server_pp_iv_<N> = HKDF-Expand-Label(server_pp_secret_<N>,
                                            "iv", "", iv_length)
+
+   The client protects (or encrypts) packets with the client packet
+   protection key and IV; the server protects packets with the server
+   packet protection key.
 
    The QUIC record protection initially starts without keying material.
    When the TLS state machine reports that the ClientHello has been
@@ -927,25 +931,21 @@ Internet-Draft                QUIC over TLS                November 2016
    immediately after any TLS messages have been sent are protected by
    the AEAD selected by TLS.
 
-   The key, K, for the AEAD is either the Client Write Key or the Server
-   Write Key, derived as defined in Section 5.2.
+   The key, K, for the AEAD is either the client packet protection key
+   (client_pp_key_n) or the server packet protection key
+   (server_pp_key_n), derived as defined in Section 5.2.
 
-   The nonce, N, for the AEAD is formed by combining either the Client
-   Write IV or Server Write IV with packet numbers.  The 64 bits of the
-   reconstructed QUIC packet number in network byte order is left-padded
-   with zeros to the N_MAX parameter of the AEAD (see Section 4 of
-   [RFC5116]).  The exclusive OR of the padded packet number and the IV
-   forms the AEAD nonce.
+   The nonce, N, for the AEAD is formed by combining either the packet
+   protection IV (either client_pp_iv_n or server_pp_iv_n) with packet
+   numbers.  The 64 bits of the reconstructed QUIC packet number in
+   network byte order is left-padded with zeros to the size of the IV.
+   The exclusive OR of the padded packet number and the IV forms the
+   AEAD nonce.
 
    The associated data, A, for the AEAD is an empty sequence.
 
    The input plaintext, P, for the AEAD is the contents of the QUIC
    frame following the packet number, as described in [QUIC-TRANSPORT].
-
-   The output ciphertext, C, of the AEAD is transmitted in place of P.
-
-   Prior to TLS providing keys, no record protection is performed and
-   the plaintext, P, is transmitted unmodified.
 
 
 
@@ -953,6 +953,11 @@ Thomson & Turner, Ed      Expires June 1, 2017                 [Page 17]
 
 Internet-Draft                QUIC over TLS                November 2016
 
+
+   The output ciphertext, C, of the AEAD is transmitted in place of P.
+
+   Prior to TLS providing keys, no record protection is performed and
+   the plaintext, P, is transmitted unmodified.
 
 5.4.  Key Update
 
@@ -996,11 +1001,6 @@ Internet-Draft                QUIC over TLS                November 2016
    This ensures that once the handshake is complete, there are at most
    two keys to distinguish between at any one time, for which the
    KEY_PHASE bit is sufficient.
-
-
-
-
-
 
 
 
@@ -1069,11 +1069,11 @@ Internet-Draft                QUIC over TLS                November 2016
 6.  Pre-handshake QUIC Messages
 
    Implementations MUST NOT exchange data on any stream other than
-   stream 1 prior to the completion of the TLS handshake.  However, QUIC
-   requires the use of several types of frame for managing loss
-   detection and recovery.  In addition, it might be useful to use the
-   data acquired during the exchange of unauthenticated messages for
-   congestion management.
+   stream 1 without packet protection.  QUIC requires the use of several
+   types of frame for managing loss detection and recovery during this
+   phase.  In addition, it might be useful to use the data acquired
+   during the exchange of unauthenticated messages for congestion
+   control.
 
    This section generally only applies to TLS handshake messages from
    both peers and acknowledgments of the packets carrying those
@@ -1193,9 +1193,7 @@ Internet-Draft                QUIC over TLS                November 2016
    unprotected packets.  The handshake is complete when the server
    receives a client's Finished message and when a client receives an
    acknowledgement that their Finished message was received.  From that
-   point onward, unprotected messages can be safely dropped.  Note that
-   the client could retransmit its Finished message to the server, so
-   the server cannot reject such a message.
+   point onward, unprotected messages can be safely dropped.
 
    Since only TLS handshake packets and acknowledgments are sent in the
    clear, an attacker is able to force implementations to rely on
@@ -1212,9 +1210,10 @@ Internet-Draft                QUIC over TLS                November 2016
       so that peers can be sure that they haven't missed an initial
       message.
 
-   In addition to denying endpoints messages, an attacker to generate
-   packets that cause no state change in a recipient.  See Section 8.2
-   for a discussion of these risks.
+   In addition to causing valid packets to be dropped, an attacker to
+   generate packets with an intent of causing the recipient to expend
+   processing resources.  See Section 8.2 for a discussion of these
+   risks.
 
    To avoid receiving TLS packets that contain no useful data, a TLS
    implementation MUST reject empty TLS handshake records and any record
@@ -1222,6 +1221,7 @@ Internet-Draft                QUIC over TLS                November 2016
    data or alerts - other than a single end_of_early_data at the
    appropriate time - that is received prior to the end of the handshake
    MUST be treated as a fatal error.
+
 
 
 

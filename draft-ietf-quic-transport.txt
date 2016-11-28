@@ -76,7 +76,6 @@ Copyright Notice
 Table of Contents
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
-     1.1.  Notational Conventions  . . . . . . . . . . . . . . . . .   4
    2.  Conventions and Definitions . . . . . . . . . . . . . . . . .   4
    3.  A QUIC Overview . . . . . . . . . . . . . . . . . . . . . . .   4
      3.1.  Low-Latency Version Negotiation . . . . . . . . . . . . .   5
@@ -106,6 +105,7 @@ Table of Contents
      6.2.  ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  20
        6.2.1.  Time Format . . . . . . . . . . . . . . . . . . . . .  23
      6.3.  STOP_WAITING Frame  . . . . . . . . . . . . . . . . . . .  23
+     6.4.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  24
 
 
 
@@ -114,7 +114,6 @@ Iyengar & Thomson         Expires June 1, 2017                  [Page 2]
 Internet-Draft           QUIC Transport Protocol           November 2016
 
 
-     6.4.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  24
      6.5.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  24
      6.6.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  25
      6.7.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  25
@@ -142,14 +141,13 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    10. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .  38
    11. Security and Privacy Considerations . . . . . . . . . . . . .  43
      11.1.  Spoofed Ack Attack . . . . . . . . . . . . . . . . . . .  43
-   12. Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  44
-   13. Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .  44
-   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  44
-   15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  44
-     15.1.  Normative References . . . . . . . . . . . . . . . . . .  44
-     15.2.  Informative References . . . . . . . . . . . . . . . . .  45
+   12. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  44
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  44
+     13.1.  Normative References . . . . . . . . . . . . . . . . . .  44
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  44
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  45
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  46
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  45
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  45
 
 1.  Introduction
 
@@ -162,6 +160,8 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    them, and encrypts most of its headers, limiting protocol evolution
    largely to QUIC endpoints only.
 
+   This document describes the core QUIC protocol, including the
+   conceptual design, wire format, and mechanisms of the QUIC protocol
 
 
 
@@ -170,21 +170,17 @@ Iyengar & Thomson         Expires June 1, 2017                  [Page 3]
 Internet-Draft           QUIC Transport Protocol           November 2016
 
 
-   This document describes the core QUIC protocol, including the
-   conceptual design, wire format, and mechanisms of the QUIC protocol
    for connection establishment, stream multiplexing, stream and
    connection-level flow control, and data reliability.  Accompanying
    documents describe QUIC's loss detection and congestion control
    [QUIC-RECOVERY], and the use of TLS 1.3 for key negotiation
    [QUIC-TLS].
 
-1.1.  Notational Conventions
+2.  Conventions and Definitions
 
    The words "MUST", "MUST NOT", "SHOULD", and "MAY" are used in this
    document.  It's not shouting; when they are capitalized, they have
    the special meaning defined in [RFC2119].
-
-2.  Conventions and Definitions
 
    Definitions of terms that are used in this document:
 
@@ -219,16 +215,16 @@ Internet-Draft           QUIC Transport Protocol           November 2016
 
    o  Authenticated and encrypted header and payload
 
+   o  Rich signaling for congestion control and loss recovery
+
+   o  Stream and connection flow control
+
 
 
 Iyengar & Thomson         Expires June 1, 2017                  [Page 4]
 
 Internet-Draft           QUIC Transport Protocol           November 2016
 
-
-   o  Rich signaling for congestion control and loss recovery
-
-   o  Stream and connection flow control
 
    o  Connection Migration and Resilience to NAT rebinding
 
@@ -273,6 +269,10 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    QUIC ensures that lost packets carrying data for an individual stream
    only impact that specific stream.  Data received on other streams can
    continue to be reassembled and delivered to the application.
+
+
+
+
 
 
 
@@ -2414,57 +2414,17 @@ Internet-Draft           QUIC Transport Protocol           November 2016
    Since the attacker will not have the forward secure key, the attacker
    will not be able to generate forward-secure encrypted ack packets.
 
-12.  Contributors
-
-   The pre-IETF design of QUIC, described in
-   [I-D.hamilton-quic-transport-protocol], laid the foundations of the
-   protocol described in this document.  The authors of
-   [I-D.hamilton-quic-transport-protocol] are thus significant
-   contributors to this document and deserve special mention.
-   Specifically, Ryan Hamilton, Ian Swett, and Alyssa Wilk contributed
-   significantly and directly to this document.
-
-   The design and rationale behind
-   [I-D.hamilton-quic-transport-protocol] draw significantly from work
-   by Jim Roskind [EarlyDesign].  In alphabetical order, the
-   contributors to the pre-IETF QUIC project at Google that led to
-   [I-D.hamilton-quic-transport-protocol] are: Britt Cyr, Jeremy
-   Dorfman, Ryan Hamilton, Jana Iyengar, Fedor Kouranov, Charles Krasic,
-   Jo Kulik, Adam Langley, Jim Roskind, Robbie Shade, Satyam Shekhar,
-   Cherie Shi, Ian Swett, Raman Tenneti, Victor Vasiliev, Antonio
-   Vicente, Patrik Westin, Alyssa Wilk, Dale Worley, Fan Yang, Dan
-   Zhang, Daniel Ziegler.
-
-13.  Acknowledgments
-
-   Special thanks are due to the following for helping shape pre-IETF
-   QUIC and its deployment: Chris Bentzel, Misha Efimov, Roberto Peon,
-   Alistair Riddoch, Siddharth Vijayakrishnan, and Assar Westerlund.
-
-   This document has benefited immensely from various private
-   discussions and public ones on the quic@ietf.org and proto-
-   quic@chromium.org mailing lists.  Our thanks to all.
-
-14.  IANA Considerations
+12.  IANA Considerations
 
    This document has no IANA actions yet.
 
-15.  References
+13.  References
 
-15.1.  Normative References
+13.1.  Normative References
 
    [QUIC-RECOVERY]
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control", November 2016.
-
-
-
-
-
-Iyengar & Thomson         Expires June 1, 2017                 [Page 44]
-
-Internet-Draft           QUIC Transport Protocol           November 2016
-
 
    [QUIC-TLS]
               Thomson, M., Ed. and S. Turner, Ed, Ed., "Using Transport
@@ -2484,17 +2444,11 @@ Internet-Draft           QUIC Transport Protocol           November 2016
               DOI 10.17487/RFC7540, May 2015,
               <http://www.rfc-editor.org/info/rfc7540>.
 
-15.2.  Informative References
+13.2.  Informative References
 
-   [EarlyDesign]
+   [EARLY-DESIGN]
               Roskind, J., "QUIC: Multiplexed Transport Over UDP",
               December 2013, <https://goo.gl/dMVtFi>.
-
-   [I-D.hamilton-quic-transport-protocol]
-              Hamilton, R., Iyengar, J., Swett, I., and A. Wilk, "QUIC:
-              A UDP-Based Multiplexed and Secure Transport", draft-
-              hamilton-quic-transport-protocol-01 (work in progress),
-              October 2016.
 
    [QUIC-HTTP]
               Bishop, M., Ed., "Hypertext Transfer Protocol (HTTP) over
@@ -2504,6 +2458,14 @@ Internet-Draft           QUIC Transport Protocol           November 2016
               Langley, A. and W. Chang, "QUIC Crypto", May 2016,
               <http://goo.gl/OuVSxa>.
 
+
+
+
+Iyengar & Thomson         Expires June 1, 2017                 [Page 44]
+
+Internet-Draft           QUIC Transport Protocol           November 2016
+
+
    [SST]      Ford, B., "Structured Streams: A New Transport
               Abstraction", ACM SIGCOMM 2007 , August 2007.
 
@@ -2512,15 +2474,24 @@ Appendix A.  Contributors
    The original authors of this specification were Ryan Hamilton, Jana
    Iyengar, Ian Swett, and Alyssa Wilk.
 
+   The original design and rationale behind this protocol draw
+   significantly from work by Jim Roskind [EARLY-DESIGN].  In
+   alphabetical order, the contributors to the pre-IETF QUIC project at
+   Google are: Britt Cyr, Jeremy Dorfman, Ryan Hamilton, Jana Iyengar,
+   Fedor Kouranov, Charles Krasic, Jo Kulik, Adam Langley, Jim Roskind,
+   Robbie Shade, Satyam Shekhar, Cherie Shi, Ian Swett, Raman Tenneti,
+   Victor Vasiliev, Antonio Vicente, Patrik Westin, Alyssa Wilk, Dale
+   Worley, Fan Yang, Dan Zhang, Daniel Ziegler.
 
+Appendix B.  Acknowledgments
 
+   Special thanks are due to the following for helping shape pre-IETF
+   QUIC and its deployment: Chris Bentzel, Misha Efimov, Roberto Peon,
+   Alistair Riddoch, Siddharth Vijayakrishnan, and Assar Westerlund.
 
-
-
-Iyengar & Thomson         Expires June 1, 2017                 [Page 45]
-
-Internet-Draft           QUIC Transport Protocol           November 2016
-
+   This document has benefited immensely from various private
+   discussions and public ones on the quic@ietf.org and proto-
+   quic@chromium.org mailing lists.  Our thanks to all.
 
 Authors' Addresses
 
@@ -2546,31 +2517,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson         Expires June 1, 2017                 [Page 46]
+Iyengar & Thomson         Expires June 1, 2017                 [Page 45]

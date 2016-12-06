@@ -4,8 +4,8 @@
 
 QUIC                                                      M. Bishop, Ed.
 Internet-Draft                                                 Microsoft
-Intended status: Standards Track                        December 5, 2016
-Expires: June 8, 2017
+Intended status: Standards Track                        December 6, 2016
+Expires: June 9, 2017
 
 
               Hypertext Transfer Protocol (HTTP) over QUIC
@@ -35,7 +35,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on June 8, 2017.
+   This Internet-Draft will expire on June 9, 2017.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 1]
+Bishop                    Expires June 9, 2017                  [Page 1]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -79,19 +79,19 @@ Table of Contents
      5.2.  Frame Definitions . . . . . . . . . . . . . . . . . . . .   8
        5.2.1.  DATA  . . . . . . . . . . . . . . . . . . . . . . . .   8
        5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .   8
-       5.2.3.  PRIORITY  . . . . . . . . . . . . . . . . . . . . . .  10
+       5.2.3.  PRIORITY  . . . . . . . . . . . . . . . . . . . . . .   9
        5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  10
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  10
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  11
        5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  11
-       5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  11
-       5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  11
+       5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  12
+       5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  12
    6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  12
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
    9.  Normative References  . . . . . . . . . . . . . . . . . . . .  13
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  13
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  13
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  14
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  14
 
 1.  Introduction
 
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 2]
+Bishop                    Expires June 9, 2017                  [Page 2]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -165,7 +165,7 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 3]
+Bishop                    Expires June 9, 2017                  [Page 3]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -184,11 +184,11 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    The lower-numbered stream is called the message control stream and
    carries frames related to the request/response, including HEADERS.
-   All request control streams are exempt from flow control.  The
-   higher-numbered stream is the data stream and carries the request/
-   response body with no additional framing.  Note that a request or
-   response without a body will cause this stream to be half-closed in
-   the corresponding direction without transferring data.
+   All request control streams are exempt from connection-level flow
+   control.  The higher-numbered stream is the data stream and carries
+   the request/response body with no additional framing.  Note that a
+   request or response without a body will cause this stream to be half-
+   closed in the corresponding direction without transferring data.
 
    HTTP does not need to do any separate multiplexing when using QUIC -
    data sent over a QUIC stream always maps to a particular HTTP
@@ -198,8 +198,8 @@ Internet-Draft               HTTP over QUIC                December 2016
 4.1.  Stream 3: Connection Control Stream
 
    Since most connection-level concerns from HTTP/2 will be managed by
-   QUIC, the primary use of Stream 3 will be for SETTINGS frames.
-   Stream 3 is exempt from flow-control.
+   QUIC, the primary use of Stream 3 will be for SETTINGS and PRIORITY
+   frames.  Stream 3 is exempt from connection-level flow-control.
 
 4.2.  HTTP Message Exchanges
 
@@ -221,7 +221,7 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 4]
+Bishop                    Expires June 9, 2017                  [Page 4]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -277,7 +277,7 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 5]
+Bishop                    Expires June 9, 2017                  [Page 5]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -308,18 +308,13 @@ Internet-Draft               HTTP over QUIC                December 2016
    on the dependency tree such as reparenting a subtree are not
    commutative, both sender and receiver must apply them in the same
    order to ensure that both sides have a consistent view of the stream
-   dependency tree.  HTTP specifies priority assignments in PRIORITY
+   dependency tree.  HTTP/2 specifies priority assignments in PRIORITY
    frames and (optionally) in HEADERS frames.  To achieve in-order
-   delivery of HTTP/2 priority changes in HTTP/2-over-QUIC, HTTP/2
-   PRIORITY frames, in addition to HEADERS frames, are also sent on
-   reserved stream 3.  The semantics of the Stream Dependency, Weight, E
-   flag, and (for HEADERS frames) PRIORITY flag are the same as in
-   HTTP/2.
-
-   HEADERS and PRIORITY frames can be delivered out-of-order.  There is
-   (currently) no special handling for this - the receiver should simply
-   assign resources according to the most recent stream priority
-   information that it has received.
+   delivery of priority changes in HTTP-over-QUIC, PRIORITY frames are
+   sent on the connection control stream and the PRIORITY section is
+   removed from the HEADERS frame.  The semantics of the Stream
+   Dependency, Weight, E flag, and (for HEADERS frames) PRIORITY flag
+   are the same as in HTTP/2.
 
    For consistency's sake, all PRIORITY frames MUST refer to the message
    control stream of the dependent request, not the data stream.
@@ -329,17 +324,19 @@ Internet-Draft               HTTP over QUIC                December 2016
    QUIC provides stream and connection level flow control, similar in
    principle to HTTP/2's flow control but with some implementation
    differences.  As flow control is handled by QUIC, the HTTP mapping
+   need not concern itself with maintaining flow control state.  The
+   HTTP mapping MUST NOT send WINDOW_UPDATE frames at the HTTP level.
 
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 6]
+
+
+
+Bishop                    Expires June 9, 2017                  [Page 6]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
-
-   need not concern itself with maintaining flow control state.  The
-   HTTP mapping MUST NOT send WINDOW_UPDATE frames at the HTTP level.
 
 4.5.  Server Push
 
@@ -385,17 +382,17 @@ Internet-Draft               HTTP over QUIC                December 2016
    QUIC implementations.  However, equivalent frames between the two
    mappings are not necessarily identical.
 
+   This section describes HTTP framing in QUIC and highlights
+   differences from HTTP/2 framing.
 
 
 
 
-Bishop                    Expires June 8, 2017                  [Page 7]
+
+Bishop                    Expires June 9, 2017                  [Page 7]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
-
-   This section describes HTTP framing in QUIC and highlights
-   differences from HTTP/2 framing.
 
 5.1.  Frame Layout
 
@@ -424,7 +421,10 @@ Internet-Draft               HTTP over QUIC                December 2016
 5.2.2.  HEADERS
 
    The HEADERS frame (type=0x1) is used to carry part of a header set,
-   compressed using HPACK [RFC7541].
+   compressed using HPACK [RFC7541].  Because HEADERS frames from
+   different streams will be delivered out-of-order and priority-changes
+   are not commutative, the PRIORITY region of HEADERS is not supported.
+   A separate PRIORITY frame MUST be used.
 
    Padding MUST NOT be used.  The flags defined are:
 
@@ -434,46 +434,23 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    Reserved (0x8):  Reserved for HTTP/2 compatibility.
 
-   PRIORITY (0x20):  The Exclusive Flag (E), Stream Dependency, and
-      Weight fields are present.
+   Reserved (0x20):  Reserved for HTTP/2 compatibility.
 
-
-
-
-
-
-
-
-
-Bishop                    Expires June 8, 2017                  [Page 8]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
-       +-+-------------------------------------------------------------+
-       |E|                 Stream Dependency? (31)                     |
-       +-+-------------+-----------------------------------------------+
-       |  Weight? (8)  |
-       +-+-------------+---------------+-------------------------------+
+       +-------------------------------+-------------------------------+
        |       Sequence? (16)          |    Header Block Fragment (*)...
        +-------------------------------+-------------------------------+
 
                            HEADERS frame payload
 
+
+
+
+Bishop                    Expires June 9, 2017                  [Page 8]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    The HEADERS frame payload has the following fields:
-
-   E: A single-bit flag indicating that the stream dependency is
-      exclusive (see [RFC7540] Section 5.3).  This field is only present
-      if the PRIORITY flag is set.
-
-   Stream Dependency:  A 31-bit stream identifier for the stream that
-      this stream depends on (see [RFC7540] Section 5.3).  This field is
-      only present if the PRIORITY flag is set.
-
-   Weight:  An unsigned 8-bit integer representing a priority weight for
-      the stream (see [RFC7540] Section 5.3).  Add one to the value to
-      obtain a weight between 1 and 256.  This field is only present if
-      the PRIORITY flag is set.
 
    Sequence Number:  Present only on the first frame of a header block
       sequence.  This MUST be set to zero on the first header block
@@ -495,20 +472,50 @@ Internet-Draft               HTTP over QUIC                December 2016
    subsequent HPACK frames MUST be held until it arrives, or the
    connection terminated.
 
+5.2.3.  PRIORITY
+
+   The PRIORITY (type=0x02) frame specifies the sender-advised priority
+   of a stream and is substantially different from [RFC7540].  In order
+   to support ordering, it MUST be sent only on the connection control
+   stream.  The format has been modified to accommodate not being sent
+   on-stream and the larger stream ID space of QUIC.
+
+   The flags defined are:
+
+   E (0x01):  Indicates that the stream dependency is exclusive (see
+      [RFC7540] Section 5.3).
+
+       +---------------------------------------------------------------+
+       |                   Prioritized Stream (32)                     |
+       +---------------+-----------------------------------------------+
+       |                    Dependent Stream (32)                      |
+       +---------------+-----------------------------------------------+
+       |   Weight (8)  |
+       +---------------+
+
+                           HEADERS frame payload
+
+   The HEADERS frame payload has the following fields:
 
 
 
 
 
-
-Bishop                    Expires June 8, 2017                  [Page 9]
+Bishop                    Expires June 9, 2017                  [Page 9]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
 
-5.2.3.  PRIORITY
+   Prioritized Stream:  A 32-bit stream identifier for the message
+      control stream whose priority is being updated.
 
-   The PRIORITY (type=0x02) frame is unmodified from [RFC7540] (so far).
+   Stream Dependency:  A 32-bit stream identifier for the stream that
+      this stream depends on (see Section 4.3 and {!RFC7540}}
+      Section 5.3).
+
+   Weight:  An unsigned 8-bit integer representing a priority weight for
+      the stream (see [RFC7540] Section 5.3).  Add one to the value to
+      obtain a weight between 1 and 256.
 
 5.2.4.  RST_STREAM
 
@@ -546,6 +553,15 @@ Internet-Draft               HTTP over QUIC                December 2016
    SETTINGS_INITIAL_WINDOW_SIZE:  QUIC requires both stream and
       connection flow control window sizes to be specified in the
       initial crypto handshake, using the "SFCW" and "CFCW" tags,
+
+
+
+
+Bishop                    Expires June 9, 2017                 [Page 10]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
       respectively.  Specifying SETTINGS_INITIAL_WINDOW_SIZE in the
       SETTINGS frame is an error.
 
@@ -553,14 +569,6 @@ Internet-Draft               HTTP over QUIC                December 2016
       Specifying it in the SETTINGS frame is an error.
 
    SETTINGS_MAX_HEADER_LIST_SIZE  Sent in SETTINGS frame.
-
-
-
-
-Bishop                    Expires June 8, 2017                 [Page 10]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    As with HTTP/2, unknown SETTINGS parameters are tolerated but
    ignored.  SETTINGS parameters are acknowledged by the receiving peer,
@@ -590,15 +598,25 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    Payload:  HPACK-compressed request headers for the promised response.
 
-   TODO:  QUIC stream space may be enlarged; would need to redefine
-      Promised Stream field in this case.
+   TODOs:
 
-   TODO:  No CONTINUATION - HEADERS have EHB; do we need it here?
+   o  QUIC stream space may be enlarged; would need to redefine Promised
+      Stream field in this case.
+
+   o  No CONTINUATION - HEADERS have EHB; do we need it here?
 
 5.2.7.  PING
 
    PING frames do not exist, since QUIC provides equivalent
    functionality.  Frame type 0x6 is reserved.
+
+
+
+
+Bishop                    Expires June 9, 2017                 [Page 11]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
 
 5.2.8.  GOAWAY frame
 
@@ -609,14 +627,6 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    WINDOW_UPDATE frames do not exist, since QUIC provides equivalent
    functionality.  Frame type 0x8 is reserved.
-
-
-
-
-Bishop                    Expires June 8, 2017                 [Page 11]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
 6.  Error Handling
 
@@ -657,22 +667,19 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    HTTP_1_1_REQUIRED (0xd):  ?
 
+
+
+Bishop                    Expires June 9, 2017                 [Page 12]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    TODO: fill in missing error code mappings.
 
 7.  Security Considerations
 
    The security considerations of HTTP over QUIC should be comparable to
    those of HTTP/2.
-
-
-
-
-
-
-Bishop                    Expires June 8, 2017                 [Page 12]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
 8.  IANA Considerations
 
@@ -712,23 +719,23 @@ Internet-Draft               HTTP over QUIC                December 2016
               HTTP/2", RFC 7541, DOI 10.17487/RFC7541, May 2015,
               <http://www.rfc-editor.org/info/rfc7541>.
 
+
+
+
+
+
+
+Bishop                    Expires June 9, 2017                 [Page 13]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
 Appendix A.  Contributors
 
    The original authors of this specification were Robbie Shade and Mike
    Warres.
 
 Author's Address
-
-
-
-
-
-
-
-Bishop                    Expires June 8, 2017                 [Page 13]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    Mike Bishop (editor)
    Microsoft
@@ -774,11 +781,4 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-
-
-
-
-
-
-
-Bishop                    Expires June 8, 2017                 [Page 14]
+Bishop                    Expires June 9, 2017                 [Page 14]

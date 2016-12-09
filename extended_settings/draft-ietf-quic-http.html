@@ -567,7 +567,7 @@ address {
 
 <dl>
   <dt>REQUEST_ACK (0x1):</dt>
-  <dd style="margin-left: 8">When set, bit 0 indicates that this frame contains values which the sender wants to know were understood and applied. For more information, see <a href="#settings-synchronization">Section 5.2.5.2</a>.</dd>
+  <dd style="margin-left: 8">When set, bit 0 indicates that this frame contains values which the sender wants to know were understood and applied. For more information, see <a href="#settings-synchronization">Section 5.2.5.3</a>.</dd>
 </dl>
 <p id="rfc.section.5.2.5.p.8">The payload of a SETTINGS frame consists of zero or more parameters, each consisting of an unsigned 16-bit setting identifier and a length-prefixed binary value.</p>
 <div id="rfc.figure.1"/>
@@ -580,19 +580,21 @@ address {
 +---------------------------------------------------------------+
 </pre>
 <p class="figure">Figure 1: SETTINGS value format</p>
-<p id="rfc.section.5.2.5.p.9">A zero-length content indicates that the setting value is a Boolean given by the B bit. If Length is not zero, the B bit MUST be zero, and MUST be ignored by receivers. The initial value of each setting is &#8220;false.&#8221;</p>
+<p id="rfc.section.5.2.5.p.9">A zero-length content indicates that the setting value is a Boolean given by the B bit. If Length is not zero, the B bit MUST be zero, and MUST be ignored by receivers. The initial value of each setting is &#8220;false&#8221; unless otherwise specified by the definition of the setting.</p>
 <p id="rfc.section.5.2.5.p.10">An implementation MUST ignore the contents for any EXTENDED_SETTINGS identifier it does not understand.</p>
 <p id="rfc.section.5.2.5.p.11">SETTINGS frames always apply to a connection, never a single stream, and MUST only be sent on the connection control stream (Stream 3). If an endpoint receives an SETTINGS frame whose stream identifier field is anything other than 0x0, the endpoint MUST respond with a connection error.</p>
 <p id="rfc.section.5.2.5.p.12">The SETTINGS frame affects connection state. A badly formed or incomplete SETTINGS frame MUST be treated as a connection error (Section 5.4.1) of type PROTOCOL_ERROR.</p>
-<h4 id="rfc.section.5.2.5.1"><a href="#rfc.section.5.2.5.1">5.2.5.1.</a> <a href="#defined-settings-parameters" id="defined-settings-parameters">Defined SETTINGS Parameters</a></h4>
-<p id="rfc.section.5.2.5.1.p.1">Some transport-level options that HTTP/2 specifies via the SETTINGS frame are superseded by QUIC transport parameters in HTTP-over-QUIC. Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:</p>
+<h4 id="rfc.section.5.2.5.1"><a href="#rfc.section.5.2.5.1">5.2.5.1.</a> <a href="#integer-encoding" id="integer-encoding">Integer encoding</a></h4>
+<p id="rfc.section.5.2.5.1.p.1">Settings which are integers are transmitted in network byte order.  Leading zero octets are permitted, but implementations SHOULD use only as many bytes as are needed to represent the value.</p>
+<h4 id="rfc.section.5.2.5.2"><a href="#rfc.section.5.2.5.2">5.2.5.2.</a> <a href="#defined-settings-parameters" id="defined-settings-parameters">Defined SETTINGS Parameters</a></h4>
+<p id="rfc.section.5.2.5.2.p.1">Some transport-level options that HTTP/2 specifies via the SETTINGS frame are superseded by QUIC transport parameters in HTTP-over-QUIC. Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:</p>
 <p/>
 
 <dl>
   <dt>SETTINGS_HEADER_TABLE_SIZE:</dt>
   <dd style="margin-left: 8">An integer with a maximum value of 2^32 - 1.</dd>
   <dt>SETTINGS_ENABLE_PUSH:</dt>
-  <dd style="margin-left: 8">A Boolean</dd>
+  <dd style="margin-left: 8">Transmitted as a Boolean.  The default remains &#8220;true&#8221; as specified in <a href="#RFC7540">[RFC7540]</a>.</dd>
   <dt>SETTINGS_MAX_CONCURRENT_STREAMS:</dt>
   <dd style="margin-left: 8">QUIC requires the maximum number of incoming streams per connection to be specified in the initial crypto handshake, using the &#8220;MSPC&#8221; tag.  Specifying SETTINGS_MAX_CONCURRENT_STREAMS in the SETTINGS frame is an error.</dd>
   <dt>SETTINGS_INITIAL_WINDOW_SIZE:</dt>
@@ -602,16 +604,16 @@ address {
   <dt>SETTINGS_MAX_HEADER_LIST_SIZE:</dt>
   <dd style="margin-left: 8">An integer with a maximium value of 2^32 - 1.</dd>
 </dl>
-<h4 id="rfc.section.5.2.5.2"><a href="#rfc.section.5.2.5.2">5.2.5.2.</a> <a href="#settings-synchronization" id="settings-synchronization">Settings Synchronization</a></h4>
-<p id="rfc.section.5.2.5.2.p.1">Some values in SETTINGS benefit from or require an understanding of when the peer has received and applied the changed parameter values. In order to provide such synchronization timepoints, the recipient of a SETTINGS frame MUST apply the updated parameters as soon as possible upon receipt. The values in the SETTINGS frame MUST be processed in the order they appear, with no other frame processing between values. Unsupported parameters MUST be ignored.</p>
-<p id="rfc.section.5.2.5.2.p.2">Once all values have been processed, if the REQUEST_ACK flag was set, the recipient MUST immediately emit a SETTINGS_ACK frame listing the identifiers whose values were understood and applied. (If none of the values were understood, the SETTINGS_ACK frame will be empty, but MUST still be sent.) Upon receiving an SETTINGS_ACK frame, the sender of the altered parameters can rely on the setting having been applied.</p>
+<h4 id="rfc.section.5.2.5.3"><a href="#rfc.section.5.2.5.3">5.2.5.3.</a> <a href="#settings-synchronization" id="settings-synchronization">Settings Synchronization</a></h4>
+<p id="rfc.section.5.2.5.3.p.1">Some values in SETTINGS benefit from or require an understanding of when the peer has received and applied the changed parameter values. In order to provide such synchronization timepoints, the recipient of a SETTINGS frame MUST apply the updated parameters as soon as possible upon receipt. The values in the SETTINGS frame MUST be processed in the order they appear, with no other frame processing between values. Unsupported parameters MUST be ignored.</p>
+<p id="rfc.section.5.2.5.3.p.2">Once all values have been processed, if the REQUEST_ACK flag was set, the recipient MUST immediately emit a SETTINGS_ACK frame listing the identifiers whose values were understood and applied. (If none of the values were understood, the SETTINGS_ACK frame will be empty, but MUST still be sent.) Upon receiving an SETTINGS_ACK frame, the sender of the altered parameters can rely on the setting having been applied.</p>
 <p/>
 
 <dl>
   <dt>TODO:</dt>
   <dd style="margin-left: 8">The above text was written for HTTP/2 &#8211; QUIC has cross-stream timing issues here that need to be solved.</dd>
 </dl>
-<p id="rfc.section.5.2.5.2.p.4">If the sender of a SETTINGS frame with the REQUEST_ACK flag set does not receive an acknowledgement within a reasonable amount of time, it MAY issue a connection error (<a href="#RFC7540">[RFC7540]</a> Section 5.4.1) of type SETTINGS_TIMEOUT.</p>
+<p id="rfc.section.5.2.5.3.p.4">If the sender of a SETTINGS frame with the REQUEST_ACK flag set does not receive an acknowledgement within a reasonable amount of time, it MAY issue a connection error (<a href="#RFC7540">[RFC7540]</a> Section 5.4.1) of type SETTINGS_TIMEOUT.</p>
 <h3 id="rfc.section.5.2.6"><a href="#rfc.section.5.2.6">5.2.6.</a> <a href="#frame-push-promise" id="frame-push-promise">PUSH_PROMISE</a></h3>
 <p id="rfc.section.5.2.6.p.1">The PUSH_PROMISE frame (type=0x05) is used to carry a request header set from server to client, as in HTTP/2.  It defines no flags.</p>
 <pre>

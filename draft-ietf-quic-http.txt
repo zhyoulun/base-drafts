@@ -4,8 +4,8 @@
 
 QUIC                                                      M. Bishop, Ed.
 Internet-Draft                                                 Microsoft
-Intended status: Standards Track                        December 9, 2016
-Expires: June 12, 2017
+Intended status: Standards Track                       December 10, 2016
+Expires: June 13, 2017
 
 
               Hypertext Transfer Protocol (HTTP) over QUIC
@@ -19,6 +19,16 @@ Abstract
    describes a mapping of HTTP semantics over QUIC.  Specifically, this
    document identifies HTTP/2 features that are subsumed by QUIC, and
    describes how the other features can be implemented atop QUIC.
+
+Note to Readers
+
+   Discussion of this draft takes place on the QUIC working group
+   mailing list (quic@ietf.org), which is archived at
+   https://mailarchive.ietf.org/arch/search/?email_list=quic .
+
+   Working Group information can be found at https://github.com/quicwg ;
+   source code and issues list for this draft can be found at
+   https://github.com/quicwg/base-drafts/labels/http .
 
 Status of This Memo
 
@@ -35,7 +45,18 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on June 12, 2017.
+   This Internet-Draft will expire on June 13, 2017.
+
+
+
+
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 1]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
 
 Copyright Notice
 
@@ -49,30 +70,21 @@ Copyright Notice
    carefully, as they describe your rights and restrictions with respect
    to this document.  Code Components extracted from this document must
    include Simplified BSD License text as described in Section 4.e of
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 1]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
    the Trust Legal Provisions and are provided without warranty as
    described in the Simplified BSD License.
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Notational Conventions  . . . . . . . . . . . . . . . . .   3
    2.  QUIC advertisement  . . . . . . . . . . . . . . . . . . . . .   3
    3.  Connection establishment  . . . . . . . . . . . . . . . . . .   3
-   4.  Stream Mapping and Usage  . . . . . . . . . . . . . . . . . .   3
+   4.  Stream Mapping and Usage  . . . . . . . . . . . . . . . . . .   4
      4.1.  Stream 3: Connection Control Stream . . . . . . . . . . .   4
-     4.2.  HTTP Message Exchanges  . . . . . . . . . . . . . . . . .   4
-       4.2.1.  Header Compression  . . . . . . . . . . . . . . . . .   5
+     4.2.  HTTP Message Exchanges  . . . . . . . . . . . . . . . . .   5
+       4.2.1.  Header Compression  . . . . . . . . . . . . . . . . .   6
      4.3.  Stream Priorities . . . . . . . . . . . . . . . . . . . .   6
-     4.4.  Flow Control  . . . . . . . . . . . . . . . . . . . . . .   6
+     4.4.  Flow Control  . . . . . . . . . . . . . . . . . . . . . .   7
      4.5.  Server Push . . . . . . . . . . . . . . . . . . . . . . .   7
    5.  HTTP Framing Layer  . . . . . . . . . . . . . . . . . . . . .   7
      5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .   8
@@ -83,7 +95,7 @@ Table of Contents
        5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  10
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  10
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  11
-       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  11
+       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  12
        5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  12
        5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  12
        5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  12
@@ -95,6 +107,13 @@ Table of Contents
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  15
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  15
 
+
+
+Bishop                    Expires June 13, 2017                 [Page 2]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
 1.  Introduction
 
    The QUIC transport protocol has several features that are desirable
@@ -104,15 +123,6 @@ Table of Contents
    the existing TCP mapping, HTTP/2.  Specifically, this document
    identifies HTTP/2 features that are subsumed by QUIC, and describes
    how the other features can be implemented atop QUIC.
-
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 2]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    QUIC is described in [QUIC-TRANSPORT].  For a full description of
    HTTP/2, see [RFC7540].
@@ -152,6 +162,14 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    While connection-level options pertaining to the core QUIC protocol
    are set in the initial crypto handshake [QUIC-TLS], HTTP-specific
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 3]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    settings are conveyed in the SETTINGS frame.  After the QUIC
    connection is established, a SETTINGS frame (Section 5.2.5) MUST be
    sent as the initial frame of the HTTP control stream (StreamID 3, see
@@ -162,14 +180,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    A QUIC stream provides reliable in-order delivery of bytes, but makes
    no guarantees about order of delivery with regard to bytes on other
    streams.  On the wire, data is framed into QUIC STREAM frames, but
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 3]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
    this framing is invisible to the HTTP framing layer.  A QUIC receiver
    buffers and orders received STREAM frames, exposing the data
    contained within as a reliable byte stream to the application.
@@ -205,6 +215,17 @@ Internet-Draft               HTTP over QUIC                December 2016
    QUIC, the primary use of Stream 3 will be for SETTINGS and PRIORITY
    frames.  Stream 3 is exempt from connection-level flow-control.
 
+
+
+
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 4]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
 4.2.  HTTP Message Exchanges
 
    A client sends an HTTP request on a new pair of QUIC streams.  A
@@ -217,14 +238,6 @@ Internet-Draft               HTTP over QUIC                December 2016
        control stream containing the message headers of informational
        (1xx) HTTP responses (see [RFC7230], Section 3.2 and [RFC7231],
        Section 6.2),
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 4]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    2.  one header block on the control stream containing the message
        headers (see [RFC7230], Section 3.2),
@@ -262,6 +275,13 @@ Internet-Draft               HTTP over QUIC                December 2016
    RST_STREAM, though clients can always discard responses at their
    discretion for other reasons.
 
+
+
+Bishop                    Expires June 13, 2017                 [Page 5]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
 4.2.1.  Header Compression
 
    HTTP-over-QUIC uses HPACK header compression as described in
@@ -274,14 +294,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    QUIC streams provide in-order delivery of data sent on those streams,
    but there are no guarantees about order of delivery between streams.
    To achieve in-order delivery of HEADERS frames in QUIC, the HPACK-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 5]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
    bearing frames contain a counter which can be used to ensure in-order
    processing.  Data (request/response bodies) which arrive out of order
    are buffered until the corresponding HEADERS arrive.
@@ -317,6 +329,15 @@ Internet-Draft               HTTP over QUIC                December 2016
    delivery of priority changes in HTTP-over-QUIC, PRIORITY frames are
    sent on the connection control stream and the PRIORITY section is
    removed from the HEADERS frame.  The semantics of the Stream
+
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 6]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    Dependency, Weight, E flag, and (for HEADERS frames) PRIORITY flag
    are the same as in HTTP/2.
 
@@ -330,13 +351,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    differences.  As flow control is handled by QUIC, the HTTP mapping
    need not concern itself with maintaining flow control state.  The
    HTTP mapping MUST NOT send WINDOW_UPDATE frames at the HTTP level.
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 6]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
 4.5.  Server Push
 
@@ -373,6 +387,13 @@ Internet-Draft               HTTP over QUIC                December 2016
    (streams 5, 9, etc.) control streams.  Other streams carry data
    payload and are not framed at the HTTP layer.
 
+
+
+Bishop                    Expires June 13, 2017                 [Page 7]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    Frame payloads are largely drawn from [RFC7540].  However, QUIC
    includes some features (e.g. flow control) which are also present in
    HTTP/2.  In these cases, the HTTP mapping need not re-implement them.
@@ -384,15 +405,6 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    This section describes HTTP framing in QUIC and highlights
    differences from HTTP/2 framing.
-
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 7]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
 5.1.  Frame Layout
 
@@ -430,6 +442,14 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    Reserved (0x1):  Reserved for HTTP/2 compatibility.
 
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 8]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    End Header Block (0x4):  This frame concludes a header block.
 
    Reserved (0x8):  Reserved for HTTP/2 compatibility.
@@ -441,14 +461,6 @@ Internet-Draft               HTTP over QUIC                December 2016
        +-------------------------------+-------------------------------+
 
                            HEADERS frame payload
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 8]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    The HEADERS frame payload has the following fields:
 
@@ -485,6 +497,15 @@ Internet-Draft               HTTP over QUIC                December 2016
    E (0x01):  Indicates that the stream dependency is exclusive (see
       [RFC7540] Section 5.3).
 
+
+
+
+
+Bishop                    Expires June 13, 2017                 [Page 9]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
        +---------------------------------------------------------------+
        |                   Prioritized Stream (32)                     |
        +---------------+-----------------------------------------------+
@@ -496,15 +517,6 @@ Internet-Draft               HTTP over QUIC                December 2016
                            HEADERS frame payload
 
    The HEADERS frame payload has the following fields:
-
-
-
-
-
-Bishop                    Expires June 12, 2017                 [Page 9]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    Prioritized Stream:  A 32-bit stream identifier for the message
       control stream whose priority is being updated.
@@ -542,6 +554,14 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    SETTINGS_HEADER_TABLE_SIZE:  Sent in SETTINGS frame.
 
+
+
+
+Bishop                    Expires June 13, 2017                [Page 10]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    SETTINGS_ENABLE_PUSH:  Sent in SETTINGS frame (TBD, currently set
       using QUIC "SPSH" connection option)
 
@@ -553,15 +573,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    SETTINGS_INITIAL_WINDOW_SIZE:  QUIC requires both stream and
       connection flow control window sizes to be specified in the
       initial crypto handshake, using the "SFCW" and "CFCW" tags,
-
-
-
-
-Bishop                    Expires June 12, 2017                [Page 10]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
       respectively.  Specifying SETTINGS_INITIAL_WINDOW_SIZE in the
       SETTINGS frame is an error.
 
@@ -600,6 +611,13 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    TODOs:
 
+
+
+Bishop                    Expires June 13, 2017                [Page 11]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    o  QUIC stream space may be enlarged; would need to redefine Promised
       Stream field in this case.
 
@@ -609,14 +627,6 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    PING frames do not exist, since QUIC provides equivalent
    functionality.  Frame type 0x6 is reserved.
-
-
-
-
-Bishop                    Expires June 12, 2017                [Page 11]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
 5.2.8.  GOAWAY frame
 
@@ -656,6 +666,14 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    FRAME_SIZE_ERROR (0x6)  QUIC_INVALID_FRAME_DATA
 
+
+
+
+Bishop                    Expires June 13, 2017                [Page 12]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
+
    REFUSED_STREAM (0x7):  ?
 
    CANCEL (0x8):  ?
@@ -665,14 +683,6 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    CONNECT_ERROR (0xa):  ? (depends whether we decide to support
       CONNECT)
-
-
-
-
-Bishop                    Expires June 12, 2017                [Page 12]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
 
    ENHANCE_YOUR_CALM (0xb):  ?
 
@@ -715,17 +725,7 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-
-
-
-
-
-
-
-
-
-
-Bishop                    Expires June 12, 2017                [Page 13]
+Bishop                    Expires June 13, 2017                [Page 13]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -781,7 +781,7 @@ Internet-Draft               HTTP over QUIC                December 2016
 
 
 
-Bishop                    Expires June 12, 2017                [Page 14]
+Bishop                    Expires June 13, 2017                [Page 14]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
@@ -837,4 +837,4 @@ Author's Address
 
 
 
-Bishop                    Expires June 12, 2017                [Page 15]
+Bishop                    Expires June 13, 2017                [Page 15]

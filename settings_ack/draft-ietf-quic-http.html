@@ -317,7 +317,7 @@ address {
 
   <meta name="dct.creator" content="Bishop, M., Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-http-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2016-12-13" />
+  <meta name="dct.issued" scheme="ISO8601" content="2016-12-15" />
   <meta name="dct.abstract" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  Specifically, this document identifies HTTP/2 features that are subsumed by QUIC, and describes how the other features can be implemented atop QUIC." />
   <meta name="description" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  Specifically, this document identifies HTTP/2 features that are subsumed by QUIC, and describes how the other features can be implemented atop QUIC." />
 
@@ -338,10 +338,10 @@ address {
 </tr>
 <tr>
   <td class="left">Intended status: Standards Track</td>
-  <td class="right">December 13, 2016</td>
+  <td class="right">December 15, 2016</td>
 </tr>
 <tr>
-  <td class="left">Expires: June 16, 2017</td>
+  <td class="left">Expires: June 18, 2017</td>
   <td class="right"></td>
 </tr>
 
@@ -367,7 +367,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on June 16, 2017.</p>
+<p>This Internet-Draft will expire on June 18, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -436,7 +436,8 @@ address {
 <p id="rfc.section.4.p.2">QUIC reserves Stream 1 for crypto operations (the handshake, crypto config updates). Stream 3 is reserved for sending and receiving HTTP control frames, and is analogous to HTTP/2&#8217;s Stream 0.</p>
 <p id="rfc.section.4.p.3">When HTTP headers and data are sent over QUIC, the QUIC layer handles most of the stream management. An HTTP request/response consumes a pair of streams: This means that the client&#8217;s first request occurs on QUIC streams 5 and 7, the second on stream 9 and 11, and so on. The server&#8217;s first push consumes streams 2 and 4.  This amounts to the second least-significant bit differentiating the two streams in a request.</p>
 <p id="rfc.section.4.p.4">The lower-numbered stream is called the message control stream and carries frames related to the request/response, including HEADERS. All request control streams are exempt from connection-level flow control. The higher-numbered stream is the data stream and carries the request/response body with no additional framing. Note that a request or response without a body will cause this stream to be half-closed in the corresponding direction without transferring data.</p>
-<p id="rfc.section.4.p.5">HTTP does not need to do any separate multiplexing when using QUIC - data sent over a QUIC stream always maps to a particular HTTP transaction. Requests and responses are considered complete when the corresponding QUIC streams are closed in the appropriate direction.</p>
+<p id="rfc.section.4.p.5">Pairs of streams must be utilized sequentially, with no gaps.  The data stream MUST be reserved with the QUIC implementation when the message control stream is opened or reserved, and MUST be closed after transferring the body, or else closed immediately after sending the request headers if there is no body.</p>
+<p id="rfc.section.4.p.6">HTTP does not need to do any separate multiplexing when using QUIC - data sent over a QUIC stream always maps to a particular HTTP transaction. Requests and responses are considered complete when the corresponding QUIC streams are closed in the appropriate direction.</p>
 <h2 id="rfc.section.4.1"><a href="#rfc.section.4.1">4.1.</a> <a href="#stream-3-connection-control-stream" id="stream-3-connection-control-stream">Stream 3: Connection Control Stream</a></h2>
 <p id="rfc.section.4.1.p.1">Since most connection-level concerns from HTTP/2 will be managed by QUIC, the primary use of Stream 3 will be for SETTINGS and PRIORITY frames. Stream 3 is exempt from connection-level flow-control.</p>
 <h2 id="rfc.section.4.2"><a href="#rfc.section.4.2">4.2.</a> <a href="#http-message-exchanges" id="http-message-exchanges">HTTP Message Exchanges</a></h2>
@@ -447,10 +448,10 @@ address {
 <ol>
   <li>for a response only, zero or more header blocks (a sequence of HEADERS frames with End Header Block set on the last) on the control stream containing the message headers of informational (1xx) HTTP responses (see <a href="#RFC7230">[RFC7230]</a>, Section 3.2 and <a href="#RFC7231">[RFC7231]</a>, Section 6.2),</li>
   <li>one header block on the control stream containing the message headers (see <a href="#RFC7230">[RFC7230]</a>, Section 3.2),</li>
-  <li>the payload body (see <a href="#RFC7230">[RFC7230]</a>, Section 3.3), sent on the data stream</li>
+  <li>the payload body (see <a href="#RFC7230">[RFC7230]</a>, Section 3.3), sent on the data stream,</li>
   <li>optionally, one header block on the control stream containing the trailer-part, if present (see <a href="#RFC7230">[RFC7230]</a>, Section 4.1.2).</li>
 </ol>
-<p id="rfc.section.4.2.p.4">If the message does not contain a body, the corresponding data stream MUST still be half-closed without transferring any data. The &#8220;chunked&#8221; transfer encoding defined in Section 4.1 of <a href="#RFC7230">[RFC7230]</a> MUST NOT be used.</p>
+<p id="rfc.section.4.2.p.4">The data stream MUST be half-closed immediately after the transfer of the body.  If the message does not contain a body, the corresponding data stream MUST still be half-closed without transferring any data. The &#8220;chunked&#8221; transfer encoding defined in Section 4.1 of <a href="#RFC7230">[RFC7230]</a> MUST NOT be used.</p>
 <p id="rfc.section.4.2.p.5">Trailing header fields are carried in a header block following the body. Such a header block is a sequence of HEADERS frames with End Header Block set on the last frame. Header blocks after the first but before the end of the stream are invalid. These MUST be decoded to maintain HPACK decoder state, but the resulting output MUST be discarded.</p>
 <p id="rfc.section.4.2.p.6">An HTTP request/response exchange fully consumes a pair of streams. After sending a request, a client closes the streams for sending; after sending a response, the server closes its streams for sending and the QUIC streams are fully closed.</p>
 <p id="rfc.section.4.2.p.7">A server can send a complete response prior to the client sending an entire request if the response does not depend on any portion of the request that has not been sent and received. When this is true, a server MAY request that the client abort transmission of a request without error by sending a RST_STREAM with an error code of NO_ERROR after sending a complete response and closing its stream. Clients MUST NOT discard responses as a result of receiving such a RST_STREAM, though clients can always discard responses at their discretion for other reasons.</p>
@@ -671,11 +672,11 @@ address {
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                      Highest Local Stream (32)                |
+   |                   Highest Local Stream (32)                   |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                      Highest Remote Stream (32)               |
+   |                   Highest Remote Stream (32)                  |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    Recognized Identifiers (*)               ...
+   |                  Unrecognized Identifiers (*)               ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 2: SETTINGS_ACK connection control stream format</p>
@@ -686,8 +687,8 @@ address {
   <dd style="margin-left: 8">The highest locally-initiated Stream ID which is not in the &#8220;idle&#8221; state</dd>
   <dt>Highest Remote Stream (32 bits):</dt>
   <dd style="margin-left: 8">The highest peer-initiated Stream ID which is not in the &#8220;idle&#8221; state</dd>
-  <dt>Recognized Identifiers:</dt>
-  <dd style="margin-left: 8">A list of 16-bit SETTINGS identifiers which the sender has understood and applied. This list MAY be empty.</dd>
+  <dt>Unrecognized Identifiers:</dt>
+  <dd style="margin-left: 8">A list of 16-bit SETTINGS identifiers which the sender has not understood and therefore ignored. This list MAY be empty.</dd>
 </dl>
 <p id="rfc.section.5.2.11.p.4">On message control streams, the SETTINGS_ACK frame carries no payload, and is strictly a synchronization marker for settings application.  See <a href="#settings-synchronization">Section 5.2.5.3</a> for more detail.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#errors" id="errors">Error Handling</a></h1>

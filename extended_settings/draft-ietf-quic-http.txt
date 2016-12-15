@@ -96,12 +96,12 @@ Table of Contents
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  10
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  14
        5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  14
-       5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  14
+       5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  15
        5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  15
        5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  15
        5.2.11. SETTINGS_ACK Frame  . . . . . . . . . . . . . . . . .  15
    6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  16
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  16
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  17
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
      8.1.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  17
      8.2.  New Frame Types . . . . . . . . . . . . . . . . . . . . .  18
@@ -691,12 +691,11 @@ Internet-Draft               HTTP over QUIC                December 2016
    between values.  Unsupported parameters MUST be ignored.
 
    Once all values have been processed, if the REQUEST_ACK flag was set,
-   the recipient MUST immediately emit the following:
+   the recipient MUST emit the following frames:
 
-   o  On the connection control stream, a SETTINGS_ACK frame listing the
-      identifiers whose values were understood and applied.  (If none of
-      the values were understood, the SETTINGS_ACK frame will be empty,
-      but MUST still be sent.)
+   o  On the connection control stream, a SETTINGS_ACK frame
+      (Section 5.2.11) listing the identifiers whose values were not
+      understood.
 
    o  On each request control stream which is not in the "half-closed
       (local)" or "closed" state, an empty SETTINGS_ACK frame.
@@ -706,11 +705,12 @@ Internet-Draft               HTTP over QUIC                December 2016
    was received.  All streams with higher numbers can safely be assumed
    to have the new settings in effect when they open.
 
-   For already-open streams, the empty SETTINGS_ACK frame indicates the
-   point at which the new settings took effect, if they did so before
-   the peer half-closed the stream.  If the peer closed the stream
-   before receiving the SETTINGS frame, the previous settings were in
-   effect for the full lifetime of that stream.
+   For already-open streams including the connection control stream, the
+   SETTINGS_ACK frame indicates the point at which the new settings took
+   effect, if they did so before the peer half-closed the stream.  If
+   the peer closed the stream before receiving the SETTINGS frame, the
+   previous settings were in effect for the full lifetime of that
+   stream.
 
    In certain conditions, the SETTINGS_ACK frame can be the first frame
    on a given stream - this simply indicates that the new settings apply
@@ -719,9 +719,9 @@ Internet-Draft               HTTP over QUIC                December 2016
    If the sender of a SETTINGS frame with the REQUEST_ACK flag set does
    not receive full acknowledgement within a reasonable amount of time,
    it MAY issue a connection error ([RFC7540] Section 5.4.1) of type
-   SETTINGS_TIMEOUT.  A full acknowledgement has occurred when a
-   SETTINGS_ACK frame has been received on the connection control
-   stream, and all message control streams with a Stream ID through
+   SETTINGS_TIMEOUT.  A full acknowledgement has occurred when:
+
+   o  All previous SETTINGS frames have been fully acknowledged,
 
 
 
@@ -730,8 +730,12 @@ Bishop                    Expires June 18, 2017                [Page 13]
 Internet-Draft               HTTP over QUIC                December 2016
 
 
-   those given in the SETTINGS_ACK frame have either closed or had a
-   SETTINGS_ACK frame sent.
+   o  A SETTINGS_ACK frame has been received on the connection control
+      stream,
+
+   o  All message control streams with a Stream ID through those given
+      in the SETTINGS_ACK frame have either closed or received a
+      SETTINGS_ACK frame.
 
 5.2.6.  PUSH_PROMISE
 
@@ -771,10 +775,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    PING frames do not exist, since QUIC provides equivalent
    functionality.  Frame type 0x6 is reserved.
 
-5.2.8.  GOAWAY frame
-
-   GOAWAY frames do not exist, since QUIC provides equivalent
-   functionality.  Frame type 0x7 is reserved.
 
 
 
@@ -785,6 +785,11 @@ Bishop                    Expires June 18, 2017                [Page 14]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
+
+5.2.8.  GOAWAY frame
+
+   GOAWAY frames do not exist, since QUIC provides equivalent
+   functionality.  Frame type 0x7 is reserved.
 
 5.2.9.  WINDOW_UPDATE frame
 
@@ -830,17 +835,16 @@ Internet-Draft               HTTP over QUIC                December 2016
       which the sender has not understood and therefore ignored.  This
       list MAY be empty.
 
-   On message control streams, the SETTINGS_ACK frame carries no
-   payload, and is strictly a synchronization marker for settings
-   application.  See Section 5.2.5.3 for more detail.
-
-
 
 
 Bishop                    Expires June 18, 2017                [Page 15]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
+
+   On message control streams, the SETTINGS_ACK frame carries no
+   payload, and is strictly a synchronization marker for settings
+   application.  See Section 5.2.5.3 for more detail.
 
 6.  Error Handling
 
@@ -883,10 +887,6 @@ Internet-Draft               HTTP over QUIC                December 2016
 
    TODO: fill in missing error code mappings.
 
-7.  Security Considerations
-
-   The security considerations of HTTP over QUIC should be comparable to
-   those of HTTP/2.
 
 
 
@@ -897,6 +897,11 @@ Bishop                    Expires June 18, 2017                [Page 16]
 
 Internet-Draft               HTTP over QUIC                December 2016
 
+
+7.  Security Considerations
+
+   The security considerations of HTTP over QUIC should be comparable to
+   those of HTTP/2.
 
 8.  IANA Considerations
 
@@ -918,6 +923,36 @@ Internet-Draft               HTTP over QUIC                December 2016
       QUIC is defined; required if the frame is supported over QUIC.
 
    Values for existing registrations are assigned by this document:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bishop                    Expires June 18, 2017                [Page 17]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
 
    +---+---------------+---------------------+-------------------------+
    |   |   Frame Type  | Supported Protocols | HTTP/QUIC Specification |
@@ -946,14 +981,6 @@ Internet-Draft               HTTP over QUIC                December 2016
    The "Specification" column is renamed to "HTTP/2 specification" and
    is only required if the frame is supported over HTTP/2.
 
-
-
-
-Bishop                    Expires June 18, 2017                [Page 17]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
 8.2.  New Frame Types
 
    This document adds one new entry to the "HTTP/2 Frame Type" registry
@@ -974,6 +1001,14 @@ Internet-Draft               HTTP over QUIC                December 2016
    [QUIC-TLS]
               Thomson, M., Ed. and S. Turner, Ed, Ed., "Using Transport
               Layer Security (TLS) to Secure QUIC".
+
+
+
+
+Bishop                    Expires June 18, 2017                [Page 18]
+
+Internet-Draft               HTTP over QUIC                December 2016
+
 
    [QUIC-TRANSPORT]
               Iyengar, J., Ed. and M. Thomson, Ed., "QUIC: A UDP-Based
@@ -1003,13 +1038,6 @@ Internet-Draft               HTTP over QUIC                December 2016
               HTTP/2", RFC 7541, DOI 10.17487/RFC7541, May 2015,
               <http://www.rfc-editor.org/info/rfc7541>.
 
-
-
-Bishop                    Expires June 18, 2017                [Page 18]
-
-Internet-Draft               HTTP over QUIC                December 2016
-
-
 Appendix A.  Contributors
 
    The original authors of this specification were Robbie Shade and Mike
@@ -1021,34 +1049,6 @@ Author's Address
    Microsoft
 
    Email: Mike.Bishop@microsoft.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

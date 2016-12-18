@@ -332,7 +332,7 @@ address {
 
   <meta name="dct.creator" content="Thomson, M., Ed. and S. Turner, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-tls-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2016-12-17" />
+  <meta name="dct.issued" scheme="ISO8601" content="2016-12-18" />
   <meta name="dct.abstract" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
   <meta name="description" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
 
@@ -356,12 +356,12 @@ address {
   <td class="right">S. Turner, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: June 20, 2017</td>
+  <td class="left">Expires: June 21, 2017</td>
   <td class="right">sn3rd</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">December 17, 2016</td>
+  <td class="right">December 18, 2016</td>
 </tr>
 
     	
@@ -386,7 +386,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on June 20, 2017.</p>
+<p>This Internet-Draft will expire on June 21, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -508,8 +508,7 @@ address {
     Client                                             Server
 
     ClientHello
-   (0-RTT Application Data)
-   (end_of_early_data)        --------&gt;
+   (0-RTT Application Data)  --------&gt;
                                                   ServerHello
                                          {EncryptedExtensions}
                                          {ServerConfiguration}
@@ -517,6 +516,7 @@ address {
                                            {CertificateVerify}
                                                     {Finished}
                              &lt;--------      [Application Data]
+   (EndOfEarlyData)
    {Finished}                --------&gt;
 
    [Application Data]        &lt;-------&gt;      [Application Data]
@@ -560,7 +560,7 @@ address {
                                            QUIC Frames &lt;any&gt; @1
                             &lt;--------
 @1 QUIC STREAM Frame(s) &lt;1&gt;:
-     (end_of_early_data)
+     (EndOfEarlyData)
      {Finished}
                             --------&gt;
 
@@ -728,7 +728,7 @@ Get Handshake
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#cleartext-hs" id="cleartext-hs">Packet Protection for the TLS Handshake</a></h2>
 <p id="rfc.section.6.1.p.1">The initial exchange of packets are sent without protection.  These packets are marked with a KEY_PHASE of 0.</p>
 <p id="rfc.section.6.1.p.2">TLS handshake messages that are critical to the TLS key exchange cannot be protected using QUIC packet protection.  A KEY_PHASE of 0 is used for all of these packets, even during retransmission.  The messages critical to key exchange are the TLS ClientHello and any TLS handshake message from the server, except those that are sent after the handshake completes, such as NewSessionTicket.</p>
-<p id="rfc.section.6.1.p.3">The second flight of TLS handshake messages from the client, and any TLS handshake messages that are sent after completing the TLS handshake do not need special packet protection rules.  This includes the end_of_early_data alert that is sent by a client to mark the end of its 0-RTT data.  Packets containing these messages use the packet protection keys that are current at the time of sending (or retransmission).</p>
+<p id="rfc.section.6.1.p.3">The second flight of TLS handshake messages from the client, and any TLS handshake messages that are sent after completing the TLS handshake do not need special packet protection rules.  This includes the EndOfEarlyData message that is sent by a client to mark the end of its 0-RTT data.  Packets containing these messages use the packet protection keys that are current at the time of sending (or retransmission).</p>
 <p id="rfc.section.6.1.p.4">Like the client, a server MUST send retransmissions of its unprotected handshake messages or acknowledgments for unprotected handshake messages sent by the client in unprotected packets (KEY_PHASE=0).</p>
 <h3 id="rfc.section.6.1.1"><a href="#rfc.section.6.1.1">6.1.1.</a> <a href="#first-keys" id="first-keys">Initial Key Transitions</a></h3>
 <p id="rfc.section.6.1.1.p.1">Once the TLS key exchange is complete, keying material is exported from TLS and QUIC packet protection commences.</p>
@@ -837,13 +837,12 @@ Get Handshake
   <dd style="margin-left: 8">This would not be an issue if QUIC had a randomized starting sequence number.  If we choose to randomize, we fix this problem and reduce the denial of service exposure to on-path attackers.  The only possible problem is in authenticating the initial value, so that peers can be sure that they haven&#8217;t missed an initial message.</dd>
 </dl>
 <p id="rfc.section.7.1.4.p.5">In addition to causing valid packets to be dropped, an attacker can generate packets with an intent of causing the recipient to expend processing resources.  See <a href="#useless">Section 9.2</a> for a discussion of these risks.</p>
-<p id="rfc.section.7.1.4.p.6">To avoid receiving TLS packets that contain no useful data, a TLS implementation MUST reject empty TLS handshake records and any record that is not permitted by the TLS state machine.  Any TLS application data or alerts - other than a single end_of_early_data at the appropriate time - that is received prior to the end of the handshake MUST be treated as a fatal error.</p>
+<p id="rfc.section.7.1.4.p.6">To avoid receiving TLS packets that contain no useful data, a TLS implementation MUST reject empty TLS handshake records and any record that is not permitted by the TLS state machine.  Any TLS application data or alerts that is received prior to the end of the handshake MUST be treated as a fatal error.</p>
 <h2 id="rfc.section.7.2"><a href="#rfc.section.7.2">7.2.</a> <a href="#using-early-data" id="using-early-data">Use of 0-RTT Keys</a></h2>
 <p id="rfc.section.7.2.p.1">If 0-RTT keys are available, the lack of replay protection means that restrictions on their use are necessary to avoid replay attacks on the protocol.</p>
 <p id="rfc.section.7.2.p.2">A client MUST only use 0-RTT keys to protect data that is idempotent.  A client MAY wish to apply additional restrictions on what data it sends prior to the completion of the TLS handshake.  A client otherwise treats 0-RTT keys as equivalent to 1-RTT keys.</p>
 <p id="rfc.section.7.2.p.3">A client that receives an indication that its 0-RTT data has been accepted by a server can send 0-RTT data until it receives all of the server&#8217;s handshake messages.  A client SHOULD stop sending 0-RTT data if it receives an indication that 0-RTT data has been rejected.</p>
-<p id="rfc.section.7.2.p.4">A client SHOULD send its end_of_early_data alert only after it has received all of the server&#8217;s handshake messages.  In other words, a client is encouraged to use 0-RTT keys until 1-RTT keys become available.  This prevents stalling of the connection when there is packet loss or delay and allows the client to send continuously.</p>
-<p id="rfc.section.7.2.p.5">A server MUST NOT use 0-RTT keys to protect packets.</p>
+<p id="rfc.section.7.2.p.4">A server MUST NOT use 0-RTT keys to protect packets.</p>
 <h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3.</a> <a href="#pre-handshake-protected" id="pre-handshake-protected">Protected Packets Prior to Handshake Completion</a></h2>
 <p id="rfc.section.7.3.p.1">Due to reordering and loss, protected packets might be received by an endpoint before the final handshake messages are received.  If these can be decrypted successfully, such packets MAY be stored and used once the handshake is complete.</p>
 <p id="rfc.section.7.3.p.2">Unless expressly permitted below, encrypted packets MUST NOT be used prior to completing the TLS handshake, in particular the receipt of a valid Finished message and any authentication of the peer.  If packets are processed prior to completion of the handshake, an attacker might use the willingness of an implementation to use these packets to mount attacks.</p>

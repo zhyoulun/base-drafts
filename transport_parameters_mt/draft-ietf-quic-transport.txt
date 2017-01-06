@@ -380,9 +380,9 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    We first describe QUIC's packet types and their formats, since some
    are referenced in subsequent mechanisms.
 
-   All values specified in this document are in big-endian format and
-   all field sizes are in bits.  When discussing individual bits of
-   fields, the least significant bit is referred to as bit 0.
+   All numeric values are encoded in network byte order (that is, big-
+   endian) and all field sizes are in bits.  When discussing individual
+   bits of fields, the least significant bit is referred to as bit 0.
    Hexadecimal notation is used for describing the value of fields.
 
 
@@ -537,9 +537,8 @@ Check the flags in the common header
    is not associated with an existing connection, packets without a
    VERSION bit MUST be discarded.
 
-   While there might be similarities between different versions of this
-   protocol, implementations have to assume that a version that it does
-   not support uses a different packet format.
+   Implementations have to assume that a version that it does not
+   support uses a different packet format.
 
    Between different versions the following things are guaranteed to
    remain constant:
@@ -554,6 +553,7 @@ Check the flags in the common header
 
    All other values MUST be ignored when processing a packet that
    contains an unsupported version.
+
 
 
 
@@ -809,7 +809,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    A QUIC connection begins with a client sending a handshake packet.
    Until the cryptographic handshake (Section 5.2) produces 1-RTT keys,
    packets sent by a client MUST include the version in the packet
-   header.  This allows the server to identify early packets and to
+   header.  This allows the server to identify 0-RTT packets and to
    enable version negotiation.
 
    When the server receives a packet from a client with the VERSION flag
@@ -822,7 +822,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    MUST send a version negotiation packet for every packet that it
    receives with an unacceptable version.
 
-   If the packet contains a version that is acceptable to the server,
+   If the version selected by the client is acceptable to the server,
    the server proceeds with the handshake (Section 5.2).  All subsequent
    packets sent by the server MUST have the VERSION flag unset.  This
    commits the server to the version that the client selected.
@@ -990,17 +990,17 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 5.3.2.  Values of Transport Parameters for 0-RTT
 
-   Transport parameters from the server are remembered by the client for
-   0-RTT connections.  If values change as a result of completing the
-   handshake, the client is expected to respect the new values.  This
-   introduces some potential problems, particularly with respect to
-   transport parameters that establish limits:
+   Optional transport parameters from the server MUST be reset to
+   default values by the client for 0-RTT connections.
 
-   o  A client might exceed a newly declared connection or stream flow
-      control limit with 0-RTT data.  If this occurs, the client ceases
-      transmission as though the flow control limit was reached.  Once
-      WINDOW_UPDATE frames indicating an increase to the affected flow
-      control offsets is received, the client can recommence sending.
+   The mandatory transport parameters for stream and connection flow
+   control and concurrent stream limits MUST be remembered by the
+   client.  The idle timeout value is not expected to be relevant for
+   the short time that it takes to obtain 1-RTT keys.
+
+   Transport parameter values could change as a result of completing the
+   handshake.  The client MUST respect the new values when the handshake
+   completes.  This introduces some potential problems:
 
 
 
@@ -1010,6 +1010,12 @@ Iyengar & Thomson         Expires July 10, 2017                [Page 18]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
+   o  A client might exceed a newly declared connection or stream flow
+      control limit with 0-RTT data.  If this occurs, the client ceases
+      transmission as though the flow control limit was reached.  Once
+      WINDOW_UPDATE frames indicating an increase to the affected flow
+      control offsets is received, the client can recommence sending.
+
    o  Similarly, a client might exceed the concurrent stream limit
       declared by the server.  A client MUST reset any streams that
       exceed this connection.  A server MAY reset these streams.
@@ -1017,20 +1023,15 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    A client cannot use or rely upon any other transport parameter that
    was enabled in a previous connection.  This includes those defined in
    this document.  A client MUST assume that the transport parameter was
-   absent, unless the definition of a transport parameter provides
+   absent unless the definition of a transport parameter provides
    explicit rules for use of the option in 0-RTT.
 
 5.3.3.  New Transport Parameters
 
+   New transport parameters can be used to by endpoints to advertise new
+   capabilities.  This can be used to negotiate new protocol behavior.
    An endpoint MUST ignore transport parameters that it does not
    support.
-
-   The definition of new transport parameters can be used to negotiate
-   new protocol behavior.  Endpoints that support features that deviate
-   from this specification MUST assume that a peer will operate as
-   described in this document unless it provides an explicit signal of
-   support.  A new transport parameter could be used to provide this
-   signal.
 
    New transport parameters can be registered according to the rules in
    Section 12.1.
@@ -1057,7 +1058,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    o  The initial_version is the version that the client initially
       attempted to use.  If the server did not send a version
-
 
 
 

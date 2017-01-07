@@ -5,8 +5,8 @@
 QUIC                                                     J. Iyengar, Ed.
 Internet-Draft                                                    Google
 Intended status: Standards Track                         M. Thomson, Ed.
-Expires: July 7, 2017                                            Mozilla
-                                                         January 3, 2017
+Expires: July 11, 2017                                           Mozilla
+                                                         January 7, 2017
 
 
            QUIC: A UDP-Based Multiplexed and Secure Transport
@@ -53,7 +53,7 @@ Status of This Memo
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 1]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 1]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -63,7 +63,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on July 7, 2017.
+   This Internet-Draft will expire on July 11, 2017.
 
 Copyright Notice
 
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 2]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 2]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -165,7 +165,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 3]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 3]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -221,7 +221,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 4]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 4]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -277,7 +277,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 5]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 5]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -333,7 +333,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 6]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 6]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -389,7 +389,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                  [Page 7]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 7]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -397,9 +397,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 4.  Packet Types and Formats
 
    We first describe QUIC's packet types and their formats, since some
-   are referenced in subsequent mechanisms.  Note that unless otherwise
-   noted, all values specified in this document are in little-endian
-   format and all field sizes are in bits.
+   are referenced in subsequent mechanisms.
+
+   All numeric values are encoded in network byte order (that is, big-
+   endian) and all field sizes are in bits.  When discussing individual
+   bits of fields, the least significant bit is referred to as bit 0.
+   Hexadecimal notation is used for describing the value of fields.
 
 4.1.  Common Header
 
@@ -414,7 +417,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    +                     [Connection ID (64)]                      +
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                          Payload (*)                        ...
+   |                   Type-Dependent Fields (*)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
    The fields in the Common Header are the following:
@@ -439,16 +442,16 @@ Internet-Draft           QUIC Transport Protocol            January 2017
          in the packet.  This must be set in all packets until
          negotiated to a different value for a given direction.  For
          instance, if a client indicates that the 5-tuple fully
-         identifies the connection at the client, the connection ID is
-         optional in the server-to-client direction.
 
 
 
-
-Iyengar & Thomson         Expires July 7, 2017                  [Page 8]
+Iyengar & Thomson         Expires July 11, 2017                 [Page 8]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
+
+         identifies the connection at the client, the connection ID is
+         optional in the server-to-client direction.
 
       *  0x30 = PACKET_NUMBER_SIZE.  These two bits indicate the number
          of low-order-bytes of the packet number that are present in
@@ -476,6 +479,33 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    Public Reset packets.  The flowchart below shows how a packet is
    classified into one of these three packet types:
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson         Expires July 11, 2017                 [Page 9]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
 Check the flags in the common header
                  |
                  |
@@ -499,16 +529,10 @@ Check the flags in the common header
 
                       Figure 1: Types of QUIC Packets
 
-
-
-Iyengar & Thomson         Expires July 7, 2017                  [Page 9]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
 4.2.  Regular Packets
 
-   Each Regular packet's payload consists of fields shown below:
+   Each Regular packet contains additional header fields followed by an
+   encrypted payload, as shown below:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -517,7 +541,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                  Packet Number (8/16/32/48)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        {AEAD Data (*)}                      ...
+   |                    {Encrypted Payload (*)}                  ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                          Figure 2: Regular Packet
@@ -530,37 +554,27 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       direction, and if the VERSION flag is set.  Version Negotiation is
       described in Section 5.1.
 
+
+
+
+Iyengar & Thomson         Expires July 11, 2017                [Page 10]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
    o  Packet Number: The lower 8, 16, 32, or 48 bits of the packet
       number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet
       is assigned a packet number by the sender.  The first packet sent
       by an endpoint MUST have a packet number of 1.
 
-   o  AEAD Data: A Regular packet's Common Header and fields are
-      authenticated, but not encrypted.  The rest of a Regular packet,
-      starting with the first frame, is both authenticated and
-      encrypted.  Immediately following the header, Regular packets
-      contain AEAD (Authenticated Encryption with Associated Data) data.
-      After decryption, the plaintext consists of a sequence of frames,
-      as shown below (frames are described in Section 4.2.2).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson         Expires July 7, 2017                 [Page 10]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
+   o  Encrypted Payload: A Regular packet's header fields, including the
+      Common Header, are authenticated, but not encrypted.  The rest of
+      a Regular packet, starting with the first frame, is both
+      authenticated and encrypted.  Immediately following the header,
+      Regular packets contain AEAD (Authenticated Encryption with
+      Associated Data) data.  After decryption, the plaintext consists
+      of a sequence of frames, as shown below (frames are described in
+      Section 4.2.2).
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -574,7 +588,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    |                          Frame N (*)                        ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-                      Figure 3: Contents of AEAD Data
+                  Figure 3: Contents of Encrypted Payload
 
 4.2.1.  Packet Number Compression and Reconstruction
 
@@ -596,6 +610,14 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    o  If a sender sets PACKET_NUMBER_SIZE bits to 11, it MUST NOT have
       more than (2^46) packets in flight.
 
+
+
+
+Iyengar & Thomson         Expires July 11, 2017                [Page 11]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
    o  If a sender sets PACKET_NUMBER_SIZE bits to 10, it MUST NOT have
       more than (2^30) packets in flight.
 
@@ -610,14 +632,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       should the receiver drop packets that are received outside this
       window?
 
-
-
-
-Iyengar & Thomson         Expires July 7, 2017                 [Page 11]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
       Any truncated packet number received from a peer MUST be
       reconstructed as the value closest to the next expected packet
       number from that peer.
@@ -630,12 +644,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    multiple frames and multiple frame types.  Frames MUST fit within a
    single QUIC packet and MUST NOT span a QUIC packet boundary.  Each
    frame begins with a Frame Type byte, indicating its type, followed by
-   a type-dependent payload:
+   additional type-dependent fields:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |   Type (8)    |                  Payload (*)                ...
+   |   Type (8)    |           Type-Dependent Fields (*)         ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                       Figure 4: Generic Frame Layout
@@ -655,21 +669,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson         Expires July 7, 2017                 [Page 12]
+Iyengar & Thomson         Expires July 11, 2017                [Page 12]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -702,7 +702,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    A Version Negotiation packet is only sent by the server, MUST have
    the VERSION flag set, and MUST include the full 64-bit Connection ID.
-   The payload of the Version Negotiation packet is a list of 32-bit
+   The remainder of the Version Negotiation packet is a list of 32-bit
    versions which the server supports, as shown below.
 
     0                   1                   2                   3
@@ -725,7 +725,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 13]
+Iyengar & Thomson         Expires July 11, 2017                [Page 13]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -733,13 +733,13 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 4.4.  Public Reset Packet
 
    A Public Reset packet MUST have the PUBLIC_RESET flag set, and MUST
-   include the full 64-bit connection ID.  The payload of the Public
+   include the full 64-bit connection ID.  The content of the Public
    Reset packet is TBD.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    Public Reset Payload (*)                 ...
+   |                    Public Reset Fields (*)                  ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                        Figure 6: Public Reset Packet
@@ -781,7 +781,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 14]
+Iyengar & Thomson         Expires July 11, 2017                [Page 14]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -837,7 +837,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 15]
+Iyengar & Thomson         Expires July 11, 2017                [Page 15]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -866,7 +866,8 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    o  MSPC: Maximum number of incoming streams per connection.
 
-   o  ICSL: ?
+   o  ICSL: Idle timeout in seconds.  The maximum value is 600 seconds
+      (10 minutes).
 
 5.2.1.3.  Optional Transport Parameters
 
@@ -892,8 +893,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-
-Iyengar & Thomson         Expires July 7, 2017                 [Page 16]
+Iyengar & Thomson         Expires July 11, 2017                [Page 16]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -949,7 +949,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 17]
+Iyengar & Thomson         Expires July 11, 2017                [Page 17]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1005,7 +1005,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 18]
+Iyengar & Thomson         Expires July 11, 2017                [Page 18]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1061,7 +1061,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 19]
+Iyengar & Thomson         Expires July 11, 2017                [Page 19]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1117,12 +1117,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 20]
+Iyengar & Thomson         Expires July 11, 2017                [Page 20]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-   The STREAM frame payload contains the following fields:
+   The STREAM frame contains the following fields:
 
    o  Stream ID: A variable-sized unsigned ID unique to this stream,
       whose size is determined by the "SS" bits in the type byte.
@@ -1173,7 +1173,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 21]
+Iyengar & Thomson         Expires July 11, 2017                [Page 21]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1229,7 +1229,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 22]
+Iyengar & Thomson         Expires July 11, 2017                [Page 22]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1285,7 +1285,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 23]
+Iyengar & Thomson         Expires July 11, 2017                [Page 23]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1341,7 +1341,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 24]
+Iyengar & Thomson         Expires July 11, 2017                [Page 24]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1388,7 +1388,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
                    Figure 11: STOP_WAITING Frame Format
 
-   The payload of the STOP_WAITING frame contains a single field:
+   The STOP_WAITING frame contains a single field:
 
    o  Least Unacked Delta: A variable-length packet number delta with
       the same length as the packet header's packet number.  Subtract it
@@ -1397,7 +1397,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 25]
+Iyengar & Thomson         Expires July 11, 2017                [Page 25]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1427,7 +1427,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   The fields in the WINDOW_UPDATE frame payload are as follows:
+   The fields in the WINDOW_UPDATE frame are as follows:
 
    o  Stream ID: ID of the stream whose flow control windows is being
       updated, or 0 to specify the connection-level flow control window.
@@ -1453,7 +1453,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 26]
+Iyengar & Thomson         Expires July 11, 2017                [Page 26]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1464,7 +1464,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   The BLOCKED frame payload contains a single field:
+   The BLOCKED frame contains a single field:
 
    o  Stream ID: A 32-bit unsigned number indicating the stream which is
       flow control blocked.  A non-zero Stream ID field specifies the
@@ -1504,12 +1504,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    The PADDING frame (type=0x00) pads a packet with 0x00 bytes.  When
    this frame is encountered, the rest of the packet is expected to be
    padding bytes.  The frame contains 0x00 bytes and extends to the end
-   of the QUIC packet.  A PADDING frame has no payload.
+   of the QUIC packet.  A PADDING frame has no additional fields.
 
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 27]
+Iyengar & Thomson         Expires July 11, 2017                [Page 27]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1518,11 +1518,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    Endpoints can use PING frames (type=0x07) to verify that their peers
    are still alive or to check reachability to the peer.  The PING frame
-   contains no payload.  The receiver of a PING frame simply needs to
-   ACK the packet containing this frame.  The PING frame SHOULD be used
-   to keep a connection alive when a stream is open.  The default is to
-   send a PING frame after 15 seconds of quiescence.  A PING frame has
-   no payload.
+   contains no additional fields.  The receiver of a PING frame simply
+   needs to ACK the packet containing this frame.  The PING frame SHOULD
+   be used to keep a connection alive when a stream is open.  The
+   default is to send a PING frame after 15 seconds of quiescence.  A
+   PING frame has no payload.
 
 6.9.  CONNECTION_CLOSE frame
 
@@ -1565,7 +1565,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 28]
+Iyengar & Thomson         Expires July 11, 2017                [Page 28]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1621,7 +1621,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 29]
+Iyengar & Thomson         Expires July 11, 2017                [Page 29]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1677,7 +1677,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 30]
+Iyengar & Thomson         Expires July 11, 2017                [Page 30]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1733,7 +1733,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 31]
+Iyengar & Thomson         Expires July 11, 2017                [Page 31]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1789,7 +1789,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 32]
+Iyengar & Thomson         Expires July 11, 2017                [Page 32]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1845,7 +1845,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 33]
+Iyengar & Thomson         Expires July 11, 2017                [Page 33]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1901,7 +1901,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 34]
+Iyengar & Thomson         Expires July 11, 2017                [Page 34]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -1957,7 +1957,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 35]
+Iyengar & Thomson         Expires July 11, 2017                [Page 35]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2013,7 +2013,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 36]
+Iyengar & Thomson         Expires July 11, 2017                [Page 36]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2069,7 +2069,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 37]
+Iyengar & Thomson         Expires July 11, 2017                [Page 37]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2125,7 +2125,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 38]
+Iyengar & Thomson         Expires July 11, 2017                [Page 38]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2181,7 +2181,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 39]
+Iyengar & Thomson         Expires July 11, 2017                [Page 39]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2237,7 +2237,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 40]
+Iyengar & Thomson         Expires July 11, 2017                [Page 40]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2293,7 +2293,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 41]
+Iyengar & Thomson         Expires July 11, 2017                [Page 41]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2349,7 +2349,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 42]
+Iyengar & Thomson         Expires July 11, 2017                [Page 42]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2405,7 +2405,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 43]
+Iyengar & Thomson         Expires July 11, 2017                [Page 43]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2461,7 +2461,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 44]
+Iyengar & Thomson         Expires July 11, 2017                [Page 44]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2495,10 +2495,10 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 11.1.  Spoofed Ack Attack
 
    An attacker receives an STK from the server and then releases the IP
-   address on which it received the STK.  The attacked may in the
+   address on which it received the STK.  The attacker may, in the
    future, spoof this same address (which now presumably addresses a
-   different endpoint), and initiates a 0-RTT connection with a server
-   on the victim's behalf.  The attacker then spoofs ack packets to the
+   different endpoint), and initiate a 0-RTT connection with a server on
+   the victim's behalf.  The attacker then spoofs ACK frames to the
    server which cause the server to potentially drown the victim in
    data.
 
@@ -2517,7 +2517,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 45]
+Iyengar & Thomson         Expires July 11, 2017                [Page 45]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2573,7 +2573,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 46]
+Iyengar & Thomson         Expires July 11, 2017                [Page 46]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
@@ -2629,4 +2629,4 @@ Authors' Addresses
 
 
 
-Iyengar & Thomson         Expires July 7, 2017                 [Page 47]
+Iyengar & Thomson         Expires July 11, 2017                [Page 47]

@@ -1214,18 +1214,18 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                  Largest Acked (8/16/32/48)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |        Ack Delay (16)         |     Ack Block Section (*)   ...
+   |        Ack Delay (16)         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                     Timestamp Section (*)                   ...
+   |[Num Blocks(8)]|             Ack Block Section (*)           ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   NumTS (8)   |             Timestamp Section (*)           ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                         Figure 8: ACK Frame Format
 
    The fields in the ACK frame are as follows:
 
-   o  Largest Acked: A variable-sized unsigned value representing the
-      largest packet number the peer is acking in this packet (typically
-      the largest that the peer has seen thus far.)
+
 
 
 
@@ -1234,12 +1234,24 @@ Iyengar & Thomson         Expires July 11, 2017                [Page 22]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
+   o  Largest Acked: A variable-sized unsigned value representing the
+      largest packet number the peer is acking in this packet (typically
+      the largest that the peer has seen thus far.)
+
    o  Ack Delay: Time from when the largest acked, as indicated in the
       Largest Acked field, was received by this peer to when this ack
       was sent.
 
+   o  Num Blocks (opt): An optional 8-bit unsigned value specifying the
+      number of additional ack blocks (besides the required First Ack
+      Block) in this ACK frame.  Only present if the 'N' flag bit is 1.
+
    o  Ack Block Section: Contains one or more blocks of packet numbers
       which have been successfully received.  See Section 6.2.1.
+
+   o  Num Timestamps: An unsigned 8-bit number specifying the total
+      number of <packet number, timestamp> pairs in the Timestamp
+      Section.
 
    o  Timestamp Section: Contains zero or more timestamps reporting
       transit delay of received packets.  See Section 6.2.2.
@@ -1247,16 +1259,15 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 6.2.1.  Ack Block Section
 
    The Ack Block Section contains between one and 256 blocks of packet
-   numbers which have been successfully received.  If the "N" bit in the
-   Type field is 0, the Num Blocks field is absent and only the First
-   Ack Block length is present.  If the "N" bit is 1, the Num Blocks
-   field indicates how many additional blocks follow the First Ack Block
-   Length field.
+   numbers which have been successfully received.  If the Num Blocks
+   field is absent, only the First Ack Block length is present in this
+   section.  Otherwise, the Num Blocks field indicates how many
+   additional blocks follow the First Ack Block Length field.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Num Blocks(8)]|      First Ack Block Length (8/16/32/48)    ...
+   |              First Ack Block Length (8/16/32/48)            ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |  [Gap 1 (8)]  |       [Ack Block 1 Length (8/16/32/48)]     ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1271,9 +1282,13 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    The fields in the Ack Block Section are:
 
-   o  Num Blocks (opt): An optional 8-bit unsigned value specifying the
-      number of additional ack blocks (besides the required First Ack
-      Block) in this ACK frame.  Only present if the 'N' flag bit is 1.
+
+
+
+Iyengar & Thomson         Expires July 11, 2017                [Page 23]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
 
    o  First Ack Block Length: An unsigned packet number delta that
       indicates the number of contiguous additional packets being acked
@@ -1283,13 +1298,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       the number of contiguous missing packets from the end of the
       previous ack block to the start of the next.
 
-
-
-Iyengar & Thomson         Expires July 11, 2017                [Page 23]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
    o  Ack Block Length (opt, repeated): An unsigned packet number delta
       that indicates the number of contiguous packets being acked
       starting after the end of the previous gap.  Along with the
@@ -1298,21 +1306,21 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 6.2.2.  Timestamp Section
 
    The Timestamp Section contains between zero and 255 measurements of
-   packet delay.  This information can be used by a sender to better
-   estimate the RTT of the connection.
+   packet receive time deltas.  This information can be used by a sender
+   to better estimate the RTT of the connection.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |   Num TS(8)   | [Delta LA (8)]|
+   +-+-+-+-+-+-+-+-+
+   | [Delta LA (8)]|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                [Time Since Largest Acked (32)]                |
+   |                [First Timestamp (32)]                |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |[Delta LA 1(8)]| [Time Since Previous 1 (16)]  |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |[Delta LA 2(8)]| [Time Since Previous 2 (16)]  |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                                ...
+                          ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |[Delta LA N(8)]| [Time Since Previous N (16)]  |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1320,10 +1328,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
                        Figure 10: Timestamp Section
 
    The fields in the Timestamp Section are:
-
-   o  Num Timestamps: An unsigned 8-bit number specifying the total
-      number of <packet number, timestamp> pairs following, including
-      the First Timestamp.
 
    o  Delta Largest Acked (opt): An optional 8-bit unsigned packet
       number delta specifying the delta between the largest acked and
@@ -1333,10 +1337,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    o  First Timestamp (opt): An optional 32-bit unsigned value
       specifying the time delta in microseconds, from the beginning of
-      the connection to the arrival of this packet.
-
-   o  Delta Largest Acked 1..N (opt, repeated): (Same as above.)
-
 
 
 
@@ -1345,6 +1345,11 @@ Iyengar & Thomson         Expires July 11, 2017                [Page 24]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
+
+      the connection to the arrival of the packet indicated by Delta
+      Largest Acked.
+
+   o  Delta Largest Acked 1..N (opt, repeated): (Same as above.)
 
    o  Time Since Previous Timestamp 1..N(opt, repeated): An optional
       16-bit unsigned value specifying time delta from the previous
@@ -1390,11 +1395,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    The STOP_WAITING frame contains a single field:
 
-   o  Least Unacked Delta: A variable-length packet number delta with
-      the same length as the packet header's packet number.  Subtract it
-      from the complete packet number of the enclosing packet to
-      determine the least unacked packet number.  The resulting least
-
 
 
 Iyengar & Thomson         Expires July 11, 2017                [Page 25]
@@ -1402,6 +1402,10 @@ Iyengar & Thomson         Expires July 11, 2017                [Page 25]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
+   o  Least Unacked Delta: A variable-length packet number delta with
+      the same length as the packet header's packet number.  Subtract it
+      from the complete packet number of the enclosing packet to
+      determine the least unacked packet number.  The resulting least
       unacked packet number is the earliest packet for which the sender
       is still awaiting an ack.  If the receiver is missing any packets
       earlier than this packet, the receiver SHOULD consider those
@@ -1445,10 +1449,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    for debugging purposes.  A receiver of a BLOCKED frame should simply
    discard it (after possibly printing a helpful log message).  The
    frame is as follows:
-
-
-
-
 
 
 

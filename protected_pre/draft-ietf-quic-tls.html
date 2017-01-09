@@ -301,7 +301,7 @@ address {
 <link href="#rfc.section.5.1.3" rel="Chapter" title="5.1.3 WINDOW_UPDATE Frames"/>
 <link href="#rfc.section.5.1.4" rel="Chapter" title="5.1.4 Denial of Service with Unprotected Packets"/>
 <link href="#rfc.section.5.2" rel="Chapter" title="5.2 Use of 0-RTT Keys"/>
-<link href="#rfc.section.5.3" rel="Chapter" title="5.3 Protected Frames Prior to Handshake Completion"/>
+<link href="#rfc.section.5.3" rel="Chapter" title="5.3 Receiving Out-of-Order Protected Frames"/>
 <link href="#rfc.section.6" rel="Chapter" title="6 QUIC-Specific Additions to the TLS Handshake"/>
 <link href="#rfc.section.6.1" rel="Chapter" title="6.1 Protocol and Version Negotiation"/>
 <link href="#rfc.section.6.2" rel="Chapter" title="6.2 QUIC Extension"/>
@@ -324,7 +324,7 @@ address {
 
   <meta name="dct.creator" content="Thomson, M. and S. Turner, Ed, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-tls-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2016-11-28" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-1-9" />
   <meta name="dct.abstract" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
   <meta name="description" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
 
@@ -348,12 +348,12 @@ address {
   <td class="right">S. Turner, Ed, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: June 1, 2017</td>
+  <td class="left">Expires: July 13, 2017</td>
   <td class="right">sn3rd</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">November 28, 2016</td>
+  <td class="right">January 9, 2017</td>
 </tr>
 
     	
@@ -373,11 +373,11 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on June 1, 2017.</p>
+<p>This Internet-Draft will expire on July 13, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
-<p>Copyright (c) 2016 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
+<p>Copyright (c) 2017 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (http://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
 
   
@@ -409,7 +409,7 @@ address {
 <li>5.1.3.   <a href="#rfc.section.5.1.3">WINDOW_UPDATE Frames</a></li>
 <li>5.1.4.   <a href="#rfc.section.5.1.4">Denial of Service with Unprotected Packets</a></li>
 </ul><li>5.2.   <a href="#rfc.section.5.2">Use of 0-RTT Keys</a></li>
-<li>5.3.   <a href="#rfc.section.5.3">Protected Frames Prior to Handshake Completion</a></li>
+<li>5.3.   <a href="#rfc.section.5.3">Receiving Out-of-Order Protected Frames</a></li>
 </ul><li>6.   <a href="#rfc.section.6">QUIC-Specific Additions to the TLS Handshake</a></li>
 <ul><li>6.1.   <a href="#rfc.section.6.1">Protocol and Version Negotiation</a></li>
 <li>6.2.   <a href="#rfc.section.6.2">QUIC Extension</a></li>
@@ -743,10 +743,11 @@ address {
 <p id="rfc.section.5.2.p.4">A client SHOULD send its end_of_early_data alert only after it has received all of the server&#8217;s handshake messages.  Alternatively phrased, a client is encouraged to use 0-RTT keys until 1-RTT keys become available.  This prevents stalling of the connection and allows the client to send continuously.</p>
 <p id="rfc.section.5.2.p.5">A server MUST NOT use 0-RTT keys to protect anything other than TLS handshake messages.  Servers therefore treat packets protected with 0-RTT keys as equivalent to unprotected packets in determining what is permissible to send.  A server protects handshake messages using the 0-RTT key if it decides to accept a 0-RTT key.  A server MUST still include the early_data extension in its ServerHello message.</p>
 <p id="rfc.section.5.2.p.6">This restriction prevents a server from responding to a request using frames protected by the 0-RTT keys.  This ensures that all application data from the server are always protected with keys that have forward secrecy.  However, this results in head-of-line blocking at the client because server responses cannot be decrypted until all the server&#8217;s handshake messages are received by the client.</p>
-<h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#pre-handshake-protected" id="pre-handshake-protected">Protected Frames Prior to Handshake Completion</a></h2>
-<p id="rfc.section.5.3.p.1">Due to reordering and loss, 1-RTT protected packets might be received by an endpoint before the final TLS handshake messages are received.  These will not be able to be decrypted, unless the missing handshake messages are the second flight of handshake messages sent by the client.</p>
-<p id="rfc.section.5.3.p.2">Protected packets MAY be stored and later decrypted and used once the handshake is complete.  If packets are processed prior to completion of the handshake, an attacker might use the willingness of an implementation to use these packets to mount attacks.</p>
-<p id="rfc.section.5.3.p.3">Receiving and verifying the Finished message is critical in ensuring that the TLS handshake has completely successfully.  A server MUST NOT use 1-RTT protected packets from the client if its response depends on client authentication.  A server MAY use 1-RTT protected packets from a client prior to receiving and verifying the Finished message if it has accepted 0-RTT data and it treats the out-of-order packets as though they only have 0-RTT protection.</p>
+<h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#pre-handshake-protected" id="pre-handshake-protected">Receiving Out-of-Order Protected Frames</a></h2>
+<p id="rfc.section.5.3.p.1">Due to reordering and loss, protected packets might be received by an endpoint before the final TLS handshake messages are received.  A client will be unable to decrypt 1-RTT packets from the server, whereas a server will be able to decrypt 1-RTT packets from the client.</p>
+<p id="rfc.section.5.3.p.2">Packets protected with 1-RTT keys MAY be stored and later decrypted and used once the handshake is complete.  A server MUST NOT use 1-RTT protected packets before verifying either the client Finished message or - in the case that the server has chosen to use a pre-shared key - the pre-shared key binder (see Section 4.2.8 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>).  Verifying these values provides the server with an assurance that the ClientHello has not been modified.</p>
+<p id="rfc.section.5.3.p.3">A server could receive packets protected with 0-RTT keys prior to receiving a TLS ClientHello.  The server MAY retain these packets for later decryption in anticipation of receiving a ClientHello.</p>
+<p id="rfc.section.5.3.p.4">Receiving and verifying the TLS Finished message is critical in ensuring the integrity of the TLS handshake.  A server MUST NOT use protected packets from the client prior to verifying the client Finished message if its response depends on client authentication.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#quic-specific-additions-to-the-tls-handshake" id="quic-specific-additions-to-the-tls-handshake">QUIC-Specific Additions to the TLS Handshake</a></h1>
 <p id="rfc.section.6.p.1">QUIC uses the TLS handshake for more than just negotiation of cryptographic parameters.  The TLS handshake validates protocol version selection, provides preliminary values for QUIC transport parameters, and allows a server to perform return routeability checks on clients.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#version-negotiation" id="version-negotiation">Protocol and Version Negotiation</a></h2>
@@ -794,13 +795,13 @@ address {
       <td class="reference">
         <b id="QUIC-RECOVERY">[QUIC-RECOVERY]</b>
       </td>
-      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a>QUIC Loss Detection and Congestion Control</a>", November 2016.</td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a>QUIC Loss Detection and Congestion Control</a>", January 2017.</td>
     </tr>
     <tr>
       <td class="reference">
         <b id="QUIC-TRANSPORT">[QUIC-TRANSPORT]</b>
       </td>
-      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a>QUIC: A UDP-Based Multiplexed and Secure Transport</a>", November 2016.</td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a>QUIC: A UDP-Based Multiplexed and Secure Transport</a>", January 2017.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -859,7 +860,7 @@ address {
       <td class="reference">
         <b id="QUIC-HTTP">[QUIC-HTTP]</b>
       </td>
-      <td class="top"><a title="Microsoft">Bishop, M.</a>, "<a>HTTP/2 Semantics Using The QUIC Transport Protocol</a>", November 2016.</td>
+      <td class="top"><a title="Microsoft">Bishop, M.</a>, "<a>HTTP/2 Semantics Using The QUIC Transport Protocol</a>", January 2017.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -931,6 +932,6 @@ address {
   </address>
 </div>
 
-  <div class="github-fork-ribbon-wrapper"><div class="github-fork-ribbon"><a href="https://github.com/{SLUG}">Fork me on GitHub</a></div></div>
+  <div class="github-fork-ribbon-wrapper"><div class="github-fork-ribbon"><a href="https://github.com/quicwg/base-drafts">Fork me on GitHub</a></div></div>
 </body>
 </html>

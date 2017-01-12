@@ -356,7 +356,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-1-10" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-1-12" />
   <meta name="dct.abstract" content="QUIC is a multiplexed and secure transport protocol that runs on top of UDP.  QUIC builds on past transport experience, and implements mechanisms that make it useful as a modern general-purpose transport protocol.  Using UDP as the basis of QUIC is intended to address compatibility issues with legacy clients and middleboxes.  QUIC authenticates all of its headers, preventing third parties from changing them.  QUIC encrypts most of its headers, thereby limiting protocol evolution to QUIC endpoints only.  Therefore, middleboxes, in large part, are not required to be updated as new protocol versions are deployed.  This document describes the core QUIC protocol, including the conceptual design, wire format, and mechanisms of the QUIC protocol for connection establishment, stream multiplexing, stream and connection-level flow control, and data reliability.  Accompanying documents describe QUIC&#8217;s loss recovery and congestion control, and the use of TLS 1.3 for key negotiation." />
   <meta name="description" content="QUIC is a multiplexed and secure transport protocol that runs on top of UDP.  QUIC builds on past transport experience, and implements mechanisms that make it useful as a modern general-purpose transport protocol.  Using UDP as the basis of QUIC is intended to address compatibility issues with legacy clients and middleboxes.  QUIC authenticates all of its headers, preventing third parties from changing them.  QUIC encrypts most of its headers, thereby limiting protocol evolution to QUIC endpoints only.  Therefore, middleboxes, in large part, are not required to be updated as new protocol versions are deployed.  This document describes the core QUIC protocol, including the conceptual design, wire format, and mechanisms of the QUIC protocol for connection establishment, stream multiplexing, stream and connection-level flow control, and data reliability.  Accompanying documents describe QUIC&#8217;s loss recovery and congestion control, and the use of TLS 1.3 for key negotiation." />
 
@@ -380,12 +380,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: July 14, 2017</td>
+  <td class="left">Expires: July 16, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">January 10, 2017</td>
+  <td class="right">January 12, 2017</td>
 </tr>
 
     	
@@ -410,7 +410,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on July 14, 2017.</p>
+<p>This Internet-Draft will expire on July 16, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -599,7 +599,7 @@ Check the flags in the common header
 <p class="figure">Figure 1: Types of QUIC Packets</p>
 <h3 id="rfc.section.5.1.2"><a href="#rfc.section.5.1.2">5.1.2.</a> <a href="#handling-packets-from-different-versions" id="handling-packets-from-different-versions">Handling Packets from Different Versions</a></h3>
 <p id="rfc.section.5.1.2.p.1">Version negotiation (<a href="#version-negotiation">Section 6.1</a>) is performed using packets that have the VERSION bit set.  This bit is always set on packets that are sent prior to connection establishment.  When receiving a packet that is not associated with an existing connection, packets without a VERSION bit MUST be discarded.</p>
-<p id="rfc.section.5.1.2.p.2">While there might be similarities between different versions of this protocol, implementations have to assume that a version that it does not support uses a different packet format.</p>
+<p id="rfc.section.5.1.2.p.2">Implementations MUST assume that an unsupported version uses an unknown packet format.</p>
 <p id="rfc.section.5.1.2.p.3">Between different versions the following things are guaranteed to remain constant are:</p>
 <p/>
 
@@ -720,13 +720,14 @@ Decrypted AEAD Data:
 <p id="rfc.section.6.p.1">A QUIC connection is a single conversation between two QUIC endpoints.  QUIC&#8217;s connection establishment intertwines version negotiation with the crypto and transport handshakes to reduce connection establishment latency, as described in <a href="#handshake">Section 6.2</a>.  Once established, a connection may migrate to a different IP or port at either endpoint, due to NAT rebinding or mobility, as described in <a href="#migration">Section 6.3</a>.  Finally a connection may be terminated by either endpoint, as described in <a href="#termination">Section 6.4</a>.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#version-negotiation" id="version-negotiation">Version Negotiation</a></h2>
 <p id="rfc.section.6.1.p.1">QUIC&#8217;s connection establishment begins with version negotiation, since all communication between the endpoints, including packet and frame formats, relies on the two endpoints agreeing on a version.</p>
-<p id="rfc.section.6.1.p.2">A QUIC connection begins with a client sending a handshake packet.  Until packets are protected by 1-RTT keys (see <a href="#handshake">Section 6.2</a>), packets sent by a client MUST include the version in the packet header.  This allows the server to identify the version of early packets and enable version negotiation.</p>
+<p id="rfc.section.6.1.p.2">A QUIC connection begins with a client sending a handshake packet. The details of the handshake mechanisms are described in <a href="#handshake">Section 6.2</a>, but all of the initial packets sent from the client to the server MUST have the VERSION flag set, and MUST specify the version of the protocol being used.</p>
 <p id="rfc.section.6.1.p.3">When the server receives a packet from a client with the VERSION flag set, it compares the client&#8217;s version to the versions it supports.</p>
 <p id="rfc.section.6.1.p.4">If the version selected by the client is not acceptable to the server, the server discards the incoming packet and responds with a version negotiation packet (<a href="#version-negotiation-packet">Section 5.3</a>).  This includes the VERSION flag and a list of versions that the server will accept.  A server MUST send a version negotiation packet for every packet that it receives with an unacceptable version.</p>
 <p id="rfc.section.6.1.p.5">If the packet contains a version that is acceptable to the server, the server proceeds with the handshake (<a href="#handshake">Section 6.2</a>).  All subsequent packets sent by the server MUST have the VERSION flag unset.  This commits the server to the version that the client selected.</p>
 <p id="rfc.section.6.1.p.6">When the client receives a Version Negotiation packet from the server, it should select an acceptable protocol version.  If the server lists an acceptable version, the client selects that version and resends all packets using that version. The resent packets MUST use new packet numbers.  These packets MUST continue to have the VERSION flag set and MUST include the new negotiated protocol version.</p>
-<p id="rfc.section.6.1.p.7">The client MUST include its selected version on all packets until it starts protecting packets with 1-RTT keys.  Only unprotected packets and 0-RTT protected packets can include a version.  A client MUST NOT change the version it uses unless it is in response to a version negotiation packet from the server.</p>
-<p id="rfc.section.6.1.p.8">Version negotiation uses unprotected data.  The result of the negotiation MUST be revalidated once the cryptographic handshake has completed (see <a href="#version-validation">Section 6.2.4</a>).</p>
+<p id="rfc.section.6.1.p.7">The client MUST set the VERSION flag on all packets until version negotiation concludes. Version negotiation successfully concludes when the client receives a packet from the server with the VERSION flag unset. All subsequent packets sent by the client SHOULD have the VERSION flag unset.</p>
+<p id="rfc.section.6.1.p.8">Once the server receives a packet from the client with the VERSION flag unset, it MUST ignore the flag in subsequently received packets.</p>
+<p id="rfc.section.6.1.p.9">Version negotiation uses unprotected data. The result of the negotiation MUST be revalidated once the cryptographic handshake has completed (see <a href="#version-validation">Section 6.2.4</a>).</p>
 <h2 id="rfc.section.6.2"><a href="#rfc.section.6.2">6.2.</a> <a href="#handshake" id="handshake">Crypto and Transport Handshake</a></h2>
 <p id="rfc.section.6.2.p.1">QUIC relies on a combined crypto and transport handshake to minimize connection establishment latency.  QUIC provides a dedicated stream (Stream ID 1) to be used for performing a combined connection and security handshake (streams are described in detail in <a href="#streams">Section 9</a>).  The crypto handshake protocol encapsulates and delivers QUIC&#8217;s transport handshake to the peer on the crypto stream.  The first QUIC packet from the client to the server MUST carry handshake information as data on Stream ID 1.</p>
 <h3 id="rfc.section.6.2.1"><a href="#rfc.section.6.2.1">6.2.1.</a> <a href="#transport-parameters-and-options" id="transport-parameters-and-options">Transport Parameters and Options</a></h3>

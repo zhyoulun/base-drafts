@@ -520,6 +520,7 @@ address {
   <dt>Reserved (0x20):</dt>
   <dd style="margin-left: 8">Reserved for HTTP/2 compatibility.</dd>
 </dl>
+<p id="rfc.section.5.2.2.p.4">A HEADERS frame with the Reserved bits set MUST be treated as a connection error of type HTTP_MALFORMED_HEADERS.</p>
 <pre>
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -528,16 +529,16 @@ address {
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">HEADERS frame payload</p>
-<p id="rfc.section.5.2.2.p.4">The HEADERS frame payload has the following fields:</p>
+<p id="rfc.section.5.2.2.p.5">The HEADERS frame payload has the following fields:</p>
 <p/>
 
 <dl>
   <dt>Sequence Number:</dt>
   <dd style="margin-left: 8">Present only on the first frame of a header block sequence. This MUST be set to zero on the first header block sequence, and incremented on each header block.</dd>
 </dl>
-<p id="rfc.section.5.2.2.p.6">The next frame on the same stream after a HEADERS frame without the EHB flag set MUST be another HEADERS frame. A receiver MUST treat the receipt of any other type of frame as a stream error. (Note that QUIC can intersperse data from other streams between frames, or even during transmission of frames, so multiplexing is not blocked by this requirement.)</p>
-<p id="rfc.section.5.2.2.p.7">A full header block is contained in a sequence of zero or more HEADERS frames without EHB set, followed by a HEADERS frame with EHB set.</p>
-<p id="rfc.section.5.2.2.p.8">On receipt, header blocks (HEADERS, PUSH_PROMISE) MUST be processed by the HPACK decoder in sequence. If a block is missing, all subsequent HPACK frames MUST be held until it arrives, or the connection terminated.</p>
+<p id="rfc.section.5.2.2.p.7">The next frame on the same stream after a HEADERS frame without the EHB flag set MUST be another HEADERS frame. A receiver MUST treat the receipt of any other type of frame as a stream error of type HTTP_INTERRUPTED_HEADERS. (Note that QUIC can intersperse data from other streams between frames, or even during transmission of frames, so multiplexing is not blocked by this requirement.)</p>
+<p id="rfc.section.5.2.2.p.8">A full header block is contained in a sequence of zero or more HEADERS frames without EHB set, followed by a HEADERS frame with EHB set.</p>
+<p id="rfc.section.5.2.2.p.9">On receipt, header blocks (HEADERS, PUSH_PROMISE) MUST be processed by the HPACK decoder in sequence. If a block is missing, all subsequent HPACK frames MUST be held until it arrives, or the connection terminated.</p>
 <h3 id="rfc.section.5.2.3"><a href="#rfc.section.5.2.3">5.2.3.</a> <a href="#frame-priority" id="frame-priority">PRIORITY</a></h3>
 <p id="rfc.section.5.2.3.p.1">The PRIORITY (type=0x02) frame specifies the sender-advised priority of a stream and is substantially different from <a href="#RFC7540">[RFC7540]</a>. In order to support ordering, it MUST be sent only on the connection control stream. The format has been modified to accommodate not being sent on-stream and the larger stream ID space of QUIC.</p>
 <p id="rfc.section.5.2.3.p.2">The flags defined are:</p>
@@ -570,6 +571,7 @@ address {
   <dt>Weight:</dt>
   <dd style="margin-left: 8">An unsigned 8-bit integer representing a priority weight for the stream (see <a href="#RFC7540">[RFC7540]</a> Section 5.3). Add one to the value to obtain a weight between 1 and 256.</dd>
 </dl>
+<p id="rfc.section.5.2.3.p.6">A PRIORITY frame MUST have a payload length of nine octets.  A PRIORITY frame of any other length MUST be treated as a connection error of type HTTP_MALFORMED_PRIORITY.</p>
 <h3 id="rfc.section.5.2.4"><a href="#rfc.section.5.2.4">5.2.4.</a> <a href="#rststream" id="rststream">RST_STREAM</a></h3>
 <p id="rfc.section.5.2.4.p.1">RST_STREAM frames do not exist, since QUIC provides stream lifecycle management.  Frame type 0x3 is reserved.</p>
 <h3 id="rfc.section.5.2.5"><a href="#rfc.section.5.2.5">5.2.5.</a> <a href="#frame-settings" id="frame-settings">SETTINGS</a></h3>
@@ -601,8 +603,8 @@ address {
 <p id="rfc.section.5.2.5.p.9">A zero-length content indicates that the setting value is a Boolean given by the B bit. If Length is not zero, the B bit MUST be zero, and MUST be ignored by receivers. The initial value of each setting is &#8220;false&#8221; unless otherwise specified by the definition of the setting.</p>
 <p id="rfc.section.5.2.5.p.10">Non-zero-length values MUST be compared against the remaining length of the SETTINGS frame.  Any value which purports to cross the end of the frame MUST cause the SETTINGS frame to be considered malformed and trigger a connection error.</p>
 <p id="rfc.section.5.2.5.p.11">An implementation MUST ignore the contents for any SETTINGS identifier it does not understand.</p>
-<p id="rfc.section.5.2.5.p.12">SETTINGS frames always apply to a connection, never a single stream, and MUST only be sent on the connection control stream (Stream 3). If an endpoint receives an SETTINGS frame whose stream identifier field is anything other than 0x0, the endpoint MUST respond with a connection error.</p>
-<p id="rfc.section.5.2.5.p.13">The SETTINGS frame affects connection state. A badly formed or incomplete SETTINGS frame MUST be treated as a connection error (Section 5.4.1) of type PROTOCOL_ERROR.</p>
+<p id="rfc.section.5.2.5.p.12">SETTINGS frames always apply to a connection, never a single stream, and MUST only be sent on the connection control stream (Stream 3). If an endpoint receives an SETTINGS frame whose stream identifier field is anything other than 0x0, the endpoint MUST respond with a connection error of type HTTP_SETTINGS_ON_WRONG_STREAM.</p>
+<p id="rfc.section.5.2.5.p.13">The SETTINGS frame affects connection state. A badly formed or incomplete SETTINGS frame MUST be treated as a connection error (Section 5.4.1) of type HTTP_MALFORMED_SETTINGS.</p>
 <h4 id="rfc.section.5.2.5.1"><a href="#rfc.section.5.2.5.1">5.2.5.1.</a> <a href="#integer-encoding" id="integer-encoding">Integer encoding</a></h4>
 <p id="rfc.section.5.2.5.1.p.1">Settings which are integers are transmitted in network byte order.  Leading zero octets are permitted, but implementations SHOULD use only as many bytes as are needed to represent the value.  An integer MUST NOT be represented in more bytes than would be used to transfer the maximum permitted value.</p>
 <h4 id="rfc.section.5.2.5.2"><a href="#rfc.section.5.2.5.2">5.2.5.2.</a> <a href="#defined-settings-parameters" id="defined-settings-parameters">Defined SETTINGS Parameters</a></h4>
@@ -635,7 +637,7 @@ address {
 <p id="rfc.section.5.2.5.3.p.4">The SETTINGS_ACK frame on the connection control stream contains the highest stream number which was open at the time the SETTINGS frame was received.  All streams with higher numbers can safely be assumed to have the new settings in effect when they open.</p>
 <p id="rfc.section.5.2.5.3.p.5">For already-open streams including the connection control stream, the SETTINGS_ACK frame indicates the point at which the new settings took effect, if they did so before the peer half-closed the stream. If the peer closed the stream before receiving the SETTINGS frame, the previous settings were in effect for the full lifetime of that stream.</p>
 <p id="rfc.section.5.2.5.3.p.6">In certain conditions, the SETTINGS_ACK frame can be the first frame on a given stream &#8211; this simply indicates that the new settings apply from the beginning of that stream.</p>
-<p id="rfc.section.5.2.5.3.p.7">If the sender of a SETTINGS frame with the REQUEST_ACK flag set does not receive full acknowledgement within a reasonable amount of time, it MAY issue a connection error (<a href="#RFC7540">[RFC7540]</a> Section 5.4.1) of type SETTINGS_TIMEOUT.  A full acknowledgement has occurred when:</p>
+<p id="rfc.section.5.2.5.3.p.7">If the sender of a SETTINGS frame with the REQUEST_ACK flag set does not receive full acknowledgement within a reasonable amount of time, it MAY issue a connection error (<a href="#errors">Section 6</a>) of type HTTP_SETTINGS_TIMEOUT.  A full acknowledgement has occurred when:</p>
 <p/>
 
 <ul>
@@ -708,16 +710,47 @@ address {
   <dt>Unrecognized Identifiers:</dt>
   <dd style="margin-left: 8">A list of 16-bit SETTINGS identifiers which the sender has not understood and therefore ignored. This list MAY be empty.</dd>
 </dl>
-<p id="rfc.section.5.2.11.p.4">On message control streams, the SETTINGS_ACK frame carries no payload, and is strictly a synchronization marker for settings application.  See <a href="#settings-synchronization">Section 5.2.5.3</a> for more detail.</p>
+<p id="rfc.section.5.2.11.p.4">On message control streams, the SETTINGS_ACK frame carries no payload, and is strictly a synchronization marker for settings application.  See <a href="#settings-synchronization">Section 5.2.5.3</a> for more detail.  A SETTINGS_ACK frame with a non-zero length MUST be treated as a connection error of type HTTP_MALFORMED_SETTINGS_ACK.</p>
+<p id="rfc.section.5.2.11.p.5">On the connection control stream, the SETTINGS_ACK frame MUST have a length which is a multiple of two octets. A SETTINGS_ACK frame of any other length MUST be treated as a connection error of type HTTP_MALFORMED_SETTINGS_ACK.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#errors" id="errors">Error Handling</a></h1>
-<p id="rfc.section.6.p.1">This section describes the specific error codes defined by HTTP/QUIC and the mapping of HTTP/2 error codes into the QUIC error space.  (Work in progress.)</p>
+<p id="rfc.section.6.p.1">This section describes the specific error codes defined by HTTP and the mapping of HTTP/2 error codes into the QUIC error code space.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#http-error-codes" id="http-error-codes">HTTP-Defined QUIC Error Codes</a></h2>
-<p id="rfc.section.6.1.p.1">The following error codes are defined by HTTP/QUIC for use in QUIC RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.</p>
+<p id="rfc.section.6.1.p.1">QUIC allocates error codes 0x0000-0x3FFF to application protocol definition.  The following error codes are defined by HTTP for use in QUIC RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.</p>
 <p/>
 
 <dl>
-  <dt>QUIC_INVALID_HEADERS_STREAM_DATA (0x38):</dt>
-  <dd style="margin-left: 8">We received invalid data on the headers stream.</dd>
+  <dt>HTTP_SETTINGS_TIMEOUT (0x00):</dt>
+  <dd style="margin-left: 8">After sending a SETTINGS frame which requested acknowledgement, the acknowledgement was not completed (see <a href="#settings-synchronization">Section 5.2.5.3</a>) in a timely manner.</dd>
+  <dt>HTTP_PUSH_REFUSED (0x01):</dt>
+  <dd style="margin-left: 8">The server has attempted to push content which the client will not accept on this connection.</dd>
+  <dt>HTTP_INTERNAL_ERROR (0x02):</dt>
+  <dd style="margin-left: 8">An internal error has occurred in the HTTP stack.</dd>
+  <dt>HTTP_PUSH_ALREADY_IN_CACHE (0x03):</dt>
+  <dd style="margin-left: 8">The server has attempted to push content which the client has cached.</dd>
+  <dt>HTTP_REQUEST_CANCELLED (0x04):</dt>
+  <dd style="margin-left: 8">The client no longer needs the requested data.</dd>
+  <dt>HTTP_HPACK_DECOMPRESSION_FAILED (0x05):</dt>
+  <dd style="margin-left: 8">HPACK failed to decompress a frame and cannot continue.</dd>
+  <dt>HTTP_CONNECT_ERROR (0x06):</dt>
+  <dd style="margin-left: 8">The connection established in response to a CONNECT request was reset or abnormally closed.</dd>
+  <dt>HTTP_EXCESSIVE_LOAD (0x07):</dt>
+  <dd style="margin-left: 8">The endpoint detected that its peer is exhibiting a behavior that might be generating excessive load.</dd>
+  <dt>HTTP_VERSION_FALLBACK (0x08):</dt>
+  <dd style="margin-left: 8">The requested operation cannot be served over HTTP/QUIC.  The peer should retry over HTTP/2.</dd>
+  <dt>HTTP_MALFORMED_HEADERS (0x09):</dt>
+  <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
+  <dt>HTTP_MALFORMED_PRIORITY (0x0A):</dt>
+  <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
+  <dt>HTTP_MALFORMED_SETTINGS (0x0B):</dt>
+  <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
+  <dt>HTTP_MALFORMED_PUSH_PROMISE (0x0C):</dt>
+  <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
+  <dt>HTTP_MALFORMED_SETTINGS_ACK (0x0D):</dt>
+  <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
+  <dt>HTTP_INTERRUPTED_HEADERS (0x0E):</dt>
+  <dd style="margin-left: 8">A HEADERS frame without the End Header Block flag was followed by a frame other than HEADERS.</dd>
+  <dt>HTTP_SETTINGS_ON_WRONG_STREAM (0x0F):</dt>
+  <dd style="margin-left: 8">A SETTINGS frame was received on a request control stream.</dd>
 </dl>
 <h2 id="rfc.section.6.2"><a href="#rfc.section.6.2">6.2.</a> <a href="#mapping-http2-error-codes" id="mapping-http2-error-codes">Mapping HTTP/2 Error Codes</a></h2>
 <p id="rfc.section.6.2.p.1">The HTTP/2 error codes defined in Section 7 of <a href="#RFC7540">[RFC7540]</a> map to QUIC error codes as follows:</p>
@@ -725,33 +758,33 @@ address {
 
 <dl>
   <dt>NO_ERROR (0x0):</dt>
-  <dd style="margin-left: 8">Maps to QUIC_NO_ERROR</dd>
+  <dd style="margin-left: 8">QUIC_NO_ERROR</dd>
   <dt>PROTOCOL_ERROR (0x1):</dt>
-  <dd style="margin-left: 8">No single mapping?</dd>
+  <dd style="margin-left: 8">No single mapping.  See new HTTP_MALFORMED_* error codes defined in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>INTERNAL_ERROR (0x2)</dt>
-  <dd style="margin-left: 8">QUIC_INTERNAL_ERROR? (not currently defined in core protocol spec)</dd>
+  <dd style="margin-left: 8">HTTP_INTERNAL_ERROR in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>FLOW_CONTROL_ERROR (0x3):</dt>
-  <dd style="margin-left: 8">QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA? (not currently defined in core protocol spec)</dd>
+  <dd style="margin-left: 8">Not applicable, since QUIC handles flow control.  Would provoke a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA from the QUIC layer.</dd>
   <dt>SETTINGS_TIMEOUT (0x4):</dt>
-  <dd style="margin-left: 8">(depends on whether we support SETTINGS acks)</dd>
+  <dd style="margin-left: 8">HTTP_SETTINGS_TIMEOUT in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>STREAM_CLOSED (0x5):</dt>
-  <dd style="margin-left: 8">QUIC_STREAM_DATA_AFTER_TERMINATION</dd>
+  <dd style="margin-left: 8">Not applicable, since QUIC handles stream management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION from the QUIC layer.</dd>
   <dt>FRAME_SIZE_ERROR (0x6)</dt>
-  <dd style="margin-left: 8">QUIC_INVALID_FRAME_DATA</dd>
+  <dd style="margin-left: 8">No single mapping.  See new error codes defined in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>REFUSED_STREAM (0x7):</dt>
-  <dd style="margin-left: 8">?</dd>
+  <dd style="margin-left: 8">Not applicable, since QUIC handles stream management.  Would provoke a QUIC_TOO_MANY_OPEN_STREAMS from the QUIC layer.</dd>
   <dt>CANCEL (0x8):</dt>
-  <dd style="margin-left: 8">?</dd>
+  <dd style="margin-left: 8">HTTP_REQUEST_CANCELLED in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>COMPRESSION_ERROR (0x9):</dt>
-  <dd style="margin-left: 8">QUIC_DECOMPRESSION_FAILURE (not currently defined in core spec)</dd>
+  <dd style="margin-left: 8">HTTP_HPACK_DECOMPRESSION_FAILED in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>CONNECT_ERROR (0xa):</dt>
-  <dd style="margin-left: 8">? (depends whether we decide to support CONNECT)</dd>
+  <dd style="margin-left: 8">HTTP_CONNECT_ERROR in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>ENHANCE_YOUR_CALM (0xb):</dt>
-  <dd style="margin-left: 8">?</dd>
+  <dd style="margin-left: 8">HTTP_EXCESSIVE_LOAD in <a href="#http-error-codes">Section 6.1</a>.</dd>
   <dt>INADEQUATE_SECURITY (0xc):</dt>
-  <dd style="margin-left: 8">QUIC_HANDSHAKE_FAILED, QUIC_CRYPTO_NO_SUPPORT</dd>
+  <dd style="margin-left: 8">Not applicable, since QUIC is assumed to provide sufficient security on all connections.</dd>
   <dt>HTTP_1_1_REQUIRED (0xd):</dt>
-  <dd style="margin-left: 8">?</dd>
+  <dd style="margin-left: 8">HTTP_VERSION_FALLBACK in <a href="#http-error-codes">Section 6.1</a>.</dd>
 </dl>
 <p id="rfc.section.6.2.p.3">TODO: fill in missing error code mappings.</p>
 <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a> <a href="#security-considerations" id="security-considerations">Security Considerations</a></h1>

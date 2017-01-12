@@ -92,8 +92,8 @@ Table of Contents
        5.2.1.  DATA  . . . . . . . . . . . . . . . . . . . . . . . .   8
        5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .   9
        5.2.3.  PRIORITY  . . . . . . . . . . . . . . . . . . . . . .  10
-       5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  10
-       5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  10
+       5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  11
+       5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  11
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  14
        5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  15
        5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  15
@@ -102,10 +102,10 @@ Table of Contents
        5.2.11. SETTINGS_ACK Frame  . . . . . . . . . . . . . . . . .  15
    6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  16
      6.1.  HTTP-Defined QUIC Error Codes . . . . . . . . . . . . . .  16
-     6.2.  Mapping HTTP/2 Error Codes  . . . . . . . . . . . . . . .  16
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  17
-   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
-     8.1.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  17
+     6.2.  Mapping HTTP/2 Error Codes  . . . . . . . . . . . . . . .  18
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  19
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  19
+     8.1.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  19
 
 
 
@@ -114,13 +114,13 @@ Bishop                    Expires July 16, 2017                 [Page 2]
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
-     8.2.  New Frame Types . . . . . . . . . . . . . . . . . . . . .  18
-   9.  Normative References  . . . . . . . . . . . . . . . . . . . .  18
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  19
-   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  19
-     B.1.  Since draft-ietf-quic-http-00:  . . . . . . . . . . . . .  19
-     B.2.  Since draft-shade-quic-http2-mapping-00:  . . . . . . . .  20
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  20
+     8.2.  New Frame Types . . . . . . . . . . . . . . . . . . . . .  20
+   9.  Normative References  . . . . . . . . . . . . . . . . . . . .  20
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  21
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  21
+     B.1.  Since draft-ietf-quic-http-00:  . . . . . . . . . . . . .  21
+     B.2.  Since draft-shade-quic-http2-mapping-00:  . . . . . . . .  22
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  22
 
 1.  Introduction
 
@@ -468,6 +468,9 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    Reserved (0x20):  Reserved for HTTP/2 compatibility.
 
+   A HEADERS frame with the Reserved bits set MUST be treated as a
+   connection error of type HTTP_MALFORMED_HEADERS.
+
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -484,10 +487,10 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    The next frame on the same stream after a HEADERS frame without the
    EHB flag set MUST be another HEADERS frame.  A receiver MUST treat
-   the receipt of any other type of frame as a stream error.  (Note that
-   QUIC can intersperse data from other streams between frames, or even
-   during transmission of frames, so multiplexing is not blocked by this
-   requirement.)
+   the receipt of any other type of frame as a stream error of type
+   HTTP_INTERRUPTED_HEADERS.  (Note that QUIC can intersperse data from
+   other streams between frames, or even during transmission of frames,
+   so multiplexing is not blocked by this requirement.)
 
    A full header block is contained in a sequence of zero or more
    HEADERS frames without EHB set, followed by a HEADERS frame with EHB
@@ -495,9 +498,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    On receipt, header blocks (HEADERS, PUSH_PROMISE) MUST be processed
    by the HPACK decoder in sequence.  If a block is missing, all
-   subsequent HPACK frames MUST be held until it arrives, or the
-   connection terminated.
-
 
 
 
@@ -505,6 +505,9 @@ Bishop                    Expires July 16, 2017                 [Page 9]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   subsequent HPACK frames MUST be held until it arrives, or the
+   connection terminated.
 
 5.2.3.  PRIORITY
 
@@ -544,6 +547,21 @@ Internet-Draft               HTTP over QUIC                 January 2017
       the stream (see [RFC7540] Section 5.3).  Add one to the value to
       obtain a weight between 1 and 256.
 
+   A PRIORITY frame MUST have a payload length of nine octets.  A
+   PRIORITY frame of any other length MUST be treated as a connection
+   error of type HTTP_MALFORMED_PRIORITY.
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 10]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
 5.2.4.  RST_STREAM
 
    RST_STREAM frames do not exist, since QUIC provides stream lifecycle
@@ -554,14 +572,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    The SETTINGS frame (type=0x4) conveys configuration parameters that
    affect how endpoints communicate, such as preferences and constraints
    on peer behavior, and is substantially different from [RFC7540].
-
-
-
-Bishop                    Expires July 16, 2017                [Page 10]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
    Individually, a SETTINGS parameter can also be referred to as a
    "setting".
 
@@ -598,6 +608,16 @@ Internet-Draft               HTTP over QUIC                 January 2017
    each consisting of an unsigned 16-bit setting identifier and a
    length-prefixed binary value.
 
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 11]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -610,14 +630,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    A zero-length content indicates that the setting value is a Boolean
    given by the B bit.  If Length is not zero, the B bit MUST be zero,
-
-
-
-Bishop                    Expires July 16, 2017                [Page 11]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
    and MUST be ignored by receivers.  The initial value of each setting
    is "false" unless otherwise specified by the definition of the
    setting.
@@ -634,11 +646,11 @@ Internet-Draft               HTTP over QUIC                 January 2017
    and MUST only be sent on the connection control stream (Stream 3).
    If an endpoint receives an SETTINGS frame whose stream identifier
    field is anything other than 0x0, the endpoint MUST respond with a
-   connection error.
+   connection error of type HTTP_SETTINGS_ON_WRONG_STREAM.
 
    The SETTINGS frame affects connection state.  A badly formed or
    incomplete SETTINGS frame MUST be treated as a connection error
-   (Section 5.4.1) of type PROTOCOL_ERROR.
+   (Section 5.4.1) of type HTTP_MALFORMED_SETTINGS.
 
 5.2.5.1.  Integer encoding
 
@@ -654,6 +666,14 @@ Internet-Draft               HTTP over QUIC                 January 2017
    frame are superseded by QUIC transport parameters in HTTP/QUIC.
    Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:
 
+
+
+
+Bishop                    Expires July 16, 2017                [Page 12]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
    SETTINGS_HEADER_TABLE_SIZE:  An integer with a maximum value of 2^32
       - 1.
 
@@ -664,15 +684,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
       incoming streams per connection to be specified in the initial
       crypto handshake, using the "MSPC" tag.  Specifying
       SETTINGS_MAX_CONCURRENT_STREAMS in the SETTINGS frame is an error.
-
-
-
-
-
-Bishop                    Expires July 16, 2017                [Page 12]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
 
    SETTINGS_INITIAL_WINDOW_SIZE:  QUIC requires both stream and
       connection flow control window sizes to be specified in the
@@ -711,6 +722,14 @@ Internet-Draft               HTTP over QUIC                 January 2017
    was received.  All streams with higher numbers can safely be assumed
    to have the new settings in effect when they open.
 
+
+
+
+Bishop                    Expires July 16, 2017                [Page 13]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
    For already-open streams including the connection control stream, the
    SETTINGS_ACK frame indicates the point at which the new settings took
    effect, if they did so before the peer half-closed the stream.  If
@@ -722,18 +741,10 @@ Internet-Draft               HTTP over QUIC                 January 2017
    on a given stream - this simply indicates that the new settings apply
    from the beginning of that stream.
 
-
-
-
-Bishop                    Expires July 16, 2017                [Page 13]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
    If the sender of a SETTINGS frame with the REQUEST_ACK flag set does
    not receive full acknowledgement within a reasonable amount of time,
-   it MAY issue a connection error ([RFC7540] Section 5.4.1) of type
-   SETTINGS_TIMEOUT.  A full acknowledgement has occurred when:
+   it MAY issue a connection error (Section 6) of type
+   HTTP_SETTINGS_TIMEOUT.  A full acknowledgement has occurred when:
 
    o  All previous SETTINGS frames have been fully acknowledged,
 
@@ -768,6 +779,13 @@ Internet-Draft               HTTP over QUIC                 January 2017
    HPACK Sequence:  A sixteen-bit counter, equivalent to the Sequence
       field in HEADERS
 
+
+
+Bishop                    Expires July 16, 2017                [Page 14]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
    Payload:  HPACK-compressed request headers for the promised response.
 
    TODOs:
@@ -776,15 +794,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
       Stream field in this case.
 
    o  No CONTINUATION - HEADERS have EHB; do we need it here?
-
-
-
-
-
-Bishop                    Expires July 16, 2017                [Page 14]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
 
 5.2.7.  PING
 
@@ -818,6 +827,21 @@ Internet-Draft               HTTP over QUIC                 January 2017
    and when the sender has processed the most recently-received SETTINGS
    frame, and has the following payload:
 
+
+
+
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 15]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -833,15 +857,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    Highest Local Stream (32 bits):  The highest locally-initiated Stream
       ID which is not in the "idle" state
 
-
-
-
-
-Bishop                    Expires July 16, 2017                [Page 15]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
    Highest Remote Stream (32 bits):  The highest peer-initiated Stream
       ID which is not in the "idle" state
 
@@ -851,45 +866,30 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    On message control streams, the SETTINGS_ACK frame carries no
    payload, and is strictly a synchronization marker for settings
-   application.  See Section 5.2.5.3 for more detail.
+   application.  See Section 5.2.5.3 for more detail.  A SETTINGS_ACK
+   frame with a non-zero length MUST be treated as a connection error of
+   type HTTP_MALFORMED_SETTINGS_ACK.
+
+   On the connection control stream, the SETTINGS_ACK frame MUST have a
+   length which is a multiple of two octets.  A SETTINGS_ACK frame of
+   any other length MUST be treated as a connection error of type
+   HTTP_MALFORMED_SETTINGS_ACK.
 
 6.  Error Handling
 
-   This section describes the specific error codes defined by HTTP/QUIC
-   and the mapping of HTTP/2 error codes into the QUIC error space.
-   (Work in progress.)
+   This section describes the specific error codes defined by HTTP and
+   the mapping of HTTP/2 error codes into the QUIC error code space.
 
 6.1.  HTTP-Defined QUIC Error Codes
 
-   The following error codes are defined by HTTP/QUIC for use in QUIC
-   RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.
+   QUIC allocates error codes 0x0000-0x3FFF to application protocol
+   definition.  The following error codes are defined by HTTP for use in
+   QUIC RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.
 
-   QUIC_INVALID_HEADERS_STREAM_DATA (0x38):  We received invalid data on
-      the headers stream.
+   HTTP_SETTINGS_TIMEOUT (0x00):  After sending a SETTINGS frame which
+      requested acknowledgement, the acknowledgement was not completed
+      (see Section 5.2.5.3) in a timely manner.
 
-6.2.  Mapping HTTP/2 Error Codes
-
-   The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
-   error codes as follows:
-
-   NO_ERROR (0x0):  Maps to QUIC_NO_ERROR
-
-   PROTOCOL_ERROR (0x1):  No single mapping?
-
-   INTERNAL_ERROR (0x2)  QUIC_INTERNAL_ERROR? (not currently defined in
-      core protocol spec)
-
-   FLOW_CONTROL_ERROR (0x3):  QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA?
-      (not currently defined in core protocol spec)
-
-   SETTINGS_TIMEOUT (0x4):  (depends on whether we support SETTINGS
-      acks)
-
-   STREAM_CLOSED (0x5):  QUIC_STREAM_DATA_AFTER_TERMINATION
-
-   FRAME_SIZE_ERROR (0x6)  QUIC_INVALID_FRAME_DATA
-
-   REFUSED_STREAM (0x7):  ?
 
 
 
@@ -898,22 +898,117 @@ Bishop                    Expires July 16, 2017                [Page 16]
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
-   CANCEL (0x8):  ?
+   HTTP_PUSH_REFUSED (0x01):  The server has attempted to push content
+      which the client will not accept on this connection.
 
-   COMPRESSION_ERROR (0x9):  QUIC_DECOMPRESSION_FAILURE (not currently
-      defined in core spec)
+   HTTP_INTERNAL_ERROR (0x02):  An internal error has occurred in the
+      HTTP stack.
 
-   CONNECT_ERROR (0xa):  ? (depends whether we decide to support
-      CONNECT)
+   HTTP_PUSH_ALREADY_IN_CACHE (0x03):  The server has attempted to push
+      content which the client has cached.
 
-   ENHANCE_YOUR_CALM (0xb):  ?
+   HTTP_REQUEST_CANCELLED (0x04):  The client no longer needs the
+      requested data.
 
-   INADEQUATE_SECURITY (0xc):  QUIC_HANDSHAKE_FAILED,
-      QUIC_CRYPTO_NO_SUPPORT
+   HTTP_HPACK_DECOMPRESSION_FAILED (0x05):  HPACK failed to decompress a
+      frame and cannot continue.
 
-   HTTP_1_1_REQUIRED (0xd):  ?
+   HTTP_CONNECT_ERROR (0x06):  The connection established in response to
+      a CONNECT request was reset or abnormally closed.
+
+   HTTP_EXCESSIVE_LOAD (0x07):  The endpoint detected that its peer is
+      exhibiting a behavior that might be generating excessive load.
+
+   HTTP_VERSION_FALLBACK (0x08):  The requested operation cannot be
+      served over HTTP/QUIC.  The peer should retry over HTTP/2.
+
+   HTTP_MALFORMED_HEADERS (0x09):  A HEADERS frame has been received
+      with an invalid format.
+
+   HTTP_MALFORMED_PRIORITY (0x0A):  A HEADERS frame has been received
+      with an invalid format.
+
+   HTTP_MALFORMED_SETTINGS (0x0B):  A HEADERS frame has been received
+      with an invalid format.
+
+   HTTP_MALFORMED_PUSH_PROMISE (0x0C):  A HEADERS frame has been
+      received with an invalid format.
+
+   HTTP_MALFORMED_SETTINGS_ACK (0x0D):  A HEADERS frame has been
+      received with an invalid format.
+
+   HTTP_INTERRUPTED_HEADERS (0x0E):  A HEADERS frame without the End
+      Header Block flag was followed by a frame other than HEADERS.
+
+   HTTP_SETTINGS_ON_WRONG_STREAM (0x0F):  A SETTINGS frame was received
+      on a request control stream.
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 17]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
+6.2.  Mapping HTTP/2 Error Codes
+
+   The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
+   error codes as follows:
+
+   NO_ERROR (0x0):  QUIC_NO_ERROR
+
+   PROTOCOL_ERROR (0x1):  No single mapping.  See new HTTP_MALFORMED_*
+      error codes defined in Section 6.1.
+
+   INTERNAL_ERROR (0x2)  HTTP_INTERNAL_ERROR in Section 6.1.
+
+   FLOW_CONTROL_ERROR (0x3):  Not applicable, since QUIC handles flow
+      control.  Would provoke a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA
+      from the QUIC layer.
+
+   SETTINGS_TIMEOUT (0x4):  HTTP_SETTINGS_TIMEOUT in Section 6.1.
+
+   STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
+      management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
+      from the QUIC layer.
+
+   FRAME_SIZE_ERROR (0x6)  No single mapping.  See new error codes
+      defined in Section 6.1.
+
+   REFUSED_STREAM (0x7):  Not applicable, since QUIC handles stream
+      management.  Would provoke a QUIC_TOO_MANY_OPEN_STREAMS from the
+      QUIC layer.
+
+   CANCEL (0x8):  HTTP_REQUEST_CANCELLED in Section 6.1.
+
+   COMPRESSION_ERROR (0x9):  HTTP_HPACK_DECOMPRESSION_FAILED in
+      Section 6.1.
+
+   CONNECT_ERROR (0xa):  HTTP_CONNECT_ERROR in Section 6.1.
+
+   ENHANCE_YOUR_CALM (0xb):  HTTP_EXCESSIVE_LOAD in Section 6.1.
+
+   INADEQUATE_SECURITY (0xc):  Not applicable, since QUIC is assumed to
+      provide sufficient security on all connections.
+
+   HTTP_1_1_REQUIRED (0xd):  HTTP_VERSION_FALLBACK in Section 6.1.
 
    TODO: fill in missing error code mappings.
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 18]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
 
 7.  Security Considerations
 
@@ -949,7 +1044,24 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 16, 2017                [Page 17]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 19]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1005,7 +1117,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 16, 2017                [Page 18]
+Bishop                    Expires July 16, 2017                [Page 20]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1061,7 +1173,7 @@ B.1.  Since draft-ietf-quic-http-00:
 
 
 
-Bishop                    Expires July 16, 2017                [Page 19]
+Bishop                    Expires July 16, 2017                [Page 21]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1117,4 +1229,4 @@ Author's Address
 
 
 
-Bishop                    Expires July 16, 2017                [Page 20]
+Bishop                    Expires July 16, 2017                [Page 22]

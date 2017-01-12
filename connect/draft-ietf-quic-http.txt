@@ -102,10 +102,10 @@ Table of Contents
        5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  16
        5.2.11. SETTINGS_ACK Frame  . . . . . . . . . . . . . . . . .  16
    6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  17
+     6.1.  HTTP-Defined QUIC Error Codes . . . . . . . . . . . . . .  17
+     6.2.  Mapping HTTP/2 Error Codes  . . . . . . . . . . . . . . .  17
    7.  Security Considerations . . . . . . . . . . . . . . . . . . .  18
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  18
-     8.1.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  18
-     8.2.  New Frame Types . . . . . . . . . . . . . . . . . . . . .  19
 
 
 
@@ -114,9 +114,14 @@ Bishop                    Expires July 16, 2017                 [Page 2]
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
+     8.1.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  18
+     8.2.  New Frame Types . . . . . . . . . . . . . . . . . . . . .  19
    9.  Normative References  . . . . . . . . . . . . . . . . . . . .  19
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  20
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  20
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  20
+     B.1.  Since draft-ietf-quic-http-00:  . . . . . . . . . . . . .  20
+     B.2.  Since draft-shade-quic-http2-mapping-00:  . . . . . . . .  21
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  21
 
 1.  Introduction
 
@@ -155,11 +160,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    connection on port 443 and, if successful, send HTTP requests using
    the mapping described in this document.
 
-   Connectivity problems (e.g. firewall blocking UDP) may result in QUIC
-   connection establishment failure, in which case the client should
-   gracefully fall back to HTTP/2.
-
-
 
 
 
@@ -169,6 +169,10 @@ Bishop                    Expires July 16, 2017                 [Page 3]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   Connectivity problems (e.g. firewall blocking UDP) may result in QUIC
+   connection establishment failure, in which case the client should
+   gracefully fall back to HTTP/2.
 
 3.  Connection establishment
 
@@ -214,10 +218,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    Pairs of streams must be utilized sequentially, with no gaps.  The
    data stream MUST be reserved with the QUIC implementation when the
    message control stream is opened or reserved, and MUST be closed
-   after transferring the body, or else closed immediately after sending
-   the request headers if there is no body.
-
-
 
 
 
@@ -225,6 +225,9 @@ Bishop                    Expires July 16, 2017                 [Page 4]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   after transferring the body, or else closed immediately after sending
+   the request headers if there is no body.
 
    HTTP does not need to do any separate multiplexing when using QUIC -
    data sent over a QUIC stream always maps to a particular HTTP
@@ -272,9 +275,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    to maintain HPACK decoder state, but the resulting output MUST be
    discarded.
 
-   An HTTP request/response exchange fully consumes a pair of streams.
-   After sending a request, a client closes the streams for sending;
-
 
 
 Bishop                    Expires July 16, 2017                 [Page 5]
@@ -282,6 +282,8 @@ Bishop                    Expires July 16, 2017                 [Page 5]
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
+   An HTTP request/response exchange fully consumes a pair of streams.
+   After sending a request, a client closes the streams for sending;
    after sending a response, the server closes its streams for sending
    and the QUIC streams are fully closed.
 
@@ -327,8 +329,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    server for the purposes of interacting with "https" resources.  In
    HTTP/1.x, CONNECT is used to convert an entire HTTP connection into a
    tunnel to a remote host.  In HTTP/2, the CONNECT method is used to
-   establish a tunnel over a single HTTP/2 stream to a remote host for
-   similar purposes.
 
 
 
@@ -337,6 +337,9 @@ Bishop                    Expires July 16, 2017                 [Page 6]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   establish a tunnel over a single HTTP/2 stream to a remote host for
+   similar purposes.
 
    A CONNECT request in HTTP/QUIC functions in the same manner as in
    HTTP/2.  The request MUST be formatted as described in [RFC7540],
@@ -370,9 +373,9 @@ Internet-Draft               HTTP over QUIC                 January 2017
    A TCP connection error is signaled with RST_STREAM.  A proxy treats
    any error in the TCP connection, which includes receiving a TCP
    segment with the RST bit set, as a stream error of type
-   HTTP_CONNECT_ERROR.  Correspondingly, a proxy MUST send a TCP segment
-   with the RST bit set if it detects an error with the stream or the
-   QUIC connection.
+   HTTP_CONNECT_ERROR (Section 6.1).  Correspondingly, a proxy MUST send
+   a TCP segment with the RST bit set if it detects an error with the
+   stream or the QUIC connection.
 
 4.3.  Stream Priorities
 
@@ -383,9 +386,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    resources before the former stream (the "dependent" stream).  Taken
    together, the dependencies across all streams in a connection form a
    dependency tree.  The structure of the dependency tree changes as
-   HEADERS and PRIORITY frames add, remove, or change the dependency
-   links between streams.
-
 
 
 
@@ -393,6 +393,9 @@ Bishop                    Expires July 16, 2017                 [Page 7]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   HEADERS and PRIORITY frames add, remove, or change the dependency
+   links between streams.
 
    Implicit in this scheme is the notion of in-order delivery of
    priority changes (i.e., dependency tree mutations): since operations
@@ -437,9 +440,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    push response, with response headers and (if present) trailers
    carried by HEADERS frames sent on the control stream, and response
    body (if any) sent via the corresponding data stream.
-
-
-
 
 
 
@@ -911,6 +911,20 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 6.  Error Handling
 
+   This section describes the specific error codes defined by HTTP/QUIC
+   and the mapping of HTTP/2 error codes into the QUIC error space.
+   (Work in progress.)
+
+6.1.  HTTP-Defined QUIC Error Codes
+
+   The following error codes are defined by HTTP/QUIC for use in QUIC
+   RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.
+
+   QUIC_INVALID_HEADERS_STREAM_DATA (0x38):  We received invalid data on
+      the headers stream.
+
+6.2.  Mapping HTTP/2 Error Codes
+
    The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
    error codes as follows:
 
@@ -933,6 +947,13 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    REFUSED_STREAM (0x7):  ?
 
+
+
+Bishop                    Expires July 16, 2017                [Page 17]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
    CANCEL (0x8):  ?
 
    COMPRESSION_ERROR (0x9):  QUIC_DECOMPRESSION_FAILURE (not currently
@@ -945,14 +966,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    INADEQUATE_SECURITY (0xc):  QUIC_HANDSHAKE_FAILED,
       QUIC_CRYPTO_NO_SUPPORT
-
-
-
-
-Bishop                    Expires July 16, 2017                [Page 17]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
 
    HTTP_1_1_REQUIRED (0xd):  ?
 
@@ -988,19 +1001,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
       QUIC is defined; required if the frame is supported over QUIC.
 
    Values for existing registrations are assigned by this document:
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1103,6 +1103,37 @@ Appendix A.  Contributors
    The original authors of this specification were Robbie Shade and Mike
    Warres.
 
+Appendix B.  Change Log
+
+      *RFC Editor's Note:* Please remove this section prior to
+      publication of a final version of this document.
+
+B.1.  Since draft-ietf-quic-http-00:
+
+   o  Changed "HTTP/2-over-QUIC" to "HTTP/QUIC" throughout
+
+   o  Changed from using HTTP/2 framing within Stream 3 to new framing
+      format and two-stream-per-request model
+
+
+
+Bishop                    Expires July 16, 2017                [Page 20]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
+
+   o  Adopted SETTINGS format from draft-bishop-httpbis-extended-
+      settings-01
+
+   o  Reworked SETTINGS_ACK to account for indeterminate inter-stream
+      order.
+
+B.2.  Since draft-shade-quic-http2-mapping-00:
+
+   o  Adopted as base for draft-ietf-quic-http.
+
+   o  Updated authors/editors list.
+
 Author's Address
 
    Mike Bishop (editor)
@@ -1117,4 +1148,29 @@ Author's Address
 
 
 
-Bishop                    Expires July 16, 2017                [Page 20]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bishop                    Expires July 16, 2017                [Page 21]

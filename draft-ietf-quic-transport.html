@@ -279,6 +279,7 @@ address {
   <link href="#rfc.toc" rel="Contents"/>
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
 <link href="#rfc.section.2" rel="Chapter" title="2 Conventions and Definitions"/>
+<link href="#rfc.section.2.1" rel="Chapter" title="2.1 Notational Conventions"/>
 <link href="#rfc.section.3" rel="Chapter" title="3 A QUIC Overview"/>
 <link href="#rfc.section.3.1" rel="Chapter" title="3.1 Low-Latency Connection Establishment"/>
 <link href="#rfc.section.3.2" rel="Chapter" title="3.2 Stream Multiplexing"/>
@@ -309,7 +310,8 @@ address {
 <link href="#rfc.section.7" rel="Chapter" title="7 Frame Types and Formats"/>
 <link href="#rfc.section.7.1" rel="Chapter" title="7.1 STREAM Frame"/>
 <link href="#rfc.section.7.2" rel="Chapter" title="7.2 ACK Frame"/>
-<link href="#rfc.section.7.2.1" rel="Chapter" title="7.2.1 Time Format"/>
+<link href="#rfc.section.7.2.1" rel="Chapter" title="7.2.1 Ack Block Section"/>
+<link href="#rfc.section.7.2.2" rel="Chapter" title="7.2.2 Timestamp Section"/>
 <link href="#rfc.section.7.3" rel="Chapter" title="7.3 STOP_WAITING Frame"/>
 <link href="#rfc.section.7.4" rel="Chapter" title="7.4 WINDOW_UPDATE Frame"/>
 <link href="#rfc.section.7.5" rel="Chapter" title="7.5 BLOCKED Frame"/>
@@ -424,7 +426,8 @@ address {
 
   	<li>1.   <a href="#rfc.section.1">Introduction</a></li>
 <li>2.   <a href="#rfc.section.2">Conventions and Definitions</a></li>
-<li>3.   <a href="#rfc.section.3">A QUIC Overview</a></li>
+<ul><li>2.1.   <a href="#rfc.section.2.1">Notational Conventions</a></li>
+</ul><li>3.   <a href="#rfc.section.3">A QUIC Overview</a></li>
 <ul><li>3.1.   <a href="#rfc.section.3.1">Low-Latency Connection Establishment</a></li>
 <li>3.2.   <a href="#rfc.section.3.2">Stream Multiplexing</a></li>
 <li>3.3.   <a href="#rfc.section.3.3">Rich Signaling for Congestion Control and Loss Recovery</a></li>
@@ -454,7 +457,8 @@ address {
 </ul><li>7.   <a href="#rfc.section.7">Frame Types and Formats</a></li>
 <ul><li>7.1.   <a href="#rfc.section.7.1">STREAM Frame</a></li>
 <li>7.2.   <a href="#rfc.section.7.2">ACK Frame</a></li>
-<ul><li>7.2.1.   <a href="#rfc.section.7.2.1">Time Format</a></li>
+<ul><li>7.2.1.   <a href="#rfc.section.7.2.1">Ack Block Section</a></li>
+<li>7.2.2.   <a href="#rfc.section.7.2.2">Timestamp Section</a></li>
 </ul><li>7.3.   <a href="#rfc.section.7.3">STOP_WAITING Frame</a></li>
 <li>7.4.   <a href="#rfc.section.7.4">WINDOW_UPDATE Frame</a></li>
 <li>7.5.   <a href="#rfc.section.7.5">BLOCKED Frame</a></li>
@@ -515,6 +519,20 @@ address {
   <li>Connection ID: The identifier for a QUIC connection.</li>
   <li>QUIC packet: A well-formed UDP payload that can be parsed by a QUIC receiver.  QUIC packet size in this document refers to the UDP payload size.</li>
 </ul>
+<h2 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1.</a> <a href="#notational-conventions" id="notational-conventions">Notational Conventions</a></h2>
+<p id="rfc.section.2.1.p.1">Packet and frame diagrams use the format described in <a href="#RFC2360">[RFC2360]</a> Section 3.1, with the following additional conventions:</p>
+<p/>
+
+<dl>
+  <dt>[x]</dt>
+  <dd style="margin-left: 8">Indicates that x is optional</dd>
+  <dt>{x}</dt>
+  <dd style="margin-left: 8">Indicates that x is encrypted</dd>
+  <dt>x (*) &#8230;</dt>
+  <dd style="margin-left: 8">Indicates that x is variable-length</dd>
+  <dt>x (A/B/C) &#8230;</dt>
+  <dd style="margin-left: 8">Indicates that x is one of A, B, or C bits long</dd>
+</dl>
 <h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#a-quic-overview" id="a-quic-overview">A QUIC Overview</a></h1>
 <p id="rfc.section.3.p.1">This section briefly describes QUIC&#8217;s key mechanisms and benefits.  Key strengths of QUIC include:</p>
 <p/>
@@ -558,9 +576,17 @@ address {
 <h2 id="rfc.section.5.1"><a href="#rfc.section.5.1">5.1.</a> <a href="#common-header" id="common-header">Common Header</a></h2>
 <p id="rfc.section.5.1.p.1">All QUIC packets begin with a QUIC Common header, as shown below.</p>
 <pre>
-   +------------+---------------------------------+
-   |  Flags(8)  |  Connection ID (64) (optional)  |
-   +------------+---------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+
+|   Flags (8)   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
++                     [Connection ID (64)]                      +
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                   Type-Dependent Fields (*)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p id="rfc.section.5.1.p.2">The fields in the Common Header are the following:</p>
 <p/>
@@ -575,25 +601,25 @@ address {
 <div id="packet-types"/>
 <pre>
 Check the flags in the common header
-                 |
-                 |
-                 V
-           +--------------+
-           | PUBLIC_RESET |  YES
-           | flag set?    |-------&gt; Public Reset packet
-           +--------------+
-                 |
-                 | NO
-                 V
-           +------------+         +-------------+
-           | VERSION    |  YES    | Packet sent |  YES
-           | flag set?  |--------&gt;| by server?  |--------&gt; Version Negotiation
-           +------------+         +-------------+               packet
-                 |                       |
-                 | NO                    | NO
-                 V                       V
-         Regular packet with       Regular packet with
-     no QUIC Version in header    QUIC Version in header
+              |
+              |
+              V
+        +--------------+
+        | PUBLIC_RESET |  YES
+        | flag set?    |-------&gt; Public Reset packet
+        +--------------+
+              |
+              | NO
+              V
+        +------------+         +-------------+
+        | VERSION    |  YES    | Packet sent |  YES     Version
+        | flag set?  |--------&gt;| by server?  |--------&gt; Negotiation
+        +------------+         +-------------+          packet
+              |                       |
+              | NO                    | NO
+              V                       V
+      Regular packet with       Regular packet with
+  no QUIC Version in header    QUIC Version in header
 </pre>
 <p class="figure">Figure 1: Types of QUIC Packets</p>
 <h3 id="rfc.section.5.1.2"><a href="#rfc.section.5.1.2">5.1.2.</a> <a href="#handling-packets-from-different-versions" id="handling-packets-from-different-versions">Handling Packets from Different Versions</a></h3>
@@ -610,27 +636,19 @@ Check the flags in the common header
 </ul>
 <p id="rfc.section.5.1.2.p.5">All other values MUST be ignored when processing a packet that contains an unsupported version.</p>
 <h2 id="rfc.section.5.2"><a href="#rfc.section.5.2">5.2.</a> <a href="#regular-packets" id="regular-packets">Regular Packets</a></h2>
-<p id="rfc.section.5.2.p.1">Each Regular packet&#8217;s header consists of a Common Header followed by fields specific to Regular packets, as shown below:</p>
+<p id="rfc.section.5.2.p.1">Each Regular packet contains additional header fields followed by an encrypted payload, as shown below:</p>
 <div id="rfc.figure.2"/>
 <div id="regular-packet-format"/>
 <pre>
-+------------+---------------------------------+
-|  Flags(8)  |  Connection ID (64) (optional)  | -&gt;
-+------------+---------------------------------+
-+---------------------------------------+-------------------------------+
-|  Version (32) (client-only, optional) |  Diversification Nonce (256)  | -&gt;
-+---------------------------------------+-------------------------------+
-+------------------------------------+
-|  Packet Number (8, 16, 32, or 48)  | -&gt;
-+------------------------------------+
-+------------+
-|  AEAD Data |
-+------------+
-
-Decrypted AEAD Data:
-+------------+-----------+     +-----------+
-|   Frame 1  |  Frame 2  | ... |  Frame N  |
-+------------+-----------+     +-----------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        [Version (32)]                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                  Packet Number (8/16/32/48)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    {Encrypted Payload (*)}                  ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 2: Regular Packet</p>
 <p id="rfc.section.5.2.p.2">The fields in a Regular packet past the Common Header are the following:</p>
@@ -638,10 +656,25 @@ Decrypted AEAD Data:
 
 <ul>
   <li>QUIC Version: A 32-bit opaque tag that represents the version of the QUIC protocol.  Only present in the client-to-server direction, and if the VERSION flag is set.  Version Negotiation is described in <a href="#version-negotiation">Section 6.1</a>.</li>
-  <li>DISCUSS_AND_REPLACE: Diversification Nonce: A 32-byte nonce generated by the server and used only in the Server-&gt;Client direction to ensure that the server is able to generate unique keys per connection.  Specifically, when using QUIC&#8217;s 0-RTT crypto handshake, a repeated CHLO with the exact same connection ID and CHLO can lead to the same (intermediate) initial-encryption keys being derived for the connection.  A server-generated nonce disallows a client from causing the same keys to be derived for two distinct connections.  Once the connection is forward-secure, this nonce is no longer present in packets.  This nonce can be removed from the packet header if a requirement can be added for the crypto handshake to ensure key uniqueness.  The expectation is that TLS1.3 meets this requirement.  Upon working group adoption of this document, this requirement should be added to the crypto handshake requirements, and the nonce should be removed from the packet format.</li>
   <li>Packet Number: The lower 8, 16, 32, or 48 bits of the packet number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet is assigned a packet number by the sender.  The first packet sent by an endpoint MUST have a packet number of 1.</li>
-  <li>AEAD Data: A Regular packet&#8217;s header, which includes the Common Header, and the Version, Diversification Nonce, and Packet Number fields, is authenticated but not encrypted.  The rest of a Regular packet, starting with the first frame, is both authenticated and encrypted.  Immediately following the header, Regular packets contain AEAD (Authenticated Encryption with Associated Data) data.  This data must be decrypted in order for the contents to be interpreted.  After decryption, the plaintext consists of a sequence of frames, as shown (frames are described in <a href="#frames">Section 5.2.2</a>).</li>
+  <li>Encrypted Payload: The remainder of a Regular packet is both authenticated and encrypted once packet protection keys are available.  <a href="#QUIC-TLS">[QUIC-TLS]</a> describes packet protection in detail.  After decryption, the plaintext consists of a sequence of frames, as shown in <a href="#regular-packet-frames">Figure 3</a>.  Frames are described in <a href="#frames">Section 5.2.2</a>.</li>
 </ul>
+<div id="rfc.figure.3"/>
+<div id="regular-packet-frames"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                          Frame 1 (*)                        ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                          Frame 2 (*)                        ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                               ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                          Frame N (*)                        ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 3: Contents of Encrypted Payload</p>
 <h3 id="rfc.section.5.2.1"><a href="#rfc.section.5.2.1">5.2.1.</a> <a href="#packet-number-compression-and-reconstruction" id="packet-number-compression-and-reconstruction">Packet Number Compression and Reconstruction</a></h3>
 <p id="rfc.section.5.2.1.p.1">The complete packet number is a 64-bit unsigned number and is used as part of a cryptographic nonce for packet encryption.  To reduce the number of bits required to represent the packet number over the wire, at most 48 bits of the packet number are transmitted over the wire.  A QUIC endpoint MUST NOT reuse a complete packet number within the same connection (that is, under the same cryptographic keys).  If the total number of packets transmitted in this connection reaches 2^64 - 1, the sender MUST close the connection by sending a CONNECTION_CLOSE frame with the error code QUIC_SEQUENCE_NUMBER_LIMIT_REACHED (connection termination is described in <a href="#termination">Section 6.4</a>.)  For unambiguous reconstruction of the complete packet number by a receiver from the lower-order bits, a QUIC sender MUST NOT have more than 2^(packet_number_size - 2) in flight at any point in the connection.  In other words,</p>
 <p/>
@@ -654,67 +687,144 @@ Decrypted AEAD Data:
 </ul>
 <p id="rfc.section.5.2.1.p.3">(TODO: Clarify how packet number size can change mid-connection.)</p>
 <h3 id="rfc.section.5.2.2"><a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#frames" id="frames">Frames and Frame Types</a></h3>
-<p id="rfc.section.5.2.2.p.1">A Regular packet MUST contain at least one frame, and MAY contain multiple frames and multiple frame types.  Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC packet boundary.  Each frame begins with a Frame Type byte, indicating its type, followed by type-dependent headers, and variable-length data, as follows:</p>
-<pre>
-   +-----------+---------------------------+-------------------------+
-   |  Type (8) |  Headers (type-dependent) |  Data (type-dependent)  |
-   +-----------+---------------------------+-------------------------+
-</pre>
-<p id="rfc.section.5.2.2.p.2">The following table lists currently defined frame types.  Note that the Frame Type byte in STREAM and ACK frames is used to carry other frame-specific flags.  For all other frames, the Frame Type byte simply identifies the frame.  These frames are explained in more detail as they are referenced later in the document.</p>
-<div id="rfc.figure.3"/>
-<div id="frame-types"/>
-<pre>
-      +------------------+--------------------+
-      | Type-field value |     Frame type     |
-      +------------------+--------------------+
-      | 1FDOOOSS         |  STREAM            |
-      | 01NULLMM         |  ACK               |
-      | 00000000 (0x00)  |  PADDING           |
-      | 00000001 (0x01)  |  RST_STREAM        |
-      | 00000010 (0x02)  |  CONNECTION_CLOSE  |
-      | 00000011 (0x03)  |  GOAWAY            |
-      | 00000100 (0x04)  |  WINDOW_UPDATE     |
-      | 00000101 (0x05)  |  BLOCKED           |
-      | 00000110 (0x06)  |  STOP_WAITING      |
-      | 00000111 (0x07)  |  PING              |
-      +------------------+--------------------+
-</pre>
-<p class="figure">Figure 3: Types of QUIC Frames</p>
-<h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#version-negotiation-packet" id="version-negotiation-packet">Version Negotiation Packet</a></h2>
-<p id="rfc.section.5.3.p.1">A Version Negotiation packet is only sent by the server, MUST have the VERSION flag set, and MUST include the full 64-bit Connection ID.  The rest of the Version Negotiation packet is a list of 4-byte versions which the server supports, as shown below.</p>
+<p id="rfc.section.5.2.2.p.1">A Regular packet MUST contain at least one frame, and MAY contain multiple frames and multiple frame types.  Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC packet boundary.  Each frame begins with a Frame Type byte, indicating its type, followed by additional type-dependent fields:</p>
 <div id="rfc.figure.4"/>
+<div id="frame-layout"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   Type (8)    |           Type-Dependent Fields (*)         ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 4: Generic Frame Layout</p>
+<p id="rfc.section.5.2.2.p.2">The following table lists currently defined frame types.  Note that the Frame Type byte in STREAM and ACK frames is used to carry other frame-specific flags.  For all other frames, the Frame Type byte simply identifies the frame.  These frames are explained in more detail as they are referenced later in the document.</p>
+<table cellpadding="3" cellspacing="0" class="tt full center">
+  <thead>
+    <tr>
+      <th class="left"/>
+      <th class="left">Type-field value</th>
+      <th class="left">Frame type</th>
+      <th class="left">Definition</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="left"/>
+      <td class="left">
+        <samp>1FDOOOSS</samp>
+      </td>
+      <td class="left">STREAM</td>
+      <td class="left">
+        <a href="#frame-stream">Section 7.1</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">
+        <samp>01NULLMM</samp>
+      </td>
+      <td class="left">ACK</td>
+      <td class="left">
+        <a href="#frame-ack">Section 7.2</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000000 (0x00)</td>
+      <td class="left">PADDING</td>
+      <td class="left">
+        <a href="#frame-padding">Section 7.7</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000001 (0x01)</td>
+      <td class="left">RST_STREAM</td>
+      <td class="left">
+        <a href="#frame-rst-stream">Section 7.6</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000010 (0x02)</td>
+      <td class="left">CONNECTION_CLOSE</td>
+      <td class="left">
+        <a href="#frame-connection-close">Section 7.9</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000011 (0x03)</td>
+      <td class="left">GOAWAY</td>
+      <td class="left">
+        <a href="#frame-goaway">Section 7.10</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000100 (0x04)</td>
+      <td class="left">WINDOW_UPDATE</td>
+      <td class="left">
+        <a href="#frame-window-update">Section 7.4</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000101 (0x05)</td>
+      <td class="left">BLOCKED</td>
+      <td class="left">
+        <a href="#frame-blocked">Section 7.5</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000110 (0x06)</td>
+      <td class="left">STOP_WAITING</td>
+      <td class="left">
+        <a href="#frame-stop-waiting">Section 7.3</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left"/>
+      <td class="left">00000111 (0x07)</td>
+      <td class="left">PING</td>
+      <td class="left">
+        <a href="#frame-ping">Section 7.8</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#version-negotiation-packet" id="version-negotiation-packet">Version Negotiation Packet</a></h2>
+<p id="rfc.section.5.3.p.1">A Version Negotiation packet is only sent by the server, MUST have the VERSION flag set, and MUST include the full 64-bit Connection ID.  The remainder of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
+<div id="rfc.figure.5"/>
 <div id="version-negotiation-format"/>
 <pre>
-+-----------------------------------+
-|  Flags(8)  |  Connection ID (64)  | -&gt;
-+-----------------------------------+
-+------------------------------+----------------------------------------+
-|  1st Supported Version (32)  |  2nd Supported Version (32) supported  | ...
-+------------------------------+----------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Supported Version 1 (32)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Supported Version 2 (32)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                               ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Supported Version N (32)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p class="figure">Figure 4: Version Negotiation Packet</p>
+<p class="figure">Figure 5: Version Negotiation Packet</p>
 <h2 id="rfc.section.5.4"><a href="#rfc.section.5.4">5.4.</a> <a href="#public-reset-packet" id="public-reset-packet">Public Reset Packet</a></h2>
-<p id="rfc.section.5.4.p.1">A Public Reset packet MUST have the PUBLIC_RESET flag set, and MUST include the full 64-bit connection ID.  The rest of the Public Reset packet is encoded as if it were a crypto handshake message of the tag PRST, as shown below.</p>
-<div id="rfc.figure.5"/>
+<p id="rfc.section.5.4.p.1">A Public Reset packet MUST have the PUBLIC_RESET flag set, and MUST include the full 64-bit connection ID.  The content of the Public Reset packet is TBD.</p>
+<div id="rfc.figure.6"/>
 <div id="public-reset-format"/>
 <pre>
-   +-----------------------------------+
-   |  Flags(8)  |  Connection ID (64)  | -&gt;
-   +-----------------------------------+
-   +-------------------------------------+
-   |  Quic Tag (PRST) and tag value map  |
-   +-------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Public Reset Fields (*)                  ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p class="figure">Figure 5: Public Reset Packet</p>
-<p id="rfc.section.5.4.p.2">The tag value map contains the following tag-values:</p>
-<p/>
-
-<ul>
-  <li>RNON (public reset nonce proof) - a 64-bit unsigned integer.</li>
-  <li>RSEQ (rejected packet number) - a 64-bit packet number.</li>
-  <li>CADR (client address) - the observed client IP address and port number.  This is currently for debugging purposes only and hence is optional.</li>
-</ul>
-<p id="rfc.section.5.4.p.4">DISCUSS_AND_REPLACE: The crypto handshake message format is described in the QUIC crypto document, and should be replaced with something simpler when this document is adopted.  The purpose of the tag-value map following the PRST tag is to enable the receiver of the Public Reset packet to reasonably authenticate the packet.  This map is an extensible map format that allows specification of various tags, which should again be replaced by something simpler.</p>
+<p class="figure">Figure 6: Public Reset Packet</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#life-of-a-connection" id="life-of-a-connection">Life of a Connection</a></h1>
 <p id="rfc.section.6.p.1">A QUIC connection is a single conversation between two QUIC endpoints.  QUIC&#8217;s connection establishment intertwines version negotiation with the crypto and transport handshakes to reduce connection establishment latency, as described in <a href="#handshake">Section 6.2</a>.  Once established, a connection may migrate to a different IP or port at either endpoint, due to NAT rebinding or mobility, as described in <a href="#migration">Section 6.3</a>.  Finally a connection may be terminated by either endpoint, as described in <a href="#termination">Section 6.4</a>.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#version-negotiation" id="version-negotiation">Version Negotiation</a></h2>
@@ -793,172 +903,263 @@ Decrypted AEAD Data:
 </ol>
 <p id="rfc.section.6.4.p.3">TODO: Connections that are terminated are added to a TIME_WAIT list at the server, so as to absorb any straggler packets in the network.  Discuss TIME_WAIT list.</p>
 <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a> <a href="#frame-types-and-formats" id="frame-types-and-formats">Frame Types and Formats</a></h1>
-<p id="rfc.section.7.p.1">As described in <a href="#packetization">Section 8</a>, Regular packets contain one or more frames.  We now describe the various QUIC frame types that can be present in a Regular packet.  The use of these frames and various frame header bits are described in subsequent sections.</p>
-<h2 id="rfc.section.7.1"><a href="#rfc.section.7.1">7.1.</a> <a href="#stream-frame" id="stream-frame">STREAM Frame</a></h2>
-<p id="rfc.section.7.1.p.1">STREAM frames implicitly create a stream and carry stream data.  A STREAM frame is shown below.</p>
-<pre>
-   +------------+--------------------------------+
-   |  Type (8)  |  Stream ID (8, 16, 24, or 32)  |
-   +------------+--------------------------------+
-   +---------------------------------------------+
-   |  Offset (0, 16, 24, 32, 40, 48, 56, or 64)  |
-   +---------------------------------------------+
-   +-------------------------+---------------------------------+
-   |  Data length (0 or 16)  |  Stream Data (per data length)  |
-   +-------------------------+---------------------------------+
-</pre>
-<p id="rfc.section.7.1.p.2">The STREAM frame header fields are as follows:</p>
+<p id="rfc.section.7.p.1">As described in <a href="#packetization">Section 8</a>, Regular packets contain one or more frames.  We now describe the various QUIC frame types that can be present in a Regular packet. The use of these frames and various frame header bits are described in subsequent sections.</p>
+<h2 id="rfc.section.7.1"><a href="#rfc.section.7.1">7.1.</a> <a href="#frame-stream" id="frame-stream">STREAM Frame</a></h2>
+<p id="rfc.section.7.1.p.1">STREAM frames implicitly create a stream and carry stream data. The type byte for a STREAM frame contains embedded flags, and is formatted as <samp>1FDOOOSS</samp>.  These bits are parsed as follows:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: The Frame Type byte is an 8-bit value containing various flags, and is formatted as the following 8 bits: 1FDOOOSS.  <ul><li>The leftmost bit must be set to 1 indicating that this is a STREAM frame.</li><li>&#8216;F&#8217; is the FIN bit, which is used for stream termination.</li><li>The &#8216;D&#8217; bit indicates whether a Data Length field is present in the STREAM header.  When set to 0, this field indicates that the Stream Data field extends to the end of the packet.  When set to 1, this field indicates that Data Length field contains the length (in bytes) of the Stream Data field.  The option to omit the length should only be used when the packet is a &#8220;full-sized&#8221; packet, to avoid the risk of corruption via padding.</li><li>The &#8216;OOO&#8217; bits encode the length of the Offset header field as 0, 16, 24, 32, 40, 48, 56, or 64 bits long.</li><li>The &#8216;SS&#8217; bits encode the length of the Stream ID header field as 8, 16, 24, or 32 bits.  (DISCUSS: Consider making this 8, 16, 32, 64.)</li></ul></li>
-  <li>Stream ID: A variable-sized unsigned ID unique to this stream.</li>
+  <li>The leftmost bit must be set to 1, indicating that this is a STREAM frame.</li>
+  <li><samp>F</samp> is the FIN bit, which is used for stream termination.</li>
+  <li>The <samp>D</samp> bit indicates whether a Data Length field is present in the STREAM header.  When set to 0, this field indicates that the Stream Data field extends to the end of the packet.  When set to 1, this field indicates that Data Length field contains the length (in bytes) of the Stream Data field.  The option to omit the length should only be used when the packet is a &#8220;full-sized&#8221; packet, to avoid the risk of corruption via padding.</li>
+  <li>The <samp>OOO</samp> bits encode the length of the Offset header field as 0, 16, 24, 32, 40, 48, 56, or 64 bits long.</li>
+  <li>The <samp>SS</samp> bits encode the length of the Stream ID header field as 8, 16, 24, or 32 bits.  (DISCUSS: Consider making this 8, 16, 32, 64.)</li>
+</ul>
+<p id="rfc.section.7.1.p.3">A STREAM frame is shown below.</p>
+<div id="rfc.figure.7"/>
+<div id="stream-format"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Stream ID (8/16/24/32)                   ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                Offset (0/16/24/32/40/48/56/64)              ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                      [Data Length (16)]                       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Stream Data (*)                      ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 7: STREAM Frame Format</p>
+<p id="rfc.section.7.1.p.4">The STREAM frame contains the following fields:</p>
+<p/>
+
+<ul>
+  <li>Stream ID: A variable-sized unsigned ID unique to this stream, whose size is determined by the <samp>SS</samp> bits in the type byte.</li>
   <li>Offset: A variable-sized unsigned number specifying the byte offset in the stream for the data in this STREAM frame.  The first byte in the stream has an offset of 0.</li>
   <li>Data Length: An optional 16-bit unsigned number specifying the length of the Stream Data field in this STREAM frame.</li>
+  <li>Stream Data: The bytes from the designated stream to be delivered.</li>
 </ul>
-<p id="rfc.section.7.1.p.4">A STREAM frame MUST have either non-zero data length or the FIN bit set.</p>
-<p id="rfc.section.7.1.p.5">Stream multiplexing is achieved by interleaving STREAM frames from multiple streams into one or more QUIC packets.  A single QUIC packet MAY bundle STREAM frames from multiple streams.</p>
-<p id="rfc.section.7.1.p.6">Implementation note: One of the benefits of QUIC is avoidance of head-of-line blocking across multiple streams.  When a packet loss occurs, only streams with data in that packet are blocked waiting for a retransmission to be received, while other streams can continue making progress.  Note that when data from multiple streams is bundled into a single QUIC packet, loss of that packet blocks all those streams from making progress.  An implementation is therefore advised to bundle as few streams as necessary in outgoing packets without losing transmission efficiency to underfilled packets.</p>
-<h2 id="rfc.section.7.2"><a href="#rfc.section.7.2">7.2.</a> <a href="#ack-frame" id="ack-frame">ACK Frame</a></h2>
+<p id="rfc.section.7.1.p.6">A STREAM frame MUST have either non-zero data length or the FIN bit set.</p>
+<p id="rfc.section.7.1.p.7">Stream multiplexing is achieved by interleaving STREAM frames from multiple streams into one or more QUIC packets.  A single QUIC packet MAY bundle STREAM frames from multiple streams.</p>
+<p id="rfc.section.7.1.p.8">Implementation note: One of the benefits of QUIC is avoidance of head-of-line blocking across multiple streams.  When a packet loss occurs, only streams with data in that packet are blocked waiting for a retransmission to be received, while other streams can continue making progress.  Note that when data from multiple streams is bundled into a single QUIC packet, loss of that packet blocks all those streams from making progress.  An implementation is therefore advised to bundle as few streams as necessary in outgoing packets without losing transmission efficiency to underfilled packets.</p>
+<h2 id="rfc.section.7.2"><a href="#rfc.section.7.2">7.2.</a> <a href="#frame-ack" id="frame-ack">ACK Frame</a></h2>
 <p id="rfc.section.7.2.p.1">Receivers send ACK frames to inform senders which packets they have received, as well as which packets are considered missing.  The ACK frame contains between 1 and 256 ack blocks.  Ack blocks are ranges of acknowledged packets.</p>
 <p id="rfc.section.7.2.p.2">To limit the ACK blocks to the ones that haven&#8217;t yet been received by the sender, the sender periodically sends STOP_WAITING frames that signal the receiver to stop acking packets below a specified sequence number, raising the &#8220;least unacked&#8221; packet number at the receiver.  A sender of an ACK frame thus reports only those ACK blocks between the received least unacked and the reported largest observed packet numbers.  An endpoint SHOULD use the &#8220;Largest Acked&#8221; packet number it received to calculate the &#8220;Least Unacked Delta&#8221; value in any STOP_WAITING frame it might send.</p>
 <p id="rfc.section.7.2.p.3">Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet is acked, even if it does not appear in a future ACK frame, it is assumed to be acked.</p>
 <p id="rfc.section.7.2.p.4">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic ack attacks.  The sender MUST close the connection if an unsent packet number is acked.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic ack attacks.</p>
-<pre>
-+--------------------------------------------------------------+
-| Type (8) | Largest Acked (8, 16, 32, or 48) | Ack Delay (16) |
-+--------------------------------------------------------------+
-
-Ack Block Section:
-+-------------------------------------------------------------------------+
-| Number Blocks (8) (opt) | First Ack Block Length (8, 16, 32 or 48 bits) |
-+-------------------------------------------------------------------------+
-+-----------------------------------------------------------------+
-| Gap To Next Block (8) | Ack Block Length (8, 16, 32, or 48 bits | &lt;-- optional,
-+-----------------------------------------------------------------+     repeats
-
-Timestamp Section:
-+--------------------+
-| Num Timestamps (8) |
-+--------------------+
-+---------------------------------------------------------+
-| Delta Largest Acked (8) | Time Since Largest Acked (32) | &lt;-- optional
-+---------------------------------------------------------+
-+---------------------------------------------------------------+
-| Delta Largest Acked (8) | Time Since Previous Timestamp  (16) | &lt;-- optional,
-+---------------------------------------------------------------+     repeats
-</pre>
-<p id="rfc.section.7.2.p.5">The fields in the ACK frame are as follows:</p>
+<p id="rfc.section.7.2.p.5">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>01NULLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: The Frame Type byte is an 8-bit value containing various flags.  This byte is formatted as the following 8 bits: 01NULLMM.  <ul><li>The first two bits must be set to 01 indicating that this is an ACK frame.</li><li>The &#8216;N&#8217; bit indicates whether the frame has more than 1 ack range.</li><li>The &#8216;U&#8217; bit is unused.</li><li>The two &#8216;LL&#8217; bits encode the length of the Largest Acked field as 1, 2, 4, or 6 bytes long.</li><li>The two &#8216;MM&#8217; bits encode the length of the Ack Block Length fields as 1, 2, 4, or 6 bytes long.</li></ul></li>
+  <li>The first two bits must be set to 01 indicating that this is an ACK frame.</li>
+  <li>The <samp>N</samp> bit indicates whether the frame has more than 1 ack range (i.e., whether the Ack Block Section contains a Num Blocks field).</li>
+  <li>The <samp>U</samp> bit is unused and MUST be set to zero.</li>
+  <li>The two <samp>LL</samp> bits encode the length of the Largest Acked field as 1, 2, 4, or 6 bytes long.</li>
+  <li>The two <samp>MM</samp> bits encode the length of the Ack Block Length fields as 1, 2, 4, or 6 bytes long.</li>
+</ul>
+<p id="rfc.section.7.2.p.7">An ACK frame is shown below.</p>
+<div id="rfc.figure.8"/>
+<div id="ack-format"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                  Largest Acked (8/16/32/48)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|        Ack Delay (16)         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|[Num Blocks(8)]|             Ack Block Section (*)           ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   NumTS (8)   |             Timestamp Section (*)           ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 8: ACK Frame Format</p>
+<p id="rfc.section.7.2.p.8">The fields in the ACK frame are as follows:</p>
+<p/>
+
+<ul>
   <li>Largest Acked: A variable-sized unsigned value representing the largest packet number the peer is acking in this packet (typically the largest that the peer has seen thus far.)</li>
   <li>Ack Delay: Time from when the largest acked, as indicated in the Largest Acked field, was received by this peer to when this ack was sent.</li>
-  <li>Ack Block Section:  <ul><li>Num Blocks (opt): An optional 8-bit unsigned value specifying the number of additional ack blocks (besides the required First Ack Block) in this ACK frame.  Only present if the &#8216;N&#8217; flag bit is 1.</li><li>First Ack Block Length: An unsigned packet number delta that indicates the number of contiguous additional packets being acked starting at the Largest Acked.</li><li>Gap To Next Block (opt, repeated): An unsigned number specifying the number of contiguous missing packets from the end of the previous ack block to the start of the next.</li><li>Ack Block Length (opt, repeated): An unsigned packet number delta that indicates the number of contiguous packets being acked starting after the end of the previous gap.  Along with the previous field, this field is repeated &#8220;Num Blocks&#8221; times.</li></ul></li>
-  <li>Timestamp Section:  <ul><li>Num Timestamps: An unsigned 8-bit number specifying the total number of &lt;packet number, timestamp&gt; pairs following, including the First Timestamp.</li><li>Delta Largest Acked (opt): An optional 8-bit unsigned packet number delta specifying the delta between the largest acked and the first packet whose timestamp is being reported.  In other words, this first packet number may be computed as (Largest Acked - Delta Largest Acked.)</li><li>First Timestamp (opt): An optional 32-bit unsigned value specifying the time delta in microseconds, from the beginning of the connection to the arrival of this packet.</li><li>Delta Largest Observed (opt, repeated): (Same as above.)</li><li>Time Since Previous Timestamp (opt, repeated): An optional 16-bit unsigned value specifying time delta from the previous reported timestamp.  It is encoded in the same format as the Ack Delay.  Along with the previous field, this field is repeated &#8220;Num Timestamps&#8221; times.</li></ul></li>
+  <li>Num Blocks (opt): An optional 8-bit unsigned value specifying the number of additional ack blocks (besides the required First Ack Block) in this ACK frame.  Only present if the &#8216;N&#8217; flag bit is 1.</li>
+  <li>Ack Block Section: Contains one or more blocks of packet numbers which have been successfully received.  See <a href="#ack-block-section">Section 7.2.1</a>.</li>
+  <li>Num Timestamps: An unsigned 8-bit number specifying the total number of &lt;packet number, timestamp&gt; pairs in the Timestamp Section.</li>
+  <li>Timestamp Section: Contains zero or more timestamps reporting transit delay of received packets.  See <a href="#timestamp-section">Section 7.2.2</a>.</li>
 </ul>
-<h3 id="rfc.section.7.2.1"><a href="#rfc.section.7.2.1">7.2.1.</a> <a href="#time-format" id="time-format">Time Format</a></h3>
-<p id="rfc.section.7.2.1.p.1">DISCUSS_AND_REPLACE: Perhaps make this format simpler.</p>
-<p id="rfc.section.7.2.1.p.2">The time format used in the ACK frame above is a 16-bit unsigned float with 11 explicit bits of mantissa and 5 bits of explicit exponent, specifying time in microseconds.  The bit format is loosely modeled after IEEE 754.  For example, 1 microsecond is represented as 0x1, which has an exponent of zero, presented in the 5 high order bits, and mantissa of 1, presented in the 11 low order bits.  When the explicit exponent is greater than zero, an implicit high-order 12th bit of 1 is assumed in the mantissa.  For example, a floating value of 0x800 has an explicit exponent of 1, as well as an explicit mantissa of 0, but then has an effective mantissa of 4096 (12th bit is assumed to be 1).  Additionally, the actual exponent is one-less than the explicit exponent, and the value represents 4096 microseconds.  Any values larger than the representable range are clamped to 0xFFFF.</p>
-<h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3.</a> <a href="#stopwaiting-frame" id="stopwaiting-frame">STOP_WAITING Frame</a></h2>
-<p id="rfc.section.7.3.p.1">The STOP_WAITING frame is sent to inform the peer that it should not continue to wait for packets with packet numbers lower than a specified value.  The packet number is encoded in 1, 2, 4 or 6 bytes, using the same coding length as is specified for the packet number for the enclosing packet&#8217;s header (specified in the QUIC Frame packet&#8217;s Flags field.)  The frame is as follows:</p>
+<h3 id="rfc.section.7.2.1"><a href="#rfc.section.7.2.1">7.2.1.</a> <a href="#ack-block-section" id="ack-block-section">Ack Block Section</a></h3>
+<p id="rfc.section.7.2.1.p.1">The Ack Block Section contains between one and 256 blocks of packet numbers which have been successfully received. If the Num Blocks field is absent, only the First Ack Block length is present in this section. Otherwise, the Num Blocks field indicates how many additional blocks follow the First Ack Block Length field.</p>
+<div id="rfc.figure.9"/>
+<div id="ack-block-format"/>
 <pre>
-   +---------------------------------------------------+
-   | Type (8) | Least unacked delta (8, 16, 32, or 48) |
-   +---------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|              First Ack Block Length (8/16/32/48)            ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  [Gap 1 (8)]  |       [Ack Block 1 Length (8/16/32/48)]     ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  [Gap 2 (8)]  |       [Ack Block 2 Length (8/16/32/48)]     ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                             ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  [Gap N (8)]  |       [Ack Block N Length (8/16/32/48)]     ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p id="rfc.section.7.3.p.2">The fields in the STOP_WAITING frame are as follows:</p>
+<p class="figure">Figure 9: Ack Block Section</p>
+<p id="rfc.section.7.2.1.p.2">The fields in the Ack Block Section are:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: The Frame Type byte is an 8-bit value that must be set to 0x06 indicating that this is a STOP_WAITING frame.</li>
+  <li>First Ack Block Length: An unsigned packet number delta that indicates the number of contiguous additional packets being acked starting at the Largest Acked.</li>
+  <li>Gap To Next Block (opt, repeated): An unsigned number specifying the number of contiguous missing packets from the end of the previous ack block to the start of the next.</li>
+  <li>Ack Block Length (opt, repeated): An unsigned packet number delta that indicates the number of contiguous packets being acked starting after the end of the previous gap.  Along with the previous field, this field is repeated &#8220;Num Blocks&#8221; times.</li>
+</ul>
+<h3 id="rfc.section.7.2.2"><a href="#rfc.section.7.2.2">7.2.2.</a> <a href="#timestamp-section" id="timestamp-section">Timestamp Section</a></h3>
+<p id="rfc.section.7.2.2.p.1">The Timestamp Section contains between zero and 255 measurements of packet receive times relative to the beginning of the connection.</p>
+<div id="rfc.figure.10"/>
+<div id="timestamp-format"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+
+| [Delta LA (8)]|
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                [First Timestamp (32)]                |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|[Delta LA 1(8)]| [Time Since Previous 1 (16)]  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|[Delta LA 2(8)]| [Time Since Previous 2 (16)]  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                       ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|[Delta LA N(8)]| [Time Since Previous N (16)]  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 10: Timestamp Section</p>
+<p id="rfc.section.7.2.2.p.2">The fields in the Timestamp Section are:</p>
+<p/>
+
+<ul>
+  <li>Delta Largest Acked (opt): An optional 8-bit unsigned packet number delta specifying the delta between the largest acked and the first packet whose timestamp is being reported.  In other words, this first packet number may be computed as (Largest Acked - Delta Largest Acked.)</li>
+  <li>First Timestamp (opt): An optional 32-bit unsigned value specifying the time delta in microseconds, from the beginning of the connection to the arrival of the packet indicated by Delta Largest Acked.</li>
+  <li>Delta Largest Acked 1..N (opt, repeated): (Same as above.)</li>
+  <li>Time Since Previous Timestamp 1..N(opt, repeated): An optional 16-bit unsigned value specifying time delta from the previous reported timestamp.  It is encoded in the same format as the Ack Delay.  Along with the previous field, this field is repeated &#8220;Num Timestamps&#8221; times.</li>
+</ul>
+<h4 id="rfc.section.7.2.2.1"><a href="#rfc.section.7.2.2.1">7.2.2.1.</a> <a href="#time-format" id="time-format">Time Format</a></h4>
+<p id="rfc.section.7.2.2.1.p.1">DISCUSS_AND_REPLACE: Perhaps make this format simpler.</p>
+<p id="rfc.section.7.2.2.1.p.2">The time format used in the ACK frame above is a 16-bit unsigned float with 11 explicit bits of mantissa and 5 bits of explicit exponent, specifying time in microseconds.  The bit format is loosely modeled after IEEE 754.  For example, 1 microsecond is represented as 0x1, which has an exponent of zero, presented in the 5 high order bits, and mantissa of 1, presented in the 11 low order bits.  When the explicit exponent is greater than zero, an implicit high-order 12th bit of 1 is assumed in the mantissa.  For example, a floating value of 0x800 has an explicit exponent of 1, as well as an explicit mantissa of 0, but then has an effective mantissa of 4096 (12th bit is assumed to be 1).  Additionally, the actual exponent is one-less than the explicit exponent, and the value represents 4096 microseconds.  Any values larger than the representable range are clamped to 0xFFFF.</p>
+<h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3.</a> <a href="#frame-stop-waiting" id="frame-stop-waiting">STOP_WAITING Frame</a></h2>
+<p id="rfc.section.7.3.p.1">The STOP_WAITING frame (type=0x06) is sent to inform the peer that it should not continue to wait for packets with packet numbers lower than a specified value.  The packet number is encoded in 1, 2, 4 or 6 bytes, using the same coding length as is specified for the packet number for the enclosing packet&#8217;s header (specified in the QUIC Frame packet&#8217;s Flags field.) The frame is as follows:</p>
+<div id="rfc.figure.11"/>
+<div id="stop-waiting-format"/>
+<pre>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|               Least Unacked Delta (8/16/32/48)              ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</pre>
+<p class="figure">Figure 11: STOP_WAITING Frame Format</p>
+<p id="rfc.section.7.3.p.2">The STOP_WAITING frame contains a single field:</p>
+<p/>
+
+<ul>
   <li>Least Unacked Delta: A variable-length packet number delta with the same length as the packet header&#8217;s packet number.  Subtract it from the complete packet number of the enclosing packet to determine the least unacked packet number.  The resulting least unacked packet number is the earliest packet for which the sender is still awaiting an ack.  If the receiver is missing any packets earlier than this packet, the receiver SHOULD consider those packets to be irrecoverably lost and MUST NOT report those packets as missing in subsequent acks.</li>
 </ul>
-<h2 id="rfc.section.7.4"><a href="#rfc.section.7.4">7.4.</a> <a href="#windowupdate-frame" id="windowupdate-frame">WINDOW_UPDATE Frame</a></h2>
-<p id="rfc.section.7.4.p.1">The WINDOW_UPDATE frame informs the peer of an increase in an endpoint&#8217;s flow control receive window.  The StreamID can be zero, indicating this WINDOW_UPDATE applies to the connection level flow control window, or non-zero, indicating that the specified stream should increase its flow control window.  The frame is as follows:</p>
+<h2 id="rfc.section.7.4"><a href="#rfc.section.7.4">7.4.</a> <a href="#frame-window-update" id="frame-window-update">WINDOW_UPDATE Frame</a></h2>
+<p id="rfc.section.7.4.p.1">The WINDOW_UPDATE frame (type=0x04) informs the peer of an increase in an endpoint&#8217;s flow control receive window. The Stream ID can be zero, indicating this WINDOW_UPDATE applies to the connection level flow control window, or non-zero, indicating that the specified stream should increase its flow control window. The frame is as follows:</p>
 <pre>
-   +---------------------------------------------------+
-   |  Type(8)  |  Stream ID (32)  |  Byte offset (64)  |
-   +---------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Stream ID (32)                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
++                        Byte Offset (64)                       +
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p id="rfc.section.7.4.p.2">The fields in the WINDOW_UPDATE frame are as follows:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: The Frame Type byte is an 8-bit value that must be set to 0x04 indicating that this is a WINDOW_UPDATE frame.</li>
   <li>Stream ID: ID of the stream whose flow control windows is being updated, or 0 to specify the connection-level flow control window.</li>
   <li>Byte offset: A 64-bit unsigned integer indicating the absolute byte offset of data which can be sent on the given stream.  In the case of connection level flow control, the cumulative number of bytes which can be sent on all currently open streams.</li>
 </ul>
-<h2 id="rfc.section.7.5"><a href="#rfc.section.7.5">7.5.</a> <a href="#blocked-frame" id="blocked-frame">BLOCKED Frame</a></h2>
-<p id="rfc.section.7.5.p.1">A sender sends a BLOCKED frame when it is ready to send data (and has data to send), but is currently flow control blocked.  BLOCKED frames are purely informational frames, but extremely useful for debugging purposes.  A receiver of a BLOCKED frame should simply discard it (after possibly printing a helpful log message).  The frame is as follows:</p>
+<h2 id="rfc.section.7.5"><a href="#rfc.section.7.5">7.5.</a> <a href="#frame-blocked" id="frame-blocked">BLOCKED Frame</a></h2>
+<p id="rfc.section.7.5.p.1">A sender sends a BLOCKED frame (type=0x05) when it is ready to send data (and has data to send), but is currently flow control blocked. BLOCKED frames are purely informational frames, but extremely useful for debugging purposes. A receiver of a BLOCKED frame should simply discard it (after possibly printing a helpful log message). The frame is as follows:</p>
 <pre>
-   +------------------------------+
-   |  Type(8)  |  Stream ID (32)  |
-   +------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Stream ID (32)                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p id="rfc.section.7.5.p.2">The fields in the BLOCKED frame are as follows:</p>
+<p id="rfc.section.7.5.p.2">The BLOCKED frame contains a single field:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: The Frame Type byte is an 8-bit value that must be set to 0x05 indicating that this is a BLOCKED frame.</li>
   <li>Stream ID: A 32-bit unsigned number indicating the stream which is flow control blocked.  A non-zero Stream ID field specifies the stream that is flow control blocked.  When zero, the Stream ID field indicates that the connection is flow control blocked.</li>
 </ul>
-<h2 id="rfc.section.7.6"><a href="#rfc.section.7.6">7.6.</a> <a href="#rststream-frame" id="rststream-frame">RST_STREAM Frame</a></h2>
-<p id="rfc.section.7.6.p.1">An endpoint may use a RST_STREAM frame to abruptly terminate a stream.  The frame is as follows:</p>
+<h2 id="rfc.section.7.6"><a href="#rfc.section.7.6">7.6.</a> <a href="#frame-rst-stream" id="frame-rst-stream">RST_STREAM Frame</a></h2>
+<p id="rfc.section.7.6.p.1">An endpoint may use a RST_STREAM frame (type=0x01) to abruptly terminate a stream.  The frame is as follows:</p>
 <pre>
-+----------------------------------------------------------------------+
-|  Type(8)  |  StreamID (32)  |  Byte offset (64)  |  Error code (32)  |
-+----------------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Stream ID (32)                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
++                        Byte Offset (64)                       +
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Error Code (32)                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p id="rfc.section.7.6.p.2">The fields are:</p>
 <p/>
 
 <ul>
-  <li>Frame type: The Frame Type is an 8-bit value that must be set to 0x01 specifying that this is a RST_STREAM frame.</li>
   <li>Stream ID: The 32-bit Stream ID of the stream being terminated.</li>
   <li>Byte offset: A 64-bit unsigned integer indicating the absolute byte offset of the end of data written on this stream by the RST_STREAM sender.</li>
   <li>Error code: A 32-bit error code which indicates why the stream is being closed.</li>
 </ul>
-<h2 id="rfc.section.7.7"><a href="#rfc.section.7.7">7.7.</a> <a href="#padding-frame" id="padding-frame">PADDING Frame</a></h2>
-<p id="rfc.section.7.7.p.1">The PADDING frame pads a packet with 0x00 bytes.  When this frame is encountered, the rest of the packet is expected to be padding bytes.  The frame contains 0x00 bytes and extends to the end of the QUIC packet.  A PADDING frame only has a Frame Type field, and must have the 8-bit Frame Type field set to 0x00. The PADDING frame is as follows:</p>
+<h2 id="rfc.section.7.7"><a href="#rfc.section.7.7">7.7.</a> <a href="#frame-padding" id="frame-padding">PADDING Frame</a></h2>
+<p id="rfc.section.7.7.p.1">The PADDING frame (type=0x00) pads a packet with 0x00 bytes. When this frame is encountered, the rest of the packet is expected to be padding bytes. The frame contains 0x00 bytes and extends to the end of the QUIC packet. A PADDING frame has no additional fields.</p>
+<h2 id="rfc.section.7.8"><a href="#rfc.section.7.8">7.8.</a> <a href="#frame-ping" id="frame-ping">PING frame</a></h2>
+<p id="rfc.section.7.8.p.1">Endpoints can use PING frames (type=0x07) to verify that their peers are still alive or to check reachability to the peer. The PING frame contains no additional fields. The receiver of a PING frame simply needs to ACK the packet containing this frame. The PING frame SHOULD be used to keep a connection alive when a stream is open. The default is to send a PING frame after 15 seconds of quiescence. A PING frame has no additional fields.</p>
+<h2 id="rfc.section.7.9"><a href="#rfc.section.7.9">7.9.</a> <a href="#frame-connection-close" id="frame-connection-close">CONNECTION_CLOSE frame</a></h2>
+<p id="rfc.section.7.9.p.1">An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its peer that the connection is being closed.  If there are open streams that haven&#8217;t been explicitly closed, they are implicitly closed when the connection is closed.  (Ideally, a GOAWAY frame would be sent with enough time that all streams are torn down.)  The frame is as follows:</p>
 <pre>
-   +--------+
-   |  0x00  |
-   +--------+
-</pre>
-<h2 id="rfc.section.7.8"><a href="#rfc.section.7.8">7.8.</a> <a href="#ping-frame" id="ping-frame">PING frame</a></h2>
-<p id="rfc.section.7.8.p.1">Endpoints can use PING frames to verify that their peers are still alive or to check reachability to the peer.  The PING frame contains no payload.  The receiver of a PING frame simply needs to ACK the packet containing this frame.  The PING frame SHOULD be used to keep a connection alive when a stream is open.  The default is to send a PING frame after 15 seconds of quiescence.  A PING frame only has a Frame Type field, and must have the 8-bit Frame Type field set to 0x07. The PING frame is as follows:</p>
-<pre>
-   +--------+
-   |  0x07  |
-   +--------+
-</pre>
-<h2 id="rfc.section.7.9"><a href="#rfc.section.7.9">7.9.</a> <a href="#connectionclose-frame" id="connectionclose-frame">CONNECTION_CLOSE frame</a></h2>
-<p id="rfc.section.7.9.p.1">An endpoint sends a CONNECTION_CLOSE frame to notify its peer that the connection is being closed.  If there are open streams that haven&#8217;t been explicitly closed, they are implicitly closed when the connection is closed.  (Ideally, a GOAWAY frame would be sent with enough time that all streams are torn down.)  The frame is as follows:</p>
-<pre>
-+-----------------------------------------------------------------------+
-| Type(8) | Error code (32) | Reason phrase length (16) | Reason phrase |
-+-----------------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Error Code (32)                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   Reason Phrase Length (16)   |      [Reason Phrase (*)]    ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p id="rfc.section.7.9.p.2">The fields of a CONNECTION_CLOSE frame are as follows:</p>
 <p/>
 
 <ul>
-  <li>Frame Type: An 8-bit value that must be set to 0x02 specifying that this is a CONNECTION_CLOSE frame.</li>
   <li>Error Code: A 32-bit error code which indicates the reason for closing this connection.</li>
-  <li>Reason Phrase Length: A 16-bit unsigned number specifying the length of the reason phrase.  This may be zero if the sender chooses to not give details beyond the QuicErrorCode.</li>
+  <li>Reason Phrase Length: A 16-bit unsigned number specifying the length of the reason phrase.  This may be zero if the sender chooses to not give details beyond the Error Code.</li>
   <li>Reason Phrase: An optional human-readable explanation for why the connection was closed.</li>
 </ul>
-<h2 id="rfc.section.7.10"><a href="#rfc.section.7.10">7.10.</a> <a href="#goaway-frame" id="goaway-frame">GOAWAY Frame</a></h2>
-<p id="rfc.section.7.10.p.1">An endpoint may use a GOAWAY frame to notify its peer that the connection should stop being used, and will likely be closed in the future.  The endpoints will continue using any active streams, but the sender of the GOAWAY will not initiate any additional streams, and will not accept any new streams.  The frame is as follows:</p>
+<h2 id="rfc.section.7.10"><a href="#rfc.section.7.10">7.10.</a> <a href="#frame-goaway" id="frame-goaway">GOAWAY Frame</a></h2>
+<p id="rfc.section.7.10.p.1">An endpoint may use a GOAWAY frame (type=0x03) to notify its peer that the connection should stop being used, and will likely be closed in the future. The endpoints will continue using any active streams, but the sender of the GOAWAY will not initiate any additional streams, and will not accept any new streams.  The frame is as follows:</p>
 <pre>
-   +-----------------------------------------------------------+
-   |  Type (8) |  Error code (32) |  Last Good Stream ID (32)  |
-   +-----------------------------------------------------------+
-   +----------------------------------------------+
-   | Reason phrase length (16)  |  Reason phrase  |
-   +----------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Error Code (32)                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                     Last Good Stream ID (32)                  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   Reason Phrase Length (16)   |      [Reason Phrase (*)]    ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p id="rfc.section.7.10.p.2">The fields of a GOAWAY frame are as follows:</p>
 <p/>
@@ -991,7 +1192,7 @@ Timestamp Section:
 <p id="rfc.section.9.p.2">An alternative view of QUIC streams is as an elastic &#8220;message&#8221; abstraction, similar to the way ephemeral streams are used in SST <a href="#SST">[SST]</a>, which may be a more appealing description for some applications.</p>
 <h2 id="rfc.section.9.1"><a href="#rfc.section.9.1">9.1.</a> <a href="#life-of-a-stream" id="life-of-a-stream">Life of a Stream</a></h2>
 <p id="rfc.section.9.1.p.1">The semantics of QUIC streams is based on HTTP/2 streams, and the lifecycle of a QUIC stream therefore closely follows that of an HTTP/2 stream <a href="#RFC7540">[RFC7540]</a>, with some differences to accommodate the possibility of out-of-order delivery due to the use of multiple streams in QUIC.  The lifecycle of a QUIC stream is shown in the following figure and described below.</p>
-<div id="rfc.figure.6"/>
+<div id="rfc.figure.12"/>
 <div id="stream-lifecycle"/>
 <pre>
                         app     +--------+
@@ -1037,7 +1238,7 @@ Timestamp Section:
        read_close: causes stream to be half-closed without receiving a FIN
        write_close: causes stream to be half-closed without sending a FIN
 </pre>
-<p class="figure">Figure 6: Lifecycle of a stream</p>
+<p class="figure">Figure 12: Lifecycle of a stream</p>
 <p id="rfc.section.9.1.p.2">Note that this diagram shows stream state transitions and the frames and flags that affect those transitions only.  For the purpose of state transitions, the FIN flag is processed as a separate event to the frame that bears it; a STREAM frame with the FIN flag set can cause two state transitions.  When the FIN bit is sent on an empty STREAM frame, the offset in the STREAM frame MUST be one greater than the last data byte sent on this stream.</p>
 <p id="rfc.section.9.1.p.3">Both endpoints have a subjective view of the state of a stream that could be different when frames are in transit.  Endpoints do not coordinate the creation of streams; they are created unilaterally by either endpoint.  The negative consequences of a mismatch in states are limited to the &#8220;closed&#8221; state after sending RST_STREAM, where frames might be received for some time after closing.</p>
 <p id="rfc.section.9.1.p.4">Streams have the following states:</p>
@@ -1306,6 +1507,12 @@ Timestamp Section:
         <b id="QUICCrypto">[QUICCrypto]</b>
       </td>
       <td class="top"><a>Langley, A.</a> and <a>W. Chang</a>, "<a href="http://goo.gl/OuVSxa">QUIC Crypto</a>", May 2016.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="RFC2360">[RFC2360]</b>
+      </td>
+      <td class="top"><a>Scott, G.</a>, "<a href="http://tools.ietf.org/html/rfc2360">Guide for Internet Standards Writers</a>", BCP 22, RFC 2360, DOI 10.17487/RFC2360, June 1998.</td>
     </tr>
     <tr>
       <td class="reference">

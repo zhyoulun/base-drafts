@@ -90,7 +90,7 @@ Table of Contents
      4.4.  Flow Control  . . . . . . . . . . . . . . . . . . . . . .   9
      4.5.  Server Push . . . . . . . . . . . . . . . . . . . . . . .   9
    5.  HTTP Framing Layer  . . . . . . . . . . . . . . . . . . . . .  10
-     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  10
+     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  11
      5.2.  Frame Definitions . . . . . . . . . . . . . . . . . . . .  11
        5.2.1.  DATA  . . . . . . . . . . . . . . . . . . . . . . . .  11
        5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .  11
@@ -360,11 +360,11 @@ Internet-Draft               HTTP over QUIC                 January 2017
    entire request if the response does not depend on any portion of the
    request that has not been sent and received.  When this is true, a
    server MAY request that the client abort transmission of a request
-   without error by sending a RST_STREAM with an error code of NO_ERROR
-   after sending a complete response and closing its stream.  Clients
-   MUST NOT discard responses as a result of receiving such a
-   RST_STREAM, though clients can always discard responses at their
-   discretion for other reasons.
+   without error by triggering a QUIC REQUEST_RST after sending a
+   complete response and closing its stream.  Clients MUST NOT discard
+   complete responses as a result of receiving a REQUEST_RST, though
+   clients can always discard responses at their discretion for other
+   reasons.
 
 4.2.1.  Header Compression
 
@@ -517,6 +517,13 @@ Internet-Draft               HTTP over QUIC                 January 2017
    carried by HEADERS frames sent on the control stream, and response
    body (if any) sent via the corresponding data stream.
 
+   If a promised push stream is not needed by the client, the client
+   SHOULD send a QUIC REQUEST_RST on the promised stream with an
+   appropriate error code (e.g.  HTTP_PUSH_REFUSED,
+   HTTP_PUSH_ALREADY_IN_CACHE; see Section 6).  This asks the server not
+   to transfer the data and indicates that it will be discarded upon
+   receipt.
+
 5.  HTTP Framing Layer
 
    Many framing concepts from HTTP/2 can be elided away on QUIC, because
@@ -543,13 +550,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    This section describes HTTP framing in QUIC and highlights
    differences from HTTP/2 framing.
 
-5.1.  Frame Layout
-
-   All frames have the following format:
-
-
-
-
 
 
 
@@ -561,6 +561,10 @@ Bishop                    Expires July 22, 2017                [Page 10]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+5.1.  Frame Layout
+
+   All frames have the following format:
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -607,16 +611,14 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
                            HEADERS frame payload
 
-   The HEADERS frame payload has the following fields:
-
-
-
 
 
 Bishop                    Expires July 22, 2017                [Page 11]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   The HEADERS frame payload has the following fields:
 
    Sequence Number:  Present only on the first frame of a header block
       sequence.  This MUST be set to zero on the first header block
@@ -664,8 +666,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
                            HEADERS frame payload
 
    The HEADERS frame payload has the following fields:
-
-
 
 
 

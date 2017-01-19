@@ -130,11 +130,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
      7.5.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  27
      7.6.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  28
      7.7.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  28
-     7.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  29
+     7.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  28
      7.9.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  29
      7.10. GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  29
    8.  Packetization and Reliability . . . . . . . . . . . . . . . .  30
-   9.  Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  32
+   9.  Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  31
      9.1.  Life of a Stream  . . . . . . . . . . . . . . . . . . . .  32
        9.1.1.  idle  . . . . . . . . . . . . . . . . . . . . . . . .  34
        9.1.2.  reserved  . . . . . . . . . . . . . . . . . . . . . .  34
@@ -1216,16 +1216,16 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    signal the receiver to stop acking packets below a specified sequence
    number, raising the Least Unacked packet number at the receiver.  A
    sender of an ACK frame thus reports only those ACK blocks between the
-   received Least Unacked" and the reported Largest Acked packet
-   numbers.  The endpoint SHOULD raise the Least Unacked communicated
-   via future STOP_WAITING frames to the most recently received Largest
-   Acked.
+   received Least Unacked and the reported Largest Acked packet numbers.
+   The endpoint SHOULD raise the Least Unacked communicated via future
+   STOP_WAITING frames to the most recently received Largest Acked.
 
    Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet is
    acked, even if it does not appear in a future ACK frame, it is
    assumed to be acked.
 
-
+   A sender MAY intentionally skip packet numbers to introduce entropy
+   into the connection, to avoid opportunistic ack attacks.  The sender
 
 
 
@@ -1234,8 +1234,6 @@ Iyengar & Thomson         Expires July 23, 2017                [Page 22]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-   A sender MAY intentionally skip packet numbers to introduce entropy
-   into the connection, to avoid opportunistic ack attacks.  The sender
    MUST close the connection if an unsent packet number is acked.  The
    format of the ACK frame is efficient at expressing blocks of missing
    packets; skipping packet numbers between 1 and 255 effectively
@@ -1281,7 +1279,9 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       largest packet number the peer is acking in this packet (typically
       the largest that the peer has seen thus far.)
 
-
+   o  Ack Delay: Time from when the largest acked, as indicated in the
+      Largest Acked field, was received by this peer to when this ack
+      was sent.
 
 
 
@@ -1289,10 +1289,6 @@ Iyengar & Thomson         Expires July 23, 2017                [Page 23]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   o  Ack Delay: Time from when the largest acked, as indicated in the
-      Largest Acked field, was received by this peer to when this ack
-      was sent.
 
    o  Num Blocks (opt): An optional 8-bit unsigned value specifying the
       number of additional ack blocks (besides the required First Ack
@@ -1338,6 +1334,10 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       indicates the number of contiguous additional packets being acked
       starting at the Largest Acked.
 
+   o  Gap To Next Block (opt, repeated): An unsigned number specifying
+      the number of contiguous missing packets from the end of the
+      previous ack block to the start of the next.
+
 
 
 
@@ -1345,10 +1345,6 @@ Iyengar & Thomson         Expires July 23, 2017                [Page 24]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   o  Gap To Next Block (opt, repeated): An unsigned number specifying
-      the number of contiguous missing packets from the end of the
-      previous ack block to the start of the next.
 
    o  Ack Block Length (opt, repeated): An unsigned packet number delta
       that indicates the number of contiguous packets being acked
@@ -1393,7 +1389,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    o  Delta Largest Acked 1..N (opt, repeated): (Same as above.)
 
-
+   o  Time Since Previous Timestamp 1..N(opt, repeated): An optional
+      16-bit unsigned value specifying time delta from the previous
+      reported timestamp.  It is encoded in the same format as the Ack
+      Delay.  Along with the previous field, this field is repeated "Num
+      Timestamps" times.
 
 
 
@@ -1401,12 +1401,6 @@ Iyengar & Thomson         Expires July 23, 2017                [Page 25]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   o  Time Since Previous Timestamp 1..N(opt, repeated): An optional
-      16-bit unsigned value specifying time delta from the previous
-      reported timestamp.  It is encoded in the same format as the Ack
-      Delay.  Along with the previous field, this field is repeated "Num
-      Timestamps" times.
 
 7.2.2.1.  Time Format
 
@@ -1450,6 +1444,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
       the same length as the packet header's packet number.  Subtract it
       from the complete packet number of the enclosing packet to
       determine the least unacked packet number.  The resulting least
+      unacked packet number is the earliest packet for which the sender
+      is still awaiting an ack.  If the receiver is missing any packets
+      earlier than this packet, the receiver SHOULD consider those
+      packets to be irrecoverably lost and MUST NOT report those packets
+      as missing in subsequent acks.
+
 
 
 
@@ -1457,12 +1457,6 @@ Iyengar & Thomson         Expires July 23, 2017                [Page 26]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-      unacked packet number is the earliest packet for which the sender
-      is still awaiting an ack.  If the receiver is missing any packets
-      earlier than this packet, the receiver SHOULD consider those
-      packets to be irrecoverably lost and MUST NOT report those packets
-      as missing in subsequent acks.
 
 7.4.  WINDOW_UPDATE Frame
 
@@ -1502,18 +1496,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    discard it (after possibly printing a helpful log message).  The
    frame is as follows:
 
-
-
-
-
-
-
-
-Iyengar & Thomson         Expires July 23, 2017                [Page 27]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1524,6 +1506,14 @@ Internet-Draft           QUIC Transport Protocol            January 2017
 
    o  Stream ID: A 32-bit unsigned number indicating the stream which is
       flow control blocked.  A non-zero Stream ID field specifies the
+
+
+
+Iyengar & Thomson         Expires July 23, 2017                [Page 27]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
       stream that is flow control blocked.  When zero, the Stream ID
       field indicates that the connection is flow control blocked.
 
@@ -1562,14 +1552,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    padding bytes.  The frame contains 0x00 bytes and extends to the end
    of the QUIC packet.  A PADDING frame has no additional fields.
 
-
-
-
-Iyengar & Thomson         Expires July 23, 2017                [Page 28]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
 7.8.  PING frame
 
    Endpoints can use PING frames (type=0x07) to verify that their peers
@@ -1579,6 +1561,14 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    be used to keep a connection alive when a stream is open.  The
    default is to send a PING frame after 15 seconds of quiescence.  A
    PING frame has no additional fields.
+
+
+
+
+Iyengar & Thomson         Expires July 23, 2017                [Page 28]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
 
 7.9.  CONNECTION_CLOSE frame
 
@@ -1618,14 +1608,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    streams, and will not accept any new streams.  The frame is as
    follows:
 
-
-
-
-Iyengar & Thomson         Expires July 23, 2017                [Page 29]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1635,6 +1617,14 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |   Reason Phrase Length (16)   |      [Reason Phrase (*)]    ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+
+
+Iyengar & Thomson         Expires July 23, 2017                [Page 29]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
 
    The fields of a GOAWAY frame are as follows:
 
@@ -1675,13 +1665,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    server, MUST be 0.  That is, the first packet in both directions of
    the connection MUST have a packet number of 0.
 
-
-
-Iyengar & Thomson         Expires July 23, 2017                [Page 30]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
    A sender SHOULD minimize per-packet bandwidth and computational costs
    by bundling as many frames as possible within a QUIC packet.  A
    sender MAY wait for a short period of time to bundle multiple frames
@@ -1690,6 +1673,15 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    use heuristics about expected application sending behavior to
    determine whether and for how long to wait.  This waiting period is
    an implementation decision, and an implementation should be careful
+
+
+
+
+Iyengar & Thomson         Expires July 23, 2017                [Page 30]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
    to delay conservatively, since any delay is likely to increase
    application-visible latency.
 
@@ -1729,15 +1721,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    Strategies and implications of the frequency of generating
    acknowledgments are discussed in more detail in [QUIC-RECOVERY].
 
-
-
-
-
-Iyengar & Thomson         Expires July 23, 2017                [Page 31]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
 9.  Streams: QUIC's Data Structuring Abstraction
 
    Streams in QUIC provide a lightweight, ordered, and bidirectional
@@ -1747,6 +1730,14 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    closely after HTTP/2's [RFC7540].  Streams are independent of each
    other in delivery order.  That is, data that is received on a stream
    is delivered in order within that stream, but there is no particular
+
+
+
+Iyengar & Thomson         Expires July 23, 2017                [Page 31]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
+
    delivery order across streams.  Transmit ordering among streams is
    left to the implementation.  QUIC streams are considered lightweight
    in that the creation and destruction of streams are expected to have
@@ -1769,6 +1760,15 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
+
+
+
+
+
+
+
+
+
 
 
 

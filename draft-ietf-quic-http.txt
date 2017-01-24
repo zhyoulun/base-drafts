@@ -98,11 +98,11 @@ Table of Contents
        5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  13
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  13
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  16
-       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  17
-       5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  17
-       5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  17
-       5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  17
-       5.2.11. SETTINGS_ACK Frame  . . . . . . . . . . . . . . . . .  18
+       5.2.7.  SETTINGS_ACK Frame  . . . . . . . . . . . . . . . . .  17
+       5.2.8.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  18
+       5.2.9.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  18
+       5.2.10. WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  18
+       5.2.11. CONTINUATION frame  . . . . . . . . . . . . . . . . .  19
    6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  19
      6.1.  HTTP-Defined QUIC Error Codes . . . . . . . . . . . . . .  19
      6.2.  Mapping HTTP/2 Error Codes  . . . . . . . . . . . . . . .  20
@@ -314,20 +314,20 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    An HTTP message (request or response) consists of:
 
-   1.  for a response only, zero or more header blocks (a sequence of
-       HEADERS frames with End Header Block set on the last) on the
-       control stream containing the message headers of informational
-       (1xx) HTTP responses (see [RFC7230], Section 3.2 and [RFC7231],
-       Section 6.2),
+   1.  one header block (see Section 5.2.2) on the control stream
+       containing the message headers (see [RFC7230], Section 3.2),
 
-   2.  one header block on the control stream containing the message
-       headers (see [RFC7230], Section 3.2),
-
-   3.  the payload body (see [RFC7230], Section 3.3), sent on the data
+   2.  the payload body (see [RFC7230], Section 3.3), sent on the data
        stream,
 
-   4.  optionally, one header block on the control stream containing the
+   3.  optionally, one header block on the control stream containing the
        trailer-part, if present (see [RFC7230], Section 4.1.2).
+
+   In addition, prior to sending the message header block indicated
+   above, a response may contain zero or more header blocks on the
+   control stream containing the message headers of informational (1xx)
+   HTTP responses (see [RFC7230], Section 3.2 and [RFC7231],
+   Section 6.2).
 
 
 
@@ -346,10 +346,10 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    Trailing header fields are carried in a header block following the
    body.  Such a header block is a sequence of HEADERS frames with End
-   Header Block set on the last frame.  Header blocks after the first
-   but before the end of the stream are invalid.  These MUST be decoded
-   to maintain HPACK decoder state, but the resulting output MUST be
-   discarded.
+   Header Block set on the last frame.  Senders MUST send only one
+   header block in the trailers section; receivers MUST decode any
+   subsequent header blocks in order to maintain HPACK decoder state,
+   but the resulting output MUST be discarded.
 
    An HTTP request/response exchange fully consumes a pair of streams.
    After sending a request, a client closes the streams for sending;
@@ -846,7 +846,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
    the recipient MUST emit the following frames:
 
    o  On the connection control stream, a SETTINGS_ACK frame
-      (Section 5.2.11) listing the identifiers whose values were not
+      (Section 5.2.7) listing the identifiers whose values were not
       understood.
 
    o  On each request control stream which is not in the "half-closed
@@ -926,35 +926,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    o  No CONTINUATION - HEADERS have EHB; do we need it here?
 
-5.2.7.  PING
-
-   PING frames do not exist, since QUIC provides equivalent
-   functionality.  Frame type 0x6 is reserved.
-
-5.2.8.  GOAWAY frame
-
-   GOAWAY frames do not exist, since QUIC provides equivalent
-   functionality.  Frame type 0x7 is reserved.
-
-5.2.9.  WINDOW_UPDATE frame
-
-   WINDOW_UPDATE frames do not exist, since QUIC provides equivalent
-   functionality.  Frame type 0x8 is reserved.
-
-5.2.10.  CONTINUATION frame
-
-   CONTINUATION frames do not exist, since larger supported HEADERS/
-   PUSH_PROMISE frames provide equivalent functionality.  Frame type 0x9
-   is reserved.
-
-
-
-Bishop                    Expires July 28, 2017                [Page 17]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
-5.2.11.  SETTINGS_ACK Frame
+5.2.7.  SETTINGS_ACK Frame
 
    The SETTINGS_ACK frame (id = 0x0b) acknowledges receipt and
    application of specific values in the peer's SETTINGS frame.
@@ -964,6 +936,23 @@ Internet-Draft               HTTP over QUIC                 January 2017
    On the connection control stream, it contains information about how
    and when the sender has processed the most recently-received SETTINGS
    frame, and has the following payload:
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bishop                    Expires July 28, 2017                [Page 17]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -998,9 +987,20 @@ Internet-Draft               HTTP over QUIC                 January 2017
    any other length MUST be treated as a connection error of type
    HTTP_MALFORMED_SETTINGS_ACK.
 
+5.2.8.  PING
 
+   PING frames do not exist, since QUIC provides equivalent
+   functionality.  Frame type 0x6 is reserved.
 
+5.2.9.  GOAWAY frame
 
+   GOAWAY frames do not exist, since QUIC provides equivalent
+   functionality.  Frame type 0x7 is reserved.
+
+5.2.10.  WINDOW_UPDATE frame
+
+   WINDOW_UPDATE frames do not exist, since QUIC provides equivalent
+   functionality.  Frame type 0x8 is reserved.
 
 
 
@@ -1009,6 +1009,12 @@ Bishop                    Expires July 28, 2017                [Page 18]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+5.2.11.  CONTINUATION frame
+
+   CONTINUATION frames do not exist, since larger supported HEADERS/
+   PUSH_PROMISE frames provide equivalent functionality.  Frame type 0x9
+   is reserved.
 
 6.  Error Handling
 
@@ -1052,12 +1058,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
    HTTP_MALFORMED_HEADERS (0x09):  A HEADERS frame has been received
       with an invalid format.
 
-   HTTP_MALFORMED_PRIORITY (0x0A):  A HEADERS frame has been received
-      with an invalid format.
-
-   HTTP_MALFORMED_SETTINGS (0x0B):  A HEADERS frame has been received
-      with an invalid format.
-
 
 
 
@@ -1065,6 +1065,12 @@ Bishop                    Expires July 28, 2017                [Page 19]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   HTTP_MALFORMED_PRIORITY (0x0A):  A HEADERS frame has been received
+      with an invalid format.
+
+   HTTP_MALFORMED_SETTINGS (0x0B):  A HEADERS frame has been received
+      with an invalid format.
 
    HTTP_MALFORMED_PUSH_PROMISE (0x0C):  A HEADERS frame has been
       received with an invalid format.
@@ -1109,18 +1115,17 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    CANCEL (0x8):  HTTP_REQUEST_CANCELLED in Section 6.1.
 
-   COMPRESSION_ERROR (0x9):  HTTP_HPACK_DECOMPRESSION_FAILED in
-      Section 6.1.
-
-   CONNECT_ERROR (0xa):  HTTP_CONNECT_ERROR in Section 6.1.
-
-
 
 
 Bishop                    Expires July 28, 2017                [Page 20]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   COMPRESSION_ERROR (0x9):  HTTP_HPACK_DECOMPRESSION_FAILED in
+      Section 6.1.
+
+   CONNECT_ERROR (0xa):  HTTP_CONNECT_ERROR in Section 6.1.
 
    ENHANCE_YOUR_CALM (0xb):  HTTP_EXCESSIVE_LOAD in Section 6.1.
 
@@ -1165,11 +1170,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    Parameter:  "v"
 
-   Specification:  This document, Section 2.1
-
-
-
-
 
 
 
@@ -1177,6 +1177,8 @@ Bishop                    Expires July 28, 2017                [Page 21]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
+
+   Specification:  This document, Section 2.1
 
 8.3.  Existing Frame Types
 
@@ -1227,8 +1229,6 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-
-
 Bishop                    Expires July 28, 2017                [Page 22]
 
 Internet-Draft               HTTP over QUIC                 January 2017
@@ -1247,7 +1247,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    Supported Protocols:  HTTP/QUIC only
 
-   HTTP/QUIC Specification:  Section 5.2.11
+   HTTP/QUIC Specification:  Section 5.2.7
 
 9.  References
 

@@ -524,10 +524,12 @@ address {
   <dd style="margin-left: 8">Indicates that x is optional</dd>
   <dt>{x}</dt>
   <dd style="margin-left: 8">Indicates that x is encrypted</dd>
-  <dt>x (*) &#8230;</dt>
-  <dd style="margin-left: 8">Indicates that x is variable-length</dd>
+  <dt>x (A)</dt>
+  <dd style="margin-left: 8">Indicates that x is A bits long</dd>
   <dt>x (A/B/C) &#8230;</dt>
   <dd style="margin-left: 8">Indicates that x is one of A, B, or C bits long</dd>
+  <dt>x (*) &#8230;</dt>
+  <dd style="margin-left: 8">Indicates that x is variable-length</dd>
 </dl>
 <h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#a-quic-overview" id="a-quic-overview">A QUIC Overview</a></h1>
 <p id="rfc.section.3.p.1">This section briefly describes QUIC&#8217;s key mechanisms and benefits.  Key strengths of QUIC include:</p>
@@ -565,7 +567,7 @@ address {
 <p id="rfc.section.4.p.4">[[RFC editor: please remove the remainder of this section before publication.]]</p>
 <p id="rfc.section.4.p.5">The version number for the final version of this specification (0x00000001), is reserved for the version of the protocol that is published as an RFC.</p>
 <p id="rfc.section.4.p.6">Version numbers used to identify IETF drafts are created by adding the draft number to 0xff000000.  For example, draft-ietf-quic-transport-13 would be identified as 0xff00000D.</p>
-<p id="rfc.section.4.p.7">Versions of QUIC that are used for experimentation are coordinated on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
+<p id="rfc.section.4.p.7">Implementors are encouraged to register version numbers of QUIC that they are using for private experimentation on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#packet-types-and-formats" id="packet-types-and-formats">Packet Types and Formats</a></h1>
 <p id="rfc.section.5.p.1">We first describe QUIC&#8217;s packet types and their formats, since some are referenced in subsequent mechanisms.</p>
 <p id="rfc.section.5.p.2">All numeric values are encoded in network byte order (that is, big-endian) and all field sizes are in bits.  When discussing individual bits of fields, the least significant bit is referred to as bit 0.  Hexadecimal notation is used for describing the value of fields.</p>
@@ -845,7 +847,7 @@ Check the flags in the common header
 <p id="rfc.section.6.2.p.1">QUIC relies on a combined crypto and transport handshake to minimize connection establishment latency.  QUIC provides a dedicated stream pair (Stream ID 1 in each direction) to be used for performing a combined connection and security handshake (streams are described in detail in <a href="#streams">Section 9</a>).  The crypto handshake protocol encapsulates and delivers QUIC&#8217;s transport handshake to the peer on the crypto streams.  The first QUIC packet from the client to the server MUST carry handshake information as data on the client&#8217;s Stream ID 1.</p>
 <h3 id="rfc.section.6.2.1"><a href="#rfc.section.6.2.1">6.2.1.</a> <a href="#transport-parameters-and-options" id="transport-parameters-and-options">Transport Parameters and Options</a></h3>
 <p id="rfc.section.6.2.1.p.1">During connection establishment, the handshake must negotiate various transport parameters.  The currently defined transport parameters are described later in the document.</p>
-<p id="rfc.section.6.2.1.p.2">The transport component of the handshake is responsible for exchanging and negotiating the following parameters for a QUIC connection.  Not all parameters are negotiated, some are parameters sent in just one direction.  These parameters and options are encoded and handed off to the crypto handshake protocol to be transmitted to the peer.</p>
+<p id="rfc.section.6.2.1.p.2">The transport component of the handshake is responsible for exchanging and negotiating the following parameters for a QUIC connection.  Not all parameters are negotiated, some parameters are sent in just one direction.  These parameters and options are encoded and handed off to the crypto handshake protocol to be transmitted to the peer.</p>
 <h4 id="rfc.section.6.2.1.1"><a href="#rfc.section.6.2.1.1">6.2.1.1.</a> <a href="#encoding" id="encoding">Encoding</a></h4>
 <p id="rfc.section.6.2.1.1.p.1">(TODO: Describe format with example)</p>
 <p id="rfc.section.6.2.1.1.p.2">QUIC encodes the transport parameters and options as tag-value pairs, all as 7-bit ASCII strings.  QUIC parameter tags are listed below.</p>
@@ -893,7 +895,7 @@ Check the flags in the common header
   <li>Server&#8217;s version list in it&#8217;s Version Negotiation packet, if one was sent.</li>
 </ul>
 <h2 id="rfc.section.6.3"><a href="#rfc.section.6.3">6.3.</a> <a href="#migration" id="migration">Connection Migration</a></h2>
-<p id="rfc.section.6.3.p.1">QUIC connections are identified by their 64-bit Connection ID.  QUIC&#8217;s consistent connection ID allows connections to survive changes to the client&#8217;s IP and/or port, such as those caused by client or server migrating to a new network.  QUIC also provides automatic cryptographic verification of a rebound client, since the client continues to use the same session key for encrypting and decrypting packets.</p>
+<p id="rfc.section.6.3.p.1">QUIC connections are identified by their 64-bit Connection ID.  QUIC&#8217;s consistent connection ID allows connections to survive changes to the client&#8217;s IP and/or port, such as those caused by client or server migrating to a new network.  QUIC also provides automatic cryptographic verification of a client which has changed its IP address because the client continues to use the same session key for encrypting and decrypting packets.</p>
 <p id="rfc.section.6.3.p.2">DISCUSS: Simultaneous migration.  Is this reasonable?</p>
 <p id="rfc.section.6.3.p.3">TODO: Perhaps move mitigation techniques from Security Considerations here.</p>
 <h2 id="rfc.section.6.4"><a href="#rfc.section.6.4">6.4.</a> <a href="#termination" id="termination">Connection Termination</a></h2>
@@ -1067,7 +1069,7 @@ Check the flags in the common header
 
 <ul>
   <li>Largest Acked: A variable-sized unsigned value representing the largest packet number the peer is acking in this packet (typically the largest that the peer has seen thus far.)</li>
-  <li>Ack Delay: Time from when the largest acked, as indicated in the Largest Acked field, was received by this peer to when this ack was sent.</li>
+  <li>Ack Delay: Time from when the largest acked packet, as indicated in the Largest Acked field, was received by this peer to when this ack was sent.</li>
   <li>Num Blocks (opt): An optional 8-bit unsigned value specifying the number of additional ack blocks (besides the required First Ack Block) in this ACK frame.  Only present if the &#8216;N&#8217; flag bit is 1.</li>
   <li>Ack Block Section: Contains one or more blocks of packet numbers which have been successfully received.  See <a href="#ack-block-section">Section 7.4.1.1</a>.</li>
   <li>Num Timestamps: An unsigned 8-bit number specifying the total number of &lt;packet number, timestamp&gt; pairs in the Timestamp Section.</li>
@@ -1309,126 +1311,126 @@ Check the flags in the common header
 <p/>
 
 <dl>
-  <dt>0x0000-0x3FFF:</dt>
+  <dt>0x00000000-0x3FFFFFFF:</dt>
   <dd style="margin-left: 8">Application-specific error codes.  Defined by each application-layer protocol.</dd>
-  <dt>0x4000-0x7FFF:</dt>
+  <dt>0x40000000-0x7FFFFFFF:</dt>
   <dd style="margin-left: 8">Reserved for host-local error codes.  These codes MUST NOT be sent to a peer, but MAY be used in API return codes and logs.</dd>
-  <dt>0x8000-0xAFFF:</dt>
+  <dt>0x80000000-0xBFFFFFFF:</dt>
   <dd style="margin-left: 8">QUIC transport error codes, including packet protection errors.  Applicable to all uses of QUIC.</dd>
-  <dt>0xB000-0xFFFF:</dt>
+  <dt>0xC0000000-0xFFFFFFFF:</dt>
   <dd style="margin-left: 8">Cryptographic error codes.  Defined by the crypto handshake protocol in use.</dd>
 </dl>
 <p id="rfc.section.11.p.3">This section lists the defined QUIC transport error codes that may be used in a CONNECTION_CLOSE or RST_STREAM frame. Error codes share a common code space.  Some error codes apply only to either streams or the entire connection and have no defined semantics in the other context.</p>
 <p/>
 
 <dl>
-  <dt>QUIC_INTERNAL_ERROR (0x8001):</dt>
+  <dt>QUIC_INTERNAL_ERROR (0x80000001):</dt>
   <dd style="margin-left: 8">Connection has reached an invalid state.</dd>
-  <dt>QUIC_STREAM_DATA_AFTER_TERMINATION (0x8002):</dt>
+  <dt>QUIC_STREAM_DATA_AFTER_TERMINATION (0x80000002):</dt>
   <dd style="margin-left: 8">There were data frames after the a fin or reset.</dd>
-  <dt>QUIC_INVALID_PACKET_HEADER (0x8003):</dt>
+  <dt>QUIC_INVALID_PACKET_HEADER (0x80000003):</dt>
   <dd style="margin-left: 8">Control frame is malformed.</dd>
-  <dt>QUIC_INVALID_FRAME_DATA (0x8004):</dt>
+  <dt>QUIC_INVALID_FRAME_DATA (0x80000004):</dt>
   <dd style="margin-left: 8">Frame data is malformed.</dd>
-  <dt>QUIC_RECEIVED_RST (0x8005):</dt>
-  <dd style="margin-left: 8">Terminating stream because peer sent a RST_STREAM or REQUEST_RST.</dd>
-  <dt>QUIC_MISSING_PAYLOAD (0x8030):</dt>
+  <dt>QUIC_RECEIVED_RST (0x80000005):</dt>
+  <dd style="margin-left: 8">Terminating stream because peer sent a REQUEST_RST.</dd>
+  <dt>QUIC_MISSING_PAYLOAD (0x80000030):</dt>
   <dd style="margin-left: 8">The packet contained no payload.</dd>
-  <dt>QUIC_INVALID_STREAM_DATA (0x802e):</dt>
+  <dt>QUIC_INVALID_STREAM_DATA (0x8000002E):</dt>
   <dd style="margin-left: 8">STREAM frame data is malformed.</dd>
-  <dt>QUIC_OVERLAPPING_STREAM_DATA (0x8057):</dt>
+  <dt>QUIC_OVERLAPPING_STREAM_DATA (0x80000057):</dt>
   <dd style="margin-left: 8">STREAM frame data overlaps with buffered data.</dd>
-  <dt>QUIC_UNENCRYPTED_STREAM_DATA (0x803d):</dt>
+  <dt>QUIC_UNENCRYPTED_STREAM_DATA (0x8000003D):</dt>
   <dd style="margin-left: 8">Received STREAM frame data is not encrypted.</dd>
-  <dt>QUIC_MAYBE_CORRUPTED_MEMORY (0x8059):</dt>
+  <dt>QUIC_MAYBE_CORRUPTED_MEMORY (0x80000059):</dt>
   <dd style="margin-left: 8">Received a frame which is likely the result of memory corruption.</dd>
-  <dt>QUIC_INVALID_RST_STREAM_DATA (0x8006):</dt>
+  <dt>QUIC_INVALID_RST_STREAM_DATA (0x80000006):</dt>
   <dd style="margin-left: 8">RST_STREAM frame data is malformed.</dd>
-  <dt>QUIC_INVALID_CONNECTION_CLOSE_DATA (0x8007):</dt>
+  <dt>QUIC_INVALID_CONNECTION_CLOSE_DATA (0x80000007):</dt>
   <dd style="margin-left: 8">CONNECTION_CLOSE frame data is malformed.</dd>
-  <dt>QUIC_INVALID_GOAWAY_DATA (0x8008):</dt>
+  <dt>QUIC_INVALID_GOAWAY_DATA (0x80000008):</dt>
   <dd style="margin-left: 8">GOAWAY frame data is malformed.</dd>
-  <dt>QUIC_INVALID_WINDOW_UPDATE_DATA (0x8039):</dt>
+  <dt>QUIC_INVALID_WINDOW_UPDATE_DATA (0x80000039):</dt>
   <dd style="margin-left: 8">WINDOW_UPDATE frame data is malformed.</dd>
-  <dt>QUIC_INVALID_BLOCKED_DATA (0x803a):</dt>
+  <dt>QUIC_INVALID_BLOCKED_DATA (0x8000003A):</dt>
   <dd style="margin-left: 8">BLOCKED frame data is malformed.</dd>
-  <dt>QUIC_INVALID_STOP_WAITING_DATA (0x803c):</dt>
+  <dt>QUIC_INVALID_STOP_WAITING_DATA (0x8000003C):</dt>
   <dd style="margin-left: 8">STOP_WAITING frame data is malformed.</dd>
-  <dt>QUIC_INVALID_PATH_CLOSE_DATA (0x804e):</dt>
+  <dt>QUIC_INVALID_PATH_CLOSE_DATA (0x8000004E):</dt>
   <dd style="margin-left: 8">PATH_CLOSE frame data is malformed.</dd>
-  <dt>QUIC_INVALID_ACK_DATA (0x8009):</dt>
+  <dt>QUIC_INVALID_ACK_DATA (0x80000009):</dt>
   <dd style="margin-left: 8">ACK frame data is malformed.</dd>
-  <dt>QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x800a):</dt>
+  <dt>QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):</dt>
   <dd style="margin-left: 8">Version negotiation packet is malformed.</dd>
-  <dt>QUIC_INVALID_PUBLIC_RST_PACKET (0x800b):</dt>
+  <dt>QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):</dt>
   <dd style="margin-left: 8">Public RST packet is malformed.</dd>
-  <dt>QUIC_DECRYPTION_FAILURE (0x800c):</dt>
+  <dt>QUIC_DECRYPTION_FAILURE (0x8000000c):</dt>
   <dd style="margin-left: 8">There was an error decrypting.</dd>
-  <dt>QUIC_ENCRYPTION_FAILURE (0x800d):</dt>
+  <dt>QUIC_ENCRYPTION_FAILURE (0x8000000d):</dt>
   <dd style="margin-left: 8">There was an error encrypting.</dd>
-  <dt>QUIC_PACKET_TOO_LARGE (0x800e):</dt>
+  <dt>QUIC_PACKET_TOO_LARGE (0x8000000e):</dt>
   <dd style="margin-left: 8">The packet exceeded kMaxPacketSize.</dd>
-  <dt>QUIC_PEER_GOING_AWAY (0x8010):</dt>
+  <dt>QUIC_PEER_GOING_AWAY (0x80000010):</dt>
   <dd style="margin-left: 8">The peer is going away. May be a client or server.</dd>
-  <dt>QUIC_INVALID_STREAM_ID (0x8011):</dt>
+  <dt>QUIC_INVALID_STREAM_ID (0x80000011):</dt>
   <dd style="margin-left: 8">A stream ID was invalid.</dd>
-  <dt>QUIC_INVALID_PRIORITY (0x8031):</dt>
+  <dt>QUIC_INVALID_PRIORITY (0x80000031):</dt>
   <dd style="margin-left: 8">A priority was invalid.</dd>
-  <dt>QUIC_TOO_MANY_OPEN_STREAMS (0x8012):</dt>
+  <dt>QUIC_TOO_MANY_OPEN_STREAMS (0x80000012):</dt>
   <dd style="margin-left: 8">Too many streams already open.</dd>
-  <dt>QUIC_TOO_MANY_AVAILABLE_STREAMS (0x804c):</dt>
+  <dt>QUIC_TOO_MANY_AVAILABLE_STREAMS (0x8000004c):</dt>
   <dd style="margin-left: 8">The peer created too many available streams.</dd>
-  <dt>QUIC_PUBLIC_RESET (0x8013):</dt>
+  <dt>QUIC_PUBLIC_RESET (0x80000013):</dt>
   <dd style="margin-left: 8">Received public reset for this connection.</dd>
-  <dt>QUIC_INVALID_VERSION (0x8014):</dt>
+  <dt>QUIC_INVALID_VERSION (0x80000014):</dt>
   <dd style="margin-left: 8">Invalid protocol version.</dd>
-  <dt>QUIC_INVALID_HEADER_ID (0x8016):</dt>
+  <dt>QUIC_INVALID_HEADER_ID (0x80000016):</dt>
   <dd style="margin-left: 8">The Header ID for a stream was too far from the previous.</dd>
-  <dt>QUIC_INVALID_NEGOTIATED_VALUE (0x8017):</dt>
+  <dt>QUIC_INVALID_NEGOTIATED_VALUE (0x80000017):</dt>
   <dd style="margin-left: 8">Negotiable parameter received during handshake had invalid value.</dd>
-  <dt>QUIC_DECOMPRESSION_FAILURE (0x8018):</dt>
+  <dt>QUIC_DECOMPRESSION_FAILURE (0x80000018):</dt>
   <dd style="margin-left: 8">There was an error decompressing data.</dd>
-  <dt>QUIC_NETWORK_IDLE_TIMEOUT (0x8019):</dt>
+  <dt>QUIC_NETWORK_IDLE_TIMEOUT (0x80000019):</dt>
   <dd style="margin-left: 8">The connection timed out due to no network activity.</dd>
-  <dt>QUIC_HANDSHAKE_TIMEOUT (0x8043):</dt>
+  <dt>QUIC_HANDSHAKE_TIMEOUT (0x80000043):</dt>
   <dd style="margin-left: 8">The connection timed out waiting for the handshake to complete.</dd>
-  <dt>QUIC_ERROR_MIGRATING_ADDRESS (0x801a):</dt>
+  <dt>QUIC_ERROR_MIGRATING_ADDRESS (0x8000001a):</dt>
   <dd style="margin-left: 8">There was an error encountered migrating addresses.</dd>
-  <dt>QUIC_ERROR_MIGRATING_PORT (0x8056):</dt>
+  <dt>QUIC_ERROR_MIGRATING_PORT (0x80000056):</dt>
   <dd style="margin-left: 8">There was an error encountered migrating port only.</dd>
-  <dt>QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x8032):</dt>
+  <dt>QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):</dt>
   <dd style="margin-left: 8">We received a STREAM_FRAME with no data and no fin flag set.</dd>
-  <dt>QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA (0x803b):</dt>
+  <dt>QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA (0x8000003b):</dt>
   <dd style="margin-left: 8">The peer received too much data, violating flow control.</dd>
-  <dt>QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA (0x803f):</dt>
+  <dt>QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA (0x8000003f):</dt>
   <dd style="margin-left: 8">The peer sent too much data, violating flow control.</dd>
-  <dt>QUIC_FLOW_CONTROL_INVALID_WINDOW (0x8040):</dt>
+  <dt>QUIC_FLOW_CONTROL_INVALID_WINDOW (0x80000040):</dt>
   <dd style="margin-left: 8">The peer received an invalid flow control window.</dd>
-  <dt>QUIC_CONNECTION_IP_POOLED (0x803e):</dt>
+  <dt>QUIC_CONNECTION_IP_POOLED (0x8000003e):</dt>
   <dd style="margin-left: 8">The connection has been IP pooled into an existing connection.</dd>
-  <dt>QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS (0x8044):</dt>
+  <dt>QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS (0x80000044):</dt>
   <dd style="margin-left: 8">The connection has too many outstanding sent packets.</dd>
-  <dt>QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS (0x8045):</dt>
+  <dt>QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS (0x80000045):</dt>
   <dd style="margin-left: 8">The connection has too many outstanding received packets.</dd>
-  <dt>QUIC_CONNECTION_CANCELLED (0x8046):</dt>
+  <dt>QUIC_CONNECTION_CANCELLED (0x80000046):</dt>
   <dd style="margin-left: 8">The QUIC connection has been cancelled.</dd>
-  <dt>QUIC_BAD_PACKET_LOSS_RATE (0x8047):</dt>
+  <dt>QUIC_BAD_PACKET_LOSS_RATE (0x80000047):</dt>
   <dd style="margin-left: 8">Disabled QUIC because of high packet loss rate.</dd>
-  <dt>QUIC_PUBLIC_RESETS_POST_HANDSHAKE (0x8049):</dt>
+  <dt>QUIC_PUBLIC_RESETS_POST_HANDSHAKE (0x80000049):</dt>
   <dd style="margin-left: 8">Disabled QUIC because of too many PUBLIC_RESETs post handshake.</dd>
-  <dt>QUIC_TIMEOUTS_WITH_OPEN_STREAMS (0x804a):</dt>
+  <dt>QUIC_TIMEOUTS_WITH_OPEN_STREAMS (0x8000004a):</dt>
   <dd style="margin-left: 8">Disabled QUIC because of too many timeouts with streams open.</dd>
-  <dt>QUIC_TOO_MANY_RTOS (0x8055):</dt>
+  <dt>QUIC_TOO_MANY_RTOS (0x80000055):</dt>
   <dd style="margin-left: 8">QUIC timed out after too many RTOs.</dd>
-  <dt>QUIC_ENCRYPTION_LEVEL_INCORRECT (0x802c):</dt>
+  <dt>QUIC_ENCRYPTION_LEVEL_INCORRECT (0x8000002c):</dt>
   <dd style="margin-left: 8">A packet was received with the wrong encryption level (i.e. it should have been encrypted but was not.)</dd>
-  <dt>QUIC_VERSION_NEGOTIATION_MISMATCH (0x8037):</dt>
+  <dt>QUIC_VERSION_NEGOTIATION_MISMATCH (0x80000037):</dt>
   <dd style="margin-left: 8">This connection involved a version negotiation which appears to have been tampered with.</dd>
-  <dt>QUIC_IP_ADDRESS_CHANGED (0x8050):</dt>
+  <dt>QUIC_IP_ADDRESS_CHANGED (0x80000050):</dt>
   <dd style="margin-left: 8">IP address changed causing connection close.</dd>
-  <dt>QUIC_TOO_MANY_FRAME_GAPS (0x805d):</dt>
+  <dt>QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):</dt>
   <dd style="margin-left: 8">Stream frames arrived too discontiguously so that stream sequencer buffer maintains too many gaps.</dd>
-  <dt>QUIC_TOO_MANY_SESSIONS_ON_SERVER (0x8060):</dt>
+  <dt>QUIC_TOO_MANY_SESSIONS_ON_SERVER (0x80000060):</dt>
   <dd style="margin-left: 8">Connection closed because server hit max number of sessions allowed.</dd>
 </dl>
 <h1 id="rfc.section.12"><a href="#rfc.section.12">12.</a> <a href="#security-and-privacy-considerations" id="security-and-privacy-considerations">Security and Privacy Considerations</a></h1>

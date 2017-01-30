@@ -151,7 +151,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
        10.1.2.  Response to a RST_STREAM . . . . . . . . . . . . . .  40
        10.1.3.  Offset Increment . . . . . . . . . . . . . . . . . .  40
        10.1.4.  BLOCKED frames . . . . . . . . . . . . . . . . . . .  40
-   11. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .  41
+   11. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .  40
    12. Security and Privacy Considerations . . . . . . . . . . . . .  44
      12.1.  Spoofed Ack Attack . . . . . . . . . . . . . . . . . . .  44
    13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  45
@@ -161,7 +161,7 @@ Internet-Draft           QUIC Transport Protocol            January 2017
      14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  46
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  46
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  46
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  47
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  46
 
 
 
@@ -170,7 +170,7 @@ Iyengar & Thomson        Expires August 3, 2017                 [Page 3]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-     C.1.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  47
+     C.1.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  46
      C.2.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  47
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  47
 
@@ -2083,17 +2083,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    delivery, as long as it is not in violation of the receiver's flow
    control limits.
 
-   An endpoint MUST NOT send any stream data without consulting the
-   congestion controller and the flow controller, with the following two
-   exceptions.
-
-   o  The crypto handshake stream, Stream 1, MUST NOT be subject to
-      congestion control or connection-level flow control, but MUST be
-      subject to stream-level flow control.
-
-   o  An application MAY exclude specific stream IDs from connection-
-      level flow control.  If so, these streams MUST NOT be subject to
-      connection-level flow control.
+   The crypto handshake stream, Stream 1, MUST NOT be subject to
+   congestion control or connection-level flow control, but MUST be
+   subject to stream-level flow control.  An endpoint MUST NOT send data
+   on any other stream without consulting the congestion controller and
+   the flow controller.
 
    Flow control is described in detail in Section 10, and congestion
    control is described in the companion document [QUIC-RECOVERY].
@@ -2123,6 +2117,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    The initial flow control credit is 65536 bytes for both the stream
    and connection flow controllers.
 
+   A receiver MAY advertise a larger offset at any point in the
+   connection by sending a WINDOW_UPDATE frame.  A receiver MUST NOT
+   renege on an advertisement; that is, once a receiver advertises an
+   offset via a WINDOW_UPDATE frame, it MUST NOT subsequently advertise
+   a smaller offset.  A sender may receive WINDOW_UPDATE frames out of
+
 
 
 Iyengar & Thomson        Expires August 3, 2017                [Page 38]
@@ -2130,11 +2130,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 38]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-   A receiver MAY advertise a larger offset at any point in the
-   connection by sending a WINDOW_UPDATE frame.  A receiver MUST NOT
-   renege on an advertisement; that is, once a receiver advertises an
-   offset via a WINDOW_UPDATE frame, it MUST NOT subsequently advertise
-   a smaller offset.  A sender may receive WINDOW_UPDATE frames out of
    order; a sender MUST therefore ignore any reductions in flow control
    credit.
 
@@ -2178,6 +2173,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    the data against its connection level flow control budget, but a
    receiver that has not received these bytes would not know to include
    them as well.  The receiver must learn of the number of bytes that
+   were sent on the stream to make the same adjustment in its connection
+   flow controller.
+
+   To avoid this de-synchronization, a RST_STREAM sender MUST include
+   the final byte offset sent on the stream in the RST_STREAM frame.  On
 
 
 
@@ -2186,11 +2186,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 39]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-   were sent on the stream to make the same adjustment in its connection
-   flow controller.
-
-   To avoid this de-synchronization, a RST_STREAM sender MUST include
-   the final byte offset sent on the stream in the RST_STREAM frame.  On
    receiving a RST_STREAM frame, a receiver definitively knows how many
    bytes were sent on that stream before the RST_STREAM frame, and the
    receiver MUST use the final offset to account for all bytes sent on
@@ -2234,6 +2229,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    should send a WINDOW_UPDATE frame at least two roundtrips before it
    expects the sender to get blocked.
 
+11.  Error Codes
+
+   Error codes are 32 bits long, with the first two bits indicating the
+   source of the error code:
+
 
 
 
@@ -2241,11 +2241,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 40]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-11.  Error Codes
-
-   Error codes are 32 bits long, with the first two bits indicating the
-   source of the error code:
 
    0x00000000-0x3FFFFFFF:  Application-specific error codes.  Defined by
       each application-layer protocol.
@@ -2290,6 +2285,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    QUIC_MAYBE_CORRUPTED_MEMORY (0x80000059):  Received a frame which is
       likely the result of memory corruption.
 
+   QUIC_INVALID_RST_STREAM_DATA (0x80000006):  RST_STREAM frame data is
+      malformed.
+
+   QUIC_INVALID_CONNECTION_CLOSE_DATA (0x80000007):  CONNECTION_CLOSE
+      frame data is malformed.
 
 
 
@@ -2297,12 +2297,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 41]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   QUIC_INVALID_RST_STREAM_DATA (0x80000006):  RST_STREAM frame data is
-      malformed.
-
-   QUIC_INVALID_CONNECTION_CLOSE_DATA (0x80000007):  CONNECTION_CLOSE
-      frame data is malformed.
 
    QUIC_INVALID_GOAWAY_DATA (0x80000008):  GOAWAY frame data is
       malformed.
@@ -2347,17 +2341,18 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    QUIC_TOO_MANY_AVAILABLE_STREAMS (0x8000004c):  The peer created too
       many available streams.
 
+   QUIC_PUBLIC_RESET (0x80000013):  Received public reset for this
+      connection.
+
+   QUIC_INVALID_VERSION (0x80000014):  Invalid protocol version.
+
+
 
 
 Iyengar & Thomson        Expires August 3, 2017                [Page 42]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   QUIC_PUBLIC_RESET (0x80000013):  Received public reset for this
-      connection.
-
-   QUIC_INVALID_VERSION (0x80000014):  Invalid protocol version.
 
    QUIC_INVALID_HEADER_ID (0x80000016):  The Header ID for a stream was
       too far from the previous.
@@ -2401,6 +2396,11 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS (0x80000045):  The
       connection has too many outstanding received packets.
 
+   QUIC_CONNECTION_CANCELLED (0x80000046):  The QUIC connection has been
+      cancelled.
+
+   QUIC_BAD_PACKET_LOSS_RATE (0x80000047):  Disabled QUIC because of
+      high packet loss rate.
 
 
 
@@ -2409,12 +2409,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 43]
 
 Internet-Draft           QUIC Transport Protocol            January 2017
 
-
-   QUIC_CONNECTION_CANCELLED (0x80000046):  The QUIC connection has been
-      cancelled.
-
-   QUIC_BAD_PACKET_LOSS_RATE (0x80000047):  Disabled QUIC because of
-      high packet loss rate.
 
    QUIC_PUBLIC_RESETS_POST_HANDSHAKE (0x80000049):  Disabled QUIC
       because of too many PUBLIC_RESETs post handshake.
@@ -2458,6 +2452,12 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    is that a server can unilaterally create a gap in packet-number
    space.  In the non-attack scenario, the client will send an ack with
    a larger largest acked.  In the attack scenario, the attacker may ack
+   a packet in the gap.  If the server sees an ack for a packet that was
+   never sent, the connection can be aborted.
+
+   The second mitigation is that the server can require that acks for
+   sent packets match the encryption level of the sent packet.  This
+   mitigation is useful if the connection has an ephemeral forward-
 
 
 
@@ -2466,12 +2466,6 @@ Iyengar & Thomson        Expires August 3, 2017                [Page 44]
 Internet-Draft           QUIC Transport Protocol            January 2017
 
 
-   a packet in the gap.  If the server sees an ack for a packet that was
-   never sent, the connection can be aborted.
-
-   The second mitigation is that the server can require that acks for
-   sent packets match the encryption level of the sent packet.  This
-   mitigation is useful if the connection has an ephemeral forward-
    secure key that is generated and used for every new connection.  If a
    packet sent is encrypted with a forward-secure key, then any acks
    that are received for them must also be forward-secure encrypted.
@@ -2513,15 +2507,6 @@ Internet-Draft           QUIC Transport Protocol            January 2017
               Bishop, M., Ed., "Hypertext Transfer Protocol (HTTP) over
               QUIC".
 
-
-
-
-
-Iyengar & Thomson        Expires August 3, 2017                [Page 45]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
    [QUICCrypto]
               Langley, A. and W. Chang, "QUIC Crypto", May 2016,
               <http://goo.gl/OuVSxa>.
@@ -2529,6 +2514,13 @@ Internet-Draft           QUIC Transport Protocol            January 2017
    [RFC2360]  Scott, G., "Guide for Internet Standards Writers", BCP 22,
               RFC 2360, DOI 10.17487/RFC2360, June 1998,
               <http://www.rfc-editor.org/info/rfc2360>.
+
+
+
+Iyengar & Thomson        Expires August 3, 2017                [Page 45]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -2566,18 +2558,6 @@ Appendix B.  Acknowledgments
    discussions and public ones on the quic@ietf.org and proto-
    quic@chromium.org mailing lists.  Our thanks to all.
 
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 3, 2017                [Page 46]
-
-Internet-Draft           QUIC Transport Protocol            January 2017
-
-
 Appendix C.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
@@ -2590,6 +2570,13 @@ C.1.  Since draft-ietf-quic-transport-00:
    o  Defined versioning
 
    o  Reworked description of packet and frame layout
+
+
+
+Iyengar & Thomson        Expires August 3, 2017                [Page 46]
+
+Internet-Draft           QUIC Transport Protocol            January 2017
+
 
    o  Error code space is divided into regions for each component
 
@@ -2617,6 +2604,19 @@ Authors' Addresses
    Mozilla
 
    Email: martin.thomson@gmail.com
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

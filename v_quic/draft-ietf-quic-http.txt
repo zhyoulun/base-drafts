@@ -4,8 +4,8 @@
 
 QUIC                                                      M. Bishop, Ed.
 Internet-Draft                                                 Microsoft
-Intended status: Standards Track                        January 26, 2017
-Expires: July 30, 2017
+Intended status: Standards Track                        January 31, 2017
+Expires: August 4, 2017
 
 
               Hypertext Transfer Protocol (HTTP) over QUIC
@@ -45,7 +45,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on July 30, 2017.
+   This Internet-Draft will expire on August 4, 2017.
 
 
 
@@ -53,7 +53,7 @@ Status of This Memo
 
 
 
-Bishop                    Expires July 30, 2017                 [Page 1]
+Bishop                   Expires August 4, 2017                 [Page 1]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -80,7 +80,7 @@ Table of Contents
    2.  QUIC Advertisement  . . . . . . . . . . . . . . . . . . . . .   3
      2.1.  QUIC Version Hints  . . . . . . . . . . . . . . . . . . .   4
    3.  Connection Establishment  . . . . . . . . . . . . . . . . . .   4
-     3.1.  Draft Version Identification  . . . . . . . . . . . . . .   5
+     3.1.  Draft Version Identification  . . . . . . . . . . . . . .   4
    4.  Stream Mapping and Usage  . . . . . . . . . . . . . . . . . .   5
      4.1.  Stream 3: Connection Control Stream . . . . . . . . . . .   6
      4.2.  HTTP Message Exchanges  . . . . . . . . . . . . . . . . .   6
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Bishop                    Expires July 30, 2017                 [Page 2]
+Bishop                   Expires August 4, 2017                 [Page 2]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -150,42 +150,40 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 2.  QUIC Advertisement
 
-   A server advertises that it can speak HTTP/QUIC via the Alt-Svc
-   ([RFC7838]) HTTP response header (or the semantically equivalent Alt-
-   Svc HTTP/2 Extension Frame Type), using the ALPN token defined in
-   Section 3.
+   An HTTP origin advertises the availability of an equivalent HTTP/QUIC
+   endpoint via the Alt-Svc HTTP response header or the HTTP/2 ALTSVC
+   frame ([RFC7838]), using the ALPN token defined in Section 3.
 
-   Thus, a server could indicate in an HTTP/1.1 or HTTP/2 response that
-   HTTP/QUIC was available on UDP port 443 by including the following
-   header in any response:
+   For example, an origin could indicate in an HTTP/1.1 or HTTP/2
+   response that HTTP/QUIC was available on UDP port 443 at the same
+   hostname by including the following header in any response:
 
    Alt-Svc: hq=":443"
 
+   On receipt of an Alt-Svc header indicating HTTP/QUIC support, a
+   client MAY attempt to establish a QUIC connection to the indicated
 
 
 
-
-Bishop                    Expires July 30, 2017                 [Page 3]
+Bishop                   Expires August 4, 2017                 [Page 3]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
-   On receipt of an Alt-Svc header indicating HTTP/QUIC support, a
-   client MAY attempt to establish a QUIC connection on the indicated
-   port and, if successful, send HTTP requests using the mapping
-   described in this document.  Servers SHOULD list only versions which
-   they support, but MAY omit supported versions for any reason.
+   host and port and, if successful, send HTTP requests using the
+   mapping described in this document.
 
    Connectivity problems (e.g. firewall blocking UDP) can result in QUIC
-   connection establishment failure, in which case the client should
-   gracefully fall back to HTTP/2.
+   connection establishment failure, in which case the client SHOULD
+   continue using the existing connection or try another alternative
+   endpoint offered by the origin.
 
 2.1.  QUIC Version Hints
 
-   This document defines the "quic" parameter for Alt-Svc, which is used
-   to provide optional version-negotiation hints to HTTP/QUIC clients.
-   QUIC versions are four-octet sequences with no additional constraints
-   on format.  Syntax:
+   This document defines the "quic" parameter for Alt-Svc, which MAY be
+   used to provide version-negotiation hints to HTTP/QUIC clients.  QUIC
+   versions are four-octet sequences with no additional constraints on
+   format.  Syntax:
 
    quic = version-number
    version-number = 1*8HEXDIG; hex-encoded QUIC version
@@ -199,7 +197,8 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
    Where multiple versions are listed, the order of the values reflects
    the server's preference (with the first value being the most
-   preferred version).
+   preferred version).  Origins SHOULD list only versions which they
+   support, but MAY omit supported versions for any reason.
 
 3.  Connection Establishment
 
@@ -214,22 +213,18 @@ Internet-Draft               HTTP over QUIC                 January 2017
    established, a SETTINGS frame (Section 5.2.5) MUST be sent as the
    initial frame of the HTTP control stream (StreamID 3, see Section 4).
 
-
-
-
-
-
-
-
-Bishop                    Expires July 30, 2017                 [Page 4]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
 3.1.  Draft Version Identification
 
       *RFC Editor's Note:* Please remove this section prior to
       publication of a final version of this document.
+
+
+
+
+Bishop                   Expires August 4, 2017                 [Page 4]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
 
    Only implementations of the final, published RFC can identify
    themselves as "hq".  Until such an RFC exists, implementations MUST
@@ -274,17 +269,18 @@ Internet-Draft               HTTP over QUIC                 January 2017
    carries frames related to the request/response, including HEADERS.
    All request control streams are exempt from connection-level flow
    control.  The higher-numbered stream is the data stream and carries
-
-
-
-Bishop                    Expires July 30, 2017                 [Page 5]
-
-Internet-Draft               HTTP over QUIC                 January 2017
-
-
    the request/response body with no additional framing.  Note that a
    request or response without a body will cause this stream to be half-
    closed in the corresponding direction without transferring data.
+
+
+
+
+
+Bishop                   Expires August 4, 2017                 [Page 5]
+
+Internet-Draft               HTTP over QUIC                 January 2017
+
 
    Pairs of streams must be utilized sequentially, with no gaps.  The
    data stream MUST be reserved with the QUIC implementation when the
@@ -331,16 +327,17 @@ Internet-Draft               HTTP over QUIC                 January 2017
    The "chunked" transfer encoding defined in Section 4.1 of [RFC7230]
    MUST NOT be used.
 
+   Trailing header fields are carried in an additional header block on
+   the message control stream.  Such a header block is a sequence of
+   HEADERS frames with End Header Block set on the last frame.  Senders
 
 
-Bishop                    Expires July 30, 2017                 [Page 6]
+
+Bishop                   Expires August 4, 2017                 [Page 6]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
 
-   Trailing header fields are carried in an additional header block on
-   the message control stream.  Such a header block is a sequence of
-   HEADERS frames with End Header Block set on the last frame.  Senders
    MUST send only one header block in the trailers section; receivers
    MUST decode any subsequent header blocks in order to maintain HPACK
    decoder state, but the resulting output MUST be discarded.
@@ -389,7 +386,10 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                 [Page 7]
+
+
+
+Bishop                   Expires August 4, 2017                 [Page 7]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -445,7 +445,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                 [Page 8]
+Bishop                   Expires August 4, 2017                 [Page 8]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -501,7 +501,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                 [Page 9]
+Bishop                   Expires August 4, 2017                 [Page 9]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -557,7 +557,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 10]
+Bishop                   Expires August 4, 2017                [Page 10]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -613,7 +613,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 11]
+Bishop                   Expires August 4, 2017                [Page 11]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -669,7 +669,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 12]
+Bishop                   Expires August 4, 2017                [Page 12]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -725,7 +725,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 13]
+Bishop                   Expires August 4, 2017                [Page 13]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -781,7 +781,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 14]
+Bishop                   Expires August 4, 2017                [Page 14]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -837,7 +837,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 15]
+Bishop                   Expires August 4, 2017                [Page 15]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -893,7 +893,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 16]
+Bishop                   Expires August 4, 2017                [Page 16]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -949,7 +949,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 17]
+Bishop                   Expires August 4, 2017                [Page 17]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1005,7 +1005,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 18]
+Bishop                   Expires August 4, 2017                [Page 18]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1061,7 +1061,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 19]
+Bishop                   Expires August 4, 2017                [Page 19]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1117,7 +1117,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 20]
+Bishop                   Expires August 4, 2017                [Page 20]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1173,7 +1173,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 21]
+Bishop                   Expires August 4, 2017                [Page 21]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1229,7 +1229,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 22]
+Bishop                   Expires August 4, 2017                [Page 22]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1285,7 +1285,7 @@ Internet-Draft               HTTP over QUIC                 January 2017
 
 
 
-Bishop                    Expires July 30, 2017                [Page 23]
+Bishop                   Expires August 4, 2017                [Page 23]
 
 Internet-Draft               HTTP over QUIC                 January 2017
 
@@ -1341,4 +1341,4 @@ Author's Address
 
 
 
-Bishop                    Expires July 30, 2017                [Page 24]
+Bishop                   Expires August 4, 2017                [Page 24]

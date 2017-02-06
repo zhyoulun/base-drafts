@@ -105,7 +105,7 @@ Table of Contents
        7.1.3.  WINDOW_UPDATE Frames  . . . . . . . . . . . . . . . .  24
        7.1.4.  Denial of Service with Unprotected Packets  . . . . .  24
      7.2.  Use of 0-RTT Keys . . . . . . . . . . . . . . . . . . . .  25
-     7.3.  Protected Packets Prior to Handshake Completion . . . . .  25
+     7.3.  Receiving Out-of-Order Protected Frames . . . . . . . . .  25
 
 
 
@@ -123,13 +123,13 @@ Internet-Draft                QUIC over TLS                February 2017
      9.1.  Packet Reflection Attack Mitigation . . . . . . . . . . .  28
      9.2.  Peer Denial of Service  . . . . . . . . . . . . . . . . .  28
    10. Error codes . . . . . . . . . . . . . . . . . . . . . . . . .  29
-   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  31
-   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  31
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  30
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  30
      12.1.  Normative References . . . . . . . . . . . . . . . . . .  31
-     12.2.  Informative References . . . . . . . . . . . . . . . . .  32
+     12.2.  Informative References . . . . . . . . . . . . . . . . .  31
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  32
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  32
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  33
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  32
      C.1.  Since draft-ietf-quic-tls-00: . . . . . . . . . . . . . .  33
      C.2.  Since draft-thomson-quic-tls-01:  . . . . . . . . . . . .  33
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  33
@@ -1367,32 +1367,32 @@ Internet-Draft                QUIC over TLS                February 2017
 
    A server MUST NOT use 0-RTT keys to protect packets.
 
-7.3.  Protected Packets Prior to Handshake Completion
+7.3.  Receiving Out-of-Order Protected Frames
 
    Due to reordering and loss, protected packets might be received by an
-   endpoint before the final handshake messages are received.  If these
-   can be decrypted successfully, such packets MAY be stored and used
-   once the handshake is complete.
+   endpoint before the final TLS handshake messages are received.  A
+   client will be unable to decrypt 1-RTT packets from the server,
+   whereas a server will be able to decrypt 1-RTT packets from the
+   client.
 
-   Unless expressly permitted below, encrypted packets MUST NOT be used
-   prior to completing the TLS handshake, in particular the receipt of a
-   valid Finished message and any authentication of the peer.  If
-   packets are processed prior to completion of the handshake, an
-   attacker might use the willingness of an implementation to use these
-   packets to mount attacks.
+   Packets protected with 1-RTT keys MAY be stored and later decrypted
+   and used once the handshake is complete.  A server MUST NOT use 1-RTT
+   protected packets before verifying either the client Finished message
+   or - in the case that the server has chosen to use a pre-shared key -
+   the pre-shared key binder (see Section 4.2.8 of
+   [I-D.ietf-tls-tls13]).  Verifying these values provides the server
+   with an assurance that the ClientHello has not been modified.
 
-   TLS handshake messages are covered by record protection during the
-   handshake, once key agreement has completed.  This means that
-   protected messages need to be decrypted to determine if they are TLS
-   handshake messages or not.  Similarly, "ACK" and "WINDOW_UPDATE"
-   frames might be needed to successfully complete the TLS handshake.
+   A server could receive packets protected with 0-RTT keys prior to
+   receiving a TLS ClientHello.  The server MAY retain these packets for
+   later decryption in anticipation of receiving a ClientHello.
 
-   Any timestamps present in "ACK" frames MUST be ignored rather than
-   causing a fatal error.  Timestamps on protected frames MAY be saved
-   and used once the TLS handshake completes successfully.
+   Receiving and verifying the TLS Finished message is critical in
+   ensuring the integrity of the TLS handshake.  A server MUST NOT use
+   protected packets from the client prior to verifying the client
+   Finished message if its response depends on client authentication.
 
-   An endpoint MAY save the last protected "WINDOW_UPDATE" frame it
-   receives for each stream and apply the values once the TLS handshake
+
 
 
 
@@ -1401,9 +1401,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 25]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-   completes.  Failing to do this might result in temporary stalling of
-   affected streams.
 
 8.  QUIC-Specific Additions to the TLS Handshake
 
@@ -1450,6 +1447,9 @@ Internet-Draft                QUIC over TLS                February 2017
    QUIC defines an extension for use with TLS.  That extension defines
    transport-related parameters.  This provides integrity protection for
    these values.  Including these in the TLS handshake also make the
+   values that a client sets available to a server one-round trip
+   earlier than parameters that are carried in QUIC packets.  This
+   document does not define that extension.
 
 
 
@@ -1457,10 +1457,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 26]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-   values that a client sets available to a server one-round trip
-   earlier than parameters that are carried in QUIC packets.  This
-   document does not define that extension.
 
 8.3.  Source Address Validation
 
@@ -1506,6 +1502,10 @@ Internet-Draft                QUIC over TLS                February 2017
    different protocol stacks.  Even if the source IP address remains
    constant, the port number is likely to be different.  Packet
    reflection attacks are still possible in this situation, though the
+   set of hosts that can initiate these attacks is greatly reduced.  A
+   server might choose to avoid source address validation for such a
+   connection, or allow an increase to the amount of data that it sends
+   toward the client without source validation.
 
 
 
@@ -1513,11 +1513,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 27]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-   set of hosts that can initiate these attacks is greatly reduced.  A
-   server might choose to avoid source address validation for such a
-   connection, or allow an increase to the amount of data that it sends
-   toward the client without source validation.
 
 9.  Security Considerations
 
@@ -1562,6 +1557,11 @@ Internet-Draft                QUIC over TLS                February 2017
    messages or alert.  Records containing only padding are permitted
    during the handshake, but an excessive number might be used to
    generate unnecessary work.  Once the TLS handshake is complete,
+   endpoints SHOULD NOT send TLS application data records unless it is
+   to hide the length of QUIC records.  QUIC packet protection does not
+   include any allowance for padding; padded TLS application data
+   records can be used to mask the length of QUIC frames.
+
 
 
 
@@ -1569,11 +1569,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 28]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-   endpoints SHOULD NOT send TLS application data records unless it is
-   to hide the length of QUIC records.  QUIC packet protection does not
-   include any allowance for padding; padded TLS application data
-   records can be used to mask the length of QUIC frames.
 
    While there are legitimate uses for some redundant packets,
    implementations SHOULD track redundant packets and treat excessive
@@ -1618,6 +1613,11 @@ Internet-Draft                QUIC over TLS                February 2017
    TLS_MESSAGE_INDEX_NOT_FOUND (0xC0000025):  A handshake message was
       received that contained a parameter with too few values.
 
+   TLS_UNSUPPORTED_PROOF_DEMAND (0xC000005E):  A demand for an
+      unsupported proof type was received.
+
+   TLS_INTERNAL_ERROR (0xC0000026):  An internal error occured in
+      handshake processing.
 
 
 
@@ -1625,12 +1625,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 29]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-   TLS_UNSUPPORTED_PROOF_DEMAND (0xC000005E):  A demand for an
-      unsupported proof type was received.
-
-   TLS_INTERNAL_ERROR (0xC0000026):  An internal error occured in
-      handshake processing.
 
    TLS_VERSION_NOT_SUPPORTED (0xC0000027):  A handshake handshake
       message specified an unsupported version.
@@ -1670,6 +1664,12 @@ Internet-Draft                QUIC over TLS                February 2017
    TLS_CLIENT_HELLO_TOO_LARGE (0xC000005A):  ClientHello cannot fit in
       one packet.
 
+11.  IANA Considerations
+
+   This document has no IANA actions.  Yet.
+
+12.  References
+
 
 
 
@@ -1681,12 +1681,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 30]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-11.  IANA Considerations
-
-   This document has no IANA actions.  Yet.
-
-12.  References
 
 12.1.  Normative References
 
@@ -1727,6 +1721,12 @@ Internet-Draft                QUIC over TLS                February 2017
               Padding Extension", RFC 7685, DOI 10.17487/RFC7685,
               October 2015, <http://www.rfc-editor.org/info/rfc7685>.
 
+12.2.  Informative References
+
+   [AEBounds]
+              Luykx, A. and K. Paterson, "Limits on Authenticated
+              Encryption Use in TLS", March 2016,
+              <http://www.isg.rhul.ac.uk/~kp/TLS-AEbounds.pdf>.
 
 
 
@@ -1737,13 +1737,6 @@ Thomson & Turner         Expires August 10, 2017               [Page 31]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-12.2.  Informative References
-
-   [AEBounds]
-              Luykx, A. and K. Paterson, "Limits on Authenticated
-              Encryption Use in TLS", March 2016,
-              <http://www.isg.rhul.ac.uk/~kp/TLS-AEbounds.pdf>.
 
    [QUIC-HTTP]
               Bishop, M., Ed., "Hypertext Transfer Protocol (HTTP) over
@@ -1787,17 +1780,19 @@ Appendix B.  Acknowledgments
    Christian Huitema, Jana Iyengar, Adam Langley, Roberto Peon, Eric
    Rescorla, Ian Swett, and many others.
 
+Appendix C.  Change Log
+
+      *RFC Editor's Note:* Please remove this section prior to
+      publication of a final version of this document.
+
+
+
 
 
 Thomson & Turner         Expires August 10, 2017               [Page 32]
 
 Internet-Draft                QUIC over TLS                February 2017
 
-
-Appendix C.  Change Log
-
-      *RFC Editor's Note:* Please remove this section prior to
-      publication of a final version of this document.
 
 C.1.  Since draft-ietf-quic-tls-00:
 
@@ -1829,6 +1824,11 @@ Authors' Addresses
 
    Sean Turner (editor)
    sn3rd
+
+
+
+
+
 
 
 

@@ -851,22 +851,13 @@ Check the flags in the common header
 <p/>
 
 <ul>
-  <li>authenticated key exchange, where</li>
-</ul>
-<p id="rfc.section.6.2.p.4">** a server is always authenticated,</p>
-<p id="rfc.section.6.2.p.5">** a client is optionally authenticated,</p>
-<p id="rfc.section.6.2.p.6">** every connection produces distinct and unrelated keys,</p>
-<p id="rfc.section.6.2.p.7">** keying material is usable for packet protection for both 0-RTT and 1-RTT packets, and</p>
-<p id="rfc.section.6.2.p.8">** 1-RTT keys have forward secrecy</p>
-<p/>
-
-<ul>
+  <li>authenticated key exchange, where  <ul><li>a server is always authenticated,</li><li>a client is optionally authenticated,</li><li>every connection produces distinct and unrelated keys,</li><li>keying material is usable for packet protection for both 0-RTT and 1-RTT packets, and</li><li>1-RTT keys have forward secrecy</li></ul></li>
   <li>authenticated values for the transport parameters of the peer (see <a href="#transport-parameters">Section 6.3</a>)</li>
   <li>authenticated confirmation of version negotiation (see <a href="#version-validation">Section 6.3.4</a>)</li>
   <li>authenticated negotiation of an application protocol (TLS uses ALPN <a href="#RFC7301">[RFC7301]</a> for this purpose)</li>
   <li>for the server, the ability to carry data that provides assurance that the client can receive packets that are addressed with the transport address that is claimed by the client (see <a href="#source-address-token">Section 6.3.5</a>)</li>
 </ul>
-<p id="rfc.section.6.2.p.10">Details of how TLS is integrated with QUIC is provided in more detail in <a href="#QUIC-TLS">[QUIC-TLS]</a>.</p>
+<p id="rfc.section.6.2.p.4">Details of how TLS is integrated with QUIC is provided in more detail in <a href="#QUIC-TLS">[QUIC-TLS]</a>.</p>
 <h2 id="rfc.section.6.3"><a href="#rfc.section.6.3">6.3.</a> <a href="#transport-parameters" id="transport-parameters">Transport Parameters</a></h2>
 <p id="rfc.section.6.3.p.1">During connection establishment, both endpoints make authenticated declarations of their transport parameters.  These declarations are made unilaterally by each endpoint.  Endpoints are required to comply with the restrictions implied by these parameters; the description of each parameter includes rules for its handling.</p>
 <p id="rfc.section.6.3.p.2">The format of the transport parameters is the TransportParameters struct from <a href="#figure-transport-parameters">Figure 7</a>.  This is described using the presentation language from Section 3 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>.</p>
@@ -940,19 +931,19 @@ Check the flags in the common header
 <p id="rfc.section.6.3.3.p.2">New transport parameters can be registered according to the rules in <a href="#iana-transport-parameters">Section 13.1</a>.</p>
 <h3 id="rfc.section.6.3.4"><a href="#rfc.section.6.3.4">6.3.4.</a> <a href="#version-validation" id="version-validation">Version Negotiation Validation</a></h3>
 <p id="rfc.section.6.3.4.p.1">The transport parameters include three fields that encode version information.  These retroactively authenticate the version negotiation (see <a href="#version-negotiation">Section 6.1</a>) that is performed prior to the cryptographic handshake.</p>
-<p id="rfc.section.6.3.4.p.2">Inclusion of these values in an extension provides integrity protection for these values.  As a result, modification of version negotiation packets by an attacker can be detected.</p>
-<p id="rfc.section.6.3.4.p.3">The client includes two fields in the transport parameters that it includes in the TLS ClientHello:</p>
+<p id="rfc.section.6.3.4.p.2">The cryptographic handshake provides integrity protection for the negotiated version as part of the transport parameters (see <a href="#transport-parameters">Section 6.3</a>).  As a result, modification of version negotiation packets by an attacker can be detected.</p>
+<p id="rfc.section.6.3.4.p.3">The client includes two fields in the transport parameters:</p>
 <p/>
 
 <ul>
   <li>The negotiated_version is the version that was finally selected for use.  This MUST be identical to the value that is on the packet that carries the ClientHello.  A server that receives a negotiated_version that does not match the version of QUIC that is in use MUST terminate the connection with a TBD error code.</li>
   <li>The initial_version is the version that the client initially attempted to use.  If the server did not send a version negotiation packet <a href="#version-negotiation-packet">Section 5.3</a>, this will be identical to the negotiated_version.</li>
 </ul>
-<p id="rfc.section.6.3.4.p.5">A stateful server can remember how version negotiation was performed and validate the initial_version value.</p>
-<p id="rfc.section.6.3.4.p.6">A server that does not maintain state for early packets uses a different process. If the initial and negotiated versions are the same, a stateless server can accept the value.</p>
-<p id="rfc.section.6.3.4.p.7">If the initial version is different from the negotiated_version, a stateless server MUST validate the value.  A server MUST check that it would have sent a version negotiation packet if it had received a packet with the indicated initial_version.  If a server would have accepted the version included in the initial_version and the value differs from the value of negotiated_version, the server MUST terminate the connection with a TBD error code.</p>
+<p id="rfc.section.6.3.4.p.5">A server that processes all packets in a stateful fashion can remember how version negotiation was performed and validate the initial_version value.</p>
+<p id="rfc.section.6.3.4.p.6">A server that does not maintain state for every packet it receives (i.e., a stateless server) uses a different process. If the initial and negotiated versions are the same, a stateless server can accept the value.</p>
+<p id="rfc.section.6.3.4.p.7">If the initial version is different from the negotiated_version, a stateless server MUST check that it would have sent a version negotiation packet if it had received a packet with the indicated initial_version.  If a server would have accepted the version included in the initial_version and the value differs from the value of negotiated_version, the server MUST terminate the connection with a QUIC_VERSION_NEGOTIATION_MISMATCH error.</p>
 <p id="rfc.section.6.3.4.p.8">The server includes a list of versions that it would send in any version negotiation packet (<a href="#version-negotiation-packet">Section 5.3</a>) in supported_versions.  This value is set even if it did not send a version negotiation packet.</p>
-<p id="rfc.section.6.3.4.p.9">The client can validate that the negotiated_version is included in the supported_versions list and - if version negotiation was performed - that it would have selected the negotiated version.  A client MUST terminate the connection with a TBD error code if the negotiated_version value is not included in the supported_versions list.  A client MUST terminate with a TBD error code if version negotiation occurred but it would have selected a different version based on the value of the supported_versions list.</p>
+<p id="rfc.section.6.3.4.p.9">The client can validate that the negotiated_version is included in the supported_versions list and - if version negotiation was performed - that it would have selected the negotiated version.  A client MUST terminate the connection with a QUIC_VERSION_NEGOTIATION_MISMATCH error code if the negotiated_version value is not included in the supported_versions list.  A client MUST terminate with a QUIC_VERSION_NEGOTIATION_MISMATCH error code if version negotiation occurred but it would have selected a different version based on the value of the supported_versions list.</p>
 <h3 id="rfc.section.6.3.5"><a href="#rfc.section.6.3.5">6.3.5.</a> <a href="#source-address-token" id="source-address-token">Proof of Source Address Ownership</a></h3>
 <p id="rfc.section.6.3.5.p.1">Transport protocols commonly spend a round trip checking that a client owns the transport address (IP and port) that it claims.  Verifying that a client can receive packets sent to its claimed transport address protects against spoofing of this information by malicious clients.</p>
 <p id="rfc.section.6.3.5.p.2">This technique is used primarily to avoid QUIC from being used for traffic amplification attack.  In such an attack, a packet is sent to a server with spoofed source address information that identifies a victim.  If a server generates more or larger packets in response to that packet, the attacker can use the server to send more data toward the victim than it would be able to send on its own.</p>

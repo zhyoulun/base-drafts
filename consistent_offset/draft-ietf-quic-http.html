@@ -311,7 +311,7 @@ address {
 <link href="#rfc.section.7" rel="Chapter" title="7 Security Considerations"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 IANA Considerations"/>
 <link href="#rfc.section.8.1" rel="Chapter" title="8.1 Registration of HTTP/QUIC Identification String"/>
-<link href="#rfc.section.8.2" rel="Chapter" title="8.2 Registration of Version Hint Alt-Svc Parameter"/>
+<link href="#rfc.section.8.2" rel="Chapter" title="8.2 Registration of QUIC Version Hint Alt-Svc Parameter"/>
 <link href="#rfc.section.8.3" rel="Chapter" title="8.3 Existing Frame Types"/>
 <link href="#rfc.section.8.4" rel="Chapter" title="8.4 New Frame Types"/>
 <link href="#rfc.references" rel="Chapter" title="9 References"/>
@@ -329,7 +329,7 @@ address {
 
   <meta name="dct.creator" content="Bishop, M., Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-http-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-1-30" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-2-7" />
   <meta name="dct.abstract" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  Specifically, this document identifies HTTP/2 features that are subsumed by QUIC, and describes how the other features can be implemented atop QUIC." />
   <meta name="description" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  Specifically, this document identifies HTTP/2 features that are subsumed by QUIC, and describes how the other features can be implemented atop QUIC." />
 
@@ -350,10 +350,10 @@ address {
 </tr>
 <tr>
   <td class="left">Intended status: Standards Track</td>
-  <td class="right">January 30, 2017</td>
+  <td class="right">February 7, 2017</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 3, 2017</td>
+  <td class="left">Expires: August 11, 2017</td>
   <td class="right"></td>
 </tr>
 
@@ -379,7 +379,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 3, 2017.</p>
+<p>This Internet-Draft will expire on August 11, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -425,7 +425,7 @@ address {
 </ul><li>7.   <a href="#rfc.section.7">Security Considerations</a></li>
 <li>8.   <a href="#rfc.section.8">IANA Considerations</a></li>
 <ul><li>8.1.   <a href="#rfc.section.8.1">Registration of HTTP/QUIC Identification String</a></li>
-<li>8.2.   <a href="#rfc.section.8.2">Registration of Version Hint Alt-Svc Parameter</a></li>
+<li>8.2.   <a href="#rfc.section.8.2">Registration of QUIC Version Hint Alt-Svc Parameter</a></li>
 <li>8.3.   <a href="#rfc.section.8.3">Existing Frame Types</a></li>
 <li>8.4.   <a href="#rfc.section.8.4">New Frame Types</a></li>
 </ul><li>9.   <a href="#rfc.references">References</a></li>
@@ -446,27 +446,24 @@ address {
 <h2 id="rfc.section.1.1"><a href="#rfc.section.1.1">1.1.</a> <a href="#notational-conventions" id="notational-conventions">Notational Conventions</a></h2>
 <p id="rfc.section.1.1.p.1">The words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, and &#8220;MAY&#8221; are used in this document.  It&#8217;s not shouting; when they are capitalized, they have the special meaning defined in <a href="#RFC2119">[RFC2119]</a>.</p>
 <h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a> <a href="#quic-advertisement" id="quic-advertisement">QUIC Advertisement</a></h1>
-<p id="rfc.section.2.p.1">A server advertises that it can speak HTTP/QUIC via the Alt-Svc (<a href="#RFC7838">[RFC7838]</a>) HTTP response header (or the semantically equivalent Alt-Svc HTTP/2 Extension Frame Type), using the ALPN token defined in <a href="#connection-establishment">Section 3</a>.</p>
-<p id="rfc.section.2.p.2">Thus, a server could indicate in an HTTP/1.1 or HTTP/2 response that HTTP/QUIC was available on UDP port 443 by including the following header in any response:</p>
+<p id="rfc.section.2.p.1">An HTTP origin advertises the availability of an equivalent HTTP/QUIC endpoint via the Alt-Svc HTTP response header or the HTTP/2 ALTSVC frame (<a href="#RFC7838">[RFC7838]</a>), using the ALPN token defined in <a href="#connection-establishment">Section 3</a>.</p>
+<p id="rfc.section.2.p.2">For example, an origin could indicate in an HTTP/1.1 or HTTP/2 response that HTTP/QUIC was available on UDP port 443 at the same hostname by including the following header in any response:</p>
 <pre>
 Alt-Svc: hq=":443"
 </pre>
+<p id="rfc.section.2.p.3">On receipt of an Alt-Svc header indicating HTTP/QUIC support, a client MAY attempt to establish a QUIC connection to the indicated host and port and, if successful, send HTTP requests using the mapping described in this document.</p>
+<p id="rfc.section.2.p.4">Connectivity problems (e.g. firewall blocking UDP) can result in QUIC connection establishment failure, in which case the client SHOULD continue using the existing connection or try another alternative endpoint offered by the origin.</p>
 <h2 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1.</a> <a href="#alt-svc-version-hint" id="alt-svc-version-hint">QUIC Version Hints</a></h2>
-<p id="rfc.section.2.1.p.1">This document defines the &#8220;v&#8221; parameter for Alt-Svc, which is used to provide version-negotiation hints to HTTP/QUIC clients. Syntax:</p>
+<p id="rfc.section.2.1.p.1">This document defines the &#8220;quic&#8221; parameter for Alt-Svc, which MAY be used to provide version-negotiation hints to HTTP/QUIC clients. QUIC versions are four-octet sequences with no additional constraints on format. Syntax:</p>
 <pre>
-v = version
-version = DQUOTE ( "c" version-string / "x" version-number ) DQUOTE
-version-string = 4tchar; token-safe QUIC version
+quic = version-number
 version-number = 1*8HEXDIG; hex-encoded QUIC version
 </pre>
-<p id="rfc.section.2.1.p.2">When multiple versions are supported, the &#8220;v&#8221; parameter MAY be repeated multiple times in a single Alt-Svc entry.  For example, if a server supported both version &#8220;Q034&#8221; and version 0x00000001, it would specify the following header:</p>
+<p id="rfc.section.2.1.p.2">Leading zeros SHOULD be omitted for brevity.  When multiple versions are supported, the &#8220;quic&#8221; parameter MAY be repeated multiple times in a single Alt-Svc entry.  For example, if a server supported both version 0x00000001 and the version rendered in ASCII as &#8220;Q034&#8221;, it could specify the following header:</p>
 <pre>
-Alt-Svc: hq=":443";v="x1";v="cQ034"
+Alt-Svc: hq=":443";quic=1;quic=51303334
 </pre>
-<p id="rfc.section.2.1.p.3">Where multiple versions are listed, the order of the values reflects the server&#8217;s preference (with the first value being the most preferred version).</p>
-<p id="rfc.section.2.1.p.4">QUIC versions are four-octet sequences with no additional constraints on format.  Versions containing octets not allowed in tokens (tchar, <a href="#RFC7230">[RFC7230]</a>, Section 3.2.6) MUST be encoded using the hexadecimal representation.  Versions containing only octets allowed in tokens MAY be encoded using either representation.</p>
-<p id="rfc.section.2.1.p.5">On receipt of an Alt-Svc header indicating QUIC support, a client MAY attempt to establish a QUIC connection on the indicated port and, if successful, send HTTP requests using the mapping described in this document. Servers SHOULD list only versions which they support, but MAY omit supported versions for any reason.</p>
-<p id="rfc.section.2.1.p.6">Connectivity problems (e.g. firewall blocking UDP) may result in QUIC connection establishment failure, in which case the client should gracefully fall back to HTTP/2.</p>
+<p id="rfc.section.2.1.p.3">Where multiple versions are listed, the order of the values reflects the server&#8217;s preference (with the first value being the most preferred version).  Origins SHOULD list only versions which are supported by the alternative, but MAY omit supported versions for any reason.</p>
 <h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#connection-establishment" id="connection-establishment">Connection Establishment</a></h1>
 <p id="rfc.section.3.p.1">HTTP/QUIC connections are established as described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>. During connection establishment, HTTP/QUIC support is indicated by selecting the ALPN token &#8220;hq&#8221; in the crypto handshake.</p>
 <p id="rfc.section.3.p.2">While connection-level options pertaining to the core QUIC protocol are set in the initial crypto handshake, HTTP-specific settings are conveyed in the SETTINGS frame. After the QUIC connection is established, a SETTINGS frame (<a href="#frame-settings">Section 5.2.5</a>) MUST be sent as the initial frame of the HTTP control stream (StreamID 3, see <a href="#stream-mapping">Section 4</a>).</p>
@@ -849,13 +846,13 @@ Alt-Svc: hq=":443";v="x1";v="cQ034"
   <dt>Specification:</dt>
   <dd style="margin-left: 8">This document</dd>
 </dl>
-<h2 id="rfc.section.8.2"><a href="#rfc.section.8.2">8.2.</a> <a href="#registration-of-version-hint-alt-svc-parameter" id="registration-of-version-hint-alt-svc-parameter">Registration of Version Hint Alt-Svc Parameter</a></h2>
+<h2 id="rfc.section.8.2"><a href="#rfc.section.8.2">8.2.</a> <a href="#registration-of-quic-version-hint-alt-svc-parameter" id="registration-of-quic-version-hint-alt-svc-parameter">Registration of QUIC Version Hint Alt-Svc Parameter</a></h2>
 <p id="rfc.section.8.2.p.1">This document creates a new registration for version-negotiation hints in the &#8220;Hypertext Transfer Protocol (HTTP) Alt-Svc Parameter&#8221; registry established in <a href="#RFC7838">[RFC7838]</a>.</p>
 <p/>
 
 <dl>
   <dt>Parameter:</dt>
-  <dd style="margin-left: 8">&#8220;v&#8221;</dd>
+  <dd style="margin-left: 8">&#8220;quic&#8221;</dd>
   <dt>Specification:</dt>
   <dd style="margin-left: 8">This document, <a href="#alt-svc-version-hint">Section 2.1</a></dd>
 </dl>

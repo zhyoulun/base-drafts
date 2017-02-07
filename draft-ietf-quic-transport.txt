@@ -1531,8 +1531,9 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    o  Byte offset: A 64-bit unsigned integer indicating the absolute
       byte offset of data which can be sent on the given stream.  In the
-      case of connection level flow control, the cumulative number of
-      bytes which can be sent on all currently open streams.
+      case of connection-level flow control, the cumulative offset which
+      can be sent on all streams that contribute to connection-level
+      flow control.
 
 7.5.  BLOCKED Frame
 
@@ -1560,7 +1561,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    An endpoint may use a RST_STREAM frame (type=0x01) to abruptly
    terminate a stream.  The frame is as follows:
-
 
 
 
@@ -2176,8 +2176,8 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    receive buffer for a connection.
 
    A receiver sends WINDOW_UPDATE frames to the sender to advertise
-   additional credit, for both connection and stream flow control.  A
-
+   additional credit by sending the absolute byte offset in the stream
+   or in the connection which it is willing to receive.
 
 
 
@@ -2185,9 +2185,6 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 39]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   receiver advertises the maximum absolute byte offset in the stream or
-   in the connection which the receiver is willing to receive.
 
    The initial flow control credit is 65536 bytes for both the stream
    and connection flow controllers.
@@ -2197,8 +2194,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    renege on an advertisement; that is, once a receiver advertises an
    offset via a WINDOW_UPDATE frame, it MUST NOT subsequently advertise
    a smaller offset.  A sender may receive WINDOW_UPDATE frames out of
-   order; a sender MUST therefore ignore any reductions in flow control
-   credit.
+   order; a sender MUST therefore ignore any WINDOW_UPDATE that does not
+   move the window forward.
+
+   A receiver MUST close the connection with a
+   QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error (Section 11) if the
+   peer violates the advertised stream or connection flow control
+   windows.
 
    A sender MUST send BLOCKED frames to indicate it has data to write
    but is blocked by lack of connection or stream flow control credit.
@@ -2206,18 +2208,22 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    but they are considered useful for debugging and monitoring purposes.
 
    A receiver advertises credit for a stream by sending a WINDOW_UPDATE
-   frame with the StreamID set appropriately.  A receiver may simply use
-   the current received offset to determine the flow control offset to
-   be advertised.
+   frame with the StreamID set appropriately.  A receiver may use the
+   current offset of data consumed to determine the flow control offset
+   to be advertised.  A receiver MAY send copies of a WINDOW_UPDATE
+   frame in multiple packets in order to make sure that the sender
+   receives it before running out of flow control credit, even if one of
+   the packets is lost.
 
    Connection flow control is a limit to the total bytes of stream data
-   sent in STREAM frames.  A receiver advertises credit for a connection
-   by sending a WINDOW_UPDATE frame with the StreamID set to zero
-   (0x00).  A receiver may maintain a cumulative sum of bytes received
-   on all streams to determine the value of the connection flow control
-   offset to be advertised in WINDOW_UPDATE frames.  A sender may
-   maintain a cumulative sum of stream data bytes sent to impose the
-   connection flow control limit.
+   sent in STREAM frames on all streams contributing to connection flow
+   control.  A receiver advertises credit for a connection by sending a
+   WINDOW_UPDATE frame with the StreamID set to zero (0x00).  A receiver
+   maintains a cumulative sum of bytes received on all streams
+   contributing to connection-level flow control, to check for flow
+   control violations.  A receiver may maintain a cumulative sum of
+   bytes consumed on all contributing streams to determine the
+   connection-level flow control offset to be advertised.
 
 10.1.  Edge Cases and Other Considerations
 
@@ -2227,12 +2233,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    can send more than the other end is willing to receive, the
    connection will be torn down when too much data arrives.  Conversely
    if a sender believes it is blocked, while endpoint B expects more
-   data can be received, then the connection can be in a deadlock, with
-   the sender waiting for a WINDOW_UPDATE which will never come.
-
-
-
-
 
 
 
@@ -2241,6 +2241,9 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 40]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   data can be received, then the connection can be in a deadlock, with
+   the sender waiting for a WINDOW_UPDATE which will never come.
 
 10.1.1.  Mid-stream RST_STREAM
 
@@ -2285,9 +2288,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    offset increment to advertise based on a roundtrip time estimate and
    the rate at which the receiving application consumes data, similar to
    common TCP implementations.
-
-
-
 
 
 

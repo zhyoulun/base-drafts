@@ -351,8 +351,9 @@ address {
 <link href="#rfc.appendix.A" rel="Chapter" title="A Contributors"/>
 <link href="#rfc.appendix.B" rel="Chapter" title="B Acknowledgments"/>
 <link href="#rfc.appendix.C" rel="Chapter" title="C Change Log"/>
-<link href="#rfc.appendix.C.1" rel="Chapter" title="C.1 Since draft-ietf-quic-transport-00:"/>
-<link href="#rfc.appendix.C.2" rel="Chapter" title="C.2 Since draft-hamilton-quic-transport-protocol-01:"/>
+<link href="#rfc.appendix.C.1" rel="Chapter" title="C.1 Since draft-ietf-quic-transport-01:"/>
+<link href="#rfc.appendix.C.2" rel="Chapter" title="C.2 Since draft-ietf-quic-transport-00:"/>
+<link href="#rfc.appendix.C.3" rel="Chapter" title="C.3 Since draft-hamilton-quic-transport-protocol-01:"/>
 <link href="#rfc.authors" rel="Chapter"/>
 
 
@@ -501,8 +502,9 @@ address {
 </ul><li>Appendix A.   <a href="#rfc.appendix.A">Contributors</a></li>
 <li>Appendix B.   <a href="#rfc.appendix.B">Acknowledgments</a></li>
 <li>Appendix C.   <a href="#rfc.appendix.C">Change Log</a></li>
-<ul><li>C.1.   <a href="#rfc.appendix.C.1">Since draft-ietf-quic-transport-00:</a></li>
-<li>C.2.   <a href="#rfc.appendix.C.2">Since draft-hamilton-quic-transport-protocol-01:</a></li>
+<ul><li>C.1.   <a href="#rfc.appendix.C.1">Since draft-ietf-quic-transport-01:</a></li>
+<li>C.2.   <a href="#rfc.appendix.C.2">Since draft-ietf-quic-transport-00:</a></li>
+<li>C.3.   <a href="#rfc.appendix.C.3">Since draft-hamilton-quic-transport-protocol-01:</a></li>
 </ul><li><a href="#rfc.authors">Authors' Addresses</a></li>
 
 
@@ -915,20 +917,22 @@ Check the flags in the common header
 
 <dl>
   <dt>TCID (0x0004):</dt>
-  <dd style="margin-left: 8">The truncated connection identifier parameter indicates that packets sent to the peer can omit the connection ID.  This can be used by an endpoint where the 5-tuple is sufficient to identify a connection.  This parameter is zero length.</dd>
+  <dd style="margin-left: 8">The truncated connection identifier parameter indicates that packets sent to the peer can omit the connection ID.  This can be used by an endpoint where the 5-tuple is sufficient to identify a connection.  This parameter is zero length.  Omitting the parameter indicates that the endpoint relies on the connection ID being present in every packet.</dd>
 </dl>
 <h3 id="rfc.section.6.3.2"><a href="#rfc.section.6.3.2">6.3.2.</a> <a href="#values-of-transport-parameters-for-0-rtt" id="values-of-transport-parameters-for-0-rtt">Values of Transport Parameters for 0-RTT</a></h3>
-<p id="rfc.section.6.3.2.p.1">Transport parameters from the server are remembered by the client for 0-RTT connections.  If values change as a result of completing the handshake, the client is expected to respect the new values.  This introduces some potential problems, particularly with respect to transport parameters that establish limits:</p>
+<p id="rfc.section.6.3.2.p.1">Transport parameters from the server SHOULD be remembered by the client for use with 0-RTT data.  A client that doesn&#8217;t remember values from a previous connection can instead assume the following values: SFCW (65535), CFCW (65535), MSPC (10), ICSL (600), TCID (absent).</p>
+<p id="rfc.section.6.3.2.p.2">If assumed values change as a result of completing the handshake, the client is expected to respect the new values.  This introduces some potential problems, particularly with respect to transport parameters that establish limits:</p>
 <p/>
 
 <ul>
   <li>A client might exceed a newly declared connection or stream flow control limit with 0-RTT data.  If this occurs, the client ceases transmission as though the flow control limit was reached.  Once WINDOW_UPDATE frames indicating an increase to the affected flow control offsets is received, the client can recommence sending.</li>
-  <li>Similarly, a client might exceed the concurrent stream limit declared by the server.  A client MUST reset any streams that exceed this connection.  A server MAY reset these streams.</li>
+  <li>Similarly, a client might exceed the concurrent stream limit (MSPC) declared by the server.  A client MUST reset any streams that exceed this limit.  A server SHOULD reset any streams it cannot handle with a code that allows the client to retry any application action bound to those streams.</li>
 </ul>
-<p id="rfc.section.6.3.2.p.3">A client cannot use or rely upon any other transport parameter that was enabled in a previous connection.  This includes those defined in this document.  A client MUST assume that the transport parameter was absent, unless the definition of a transport parameter provides explicit rules for use of the option in 0-RTT.</p>
+<p id="rfc.section.6.3.2.p.4">A server MAY close a connection if remembered or assumed 0-RTT transport parameters cannot be supported, using an error code that is appropriate to the specific condition.  For example, a QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA might be used to indicate that exceeding flow control limits caused the error.  A client that has a connection closed due to an error condition SHOULD NOT attempt 0-RTT when attempting to create a new connection.</p>
 <h3 id="rfc.section.6.3.3"><a href="#rfc.section.6.3.3">6.3.3.</a> <a href="#new-transport-parameters" id="new-transport-parameters">New Transport Parameters</a></h3>
-<p id="rfc.section.6.3.3.p.1">New transport parameters can be used to negotiate new protocol behavior.  An endpoint MUST ignore transport parameters that it does not support.</p>
-<p id="rfc.section.6.3.3.p.2">New transport parameters can be registered according to the rules in <a href="#iana-transport-parameters">Section 13.1</a>.</p>
+<p id="rfc.section.6.3.3.p.1">New transport parameters can be used to negotiate new protocol behavior.  An endpoint MUST ignore transport parameters that it does not support.  Absence of a transport parameter therefore disables any optional protocol feature that is negotiated using the parameter.</p>
+<p id="rfc.section.6.3.3.p.2">The definition of a transport parameter SHOULD include a default value that a client can use when establishing a new connection.  If no default is specified, the value can be assumed to be absent when attempting 0-RTT.</p>
+<p id="rfc.section.6.3.3.p.3">New transport parameters can be registered according to the rules in <a href="#iana-transport-parameters">Section 13.1</a>.</p>
 <h3 id="rfc.section.6.3.4"><a href="#rfc.section.6.3.4">6.3.4.</a> <a href="#version-validation" id="version-validation">Version Negotiation Validation</a></h3>
 <p id="rfc.section.6.3.4.p.1">The transport parameters include three fields that encode version information.  These retroactively authenticate the version negotiation (see <a href="#version-negotiation">Section 6.1</a>) that is performed prior to the cryptographic handshake.</p>
 <p id="rfc.section.6.3.4.p.2">The cryptographic handshake provides integrity protection for the negotiated version as part of the transport parameters (see <a href="#transport-parameters">Section 6.3</a>).  As a result, modification of version negotiation packets by an attacker can be detected.</p>
@@ -1672,7 +1676,13 @@ Check the flags in the common header
 <ul class="empty">
   <li><strong>RFC Editor&#8217;s Note:</strong>  Please remove this section prior to publication of a final version of this document.</li>
 </ul>
-<h2 id="rfc.appendix.C.1"><a href="#rfc.appendix.C.1">C.1.</a> <a href="#since-draft-ietf-quic-transport-00" id="since-draft-ietf-quic-transport-00">Since draft-ietf-quic-transport-00:</a></h2>
+<h2 id="rfc.appendix.C.1"><a href="#rfc.appendix.C.1">C.1.</a> <a href="#since-draft-ietf-quic-transport-01" id="since-draft-ietf-quic-transport-01">Since draft-ietf-quic-transport-01:</a></h2>
+<p/>
+
+<ul>
+  <li>Defined transport parameters</li>
+</ul>
+<h2 id="rfc.appendix.C.2"><a href="#rfc.appendix.C.2">C.2.</a> <a href="#since-draft-ietf-quic-transport-00" id="since-draft-ietf-quic-transport-00">Since draft-ietf-quic-transport-00:</a></h2>
 <p/>
 
 <ul>
@@ -1682,7 +1692,7 @@ Check the flags in the common header
   <li>Error code space is divided into regions for each component</li>
   <li>Use big endian for all numeric values</li>
 </ul>
-<h2 id="rfc.appendix.C.2"><a href="#rfc.appendix.C.2">C.2.</a> <a href="#since-draft-hamilton-quic-transport-protocol-01" id="since-draft-hamilton-quic-transport-protocol-01">Since draft-hamilton-quic-transport-protocol-01:</a></h2>
+<h2 id="rfc.appendix.C.3"><a href="#rfc.appendix.C.3">C.3.</a> <a href="#since-draft-hamilton-quic-transport-protocol-01" id="since-draft-hamilton-quic-transport-protocol-01">Since draft-hamilton-quic-transport-protocol-01:</a></h2>
 <p/>
 
 <ul>

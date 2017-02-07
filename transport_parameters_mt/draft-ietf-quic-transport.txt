@@ -120,7 +120,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
        6.3.3.  New Transport Parameters  . . . . . . . . . . . . . .  20
        6.3.4.  Version Negotiation Validation  . . . . . . . . . . .  20
        6.3.5.  Proof of Source Address Ownership . . . . . . . . . .  21
-     6.4.  Connection Migration  . . . . . . . . . . . . . . . . . .  22
+     6.4.  Connection Migration  . . . . . . . . . . . . . . . . . .  23
      6.5.  Connection Termination  . . . . . . . . . . . . . . . . .  23
    7.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  24
      7.1.  STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  24
@@ -173,9 +173,10 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  51
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  52
    Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  52
-     C.1.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  52
-     C.2.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  52
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  52
+     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  52
+     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  52
+     C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  52
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  53
 
 1.  Introduction
 
@@ -217,7 +218,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       single encryption context that multiplexes streams within it.
 
    o  Connection ID: The identifier for a QUIC connection.
-
 
 
 
@@ -1040,24 +1040,24 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       indicates that packets sent to the peer can omit the connection
       ID.  This can be used by an endpoint where the 5-tuple is
       sufficient to identify a connection.  This parameter is zero
-      length.
+      length.  Omitting the parameter indicates that the endpoint relies
+      on the connection ID being present in every packet.
 
 6.3.2.  Values of Transport Parameters for 0-RTT
 
-   Transport parameters from the server are remembered by the client for
-   0-RTT connections.  If values change as a result of completing the
-   handshake, the client is expected to respect the new values.  This
-   introduces some potential problems, particularly with respect to
-   transport parameters that establish limits:
+   Transport parameters from the server SHOULD be remembered by the
+   client for use with 0-RTT data.  A client that doesn't remember
+   values from a previous connection can instead assume the following
+   values: SFCW (65535), CFCW (65535), MSPC (10), ICSL (600), TCID
+   (absent).
+
+   If assumed values change as a result of completing the handshake, the
+   client is expected to respect the new values.  This introduces some
+   potential problems, particularly with respect to transport parameters
+   that establish limits:
 
    o  A client might exceed a newly declared connection or stream flow
       control limit with 0-RTT data.  If this occurs, the client ceases
-      transmission as though the flow control limit was reached.  Once
-      WINDOW_UPDATE frames indicating an increase to the affected flow
-      control offsets is received, the client can recommence sending.
-
-
-
 
 
 
@@ -1066,21 +1066,35 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 19]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-   o  Similarly, a client might exceed the concurrent stream limit
-      declared by the server.  A client MUST reset any streams that
-      exceed this connection.  A server MAY reset these streams.
+      transmission as though the flow control limit was reached.  Once
+      WINDOW_UPDATE frames indicating an increase to the affected flow
+      control offsets is received, the client can recommence sending.
 
-   A client cannot use or rely upon any other transport parameter that
-   was enabled in a previous connection.  This includes those defined in
-   this document.  A client MUST assume that the transport parameter was
-   absent, unless the definition of a transport parameter provides
-   explicit rules for use of the option in 0-RTT.
+   o  Similarly, a client might exceed the concurrent stream limit
+      (MSPC) declared by the server.  A client MUST reset any streams
+      that exceed this limit.  A server SHOULD reset any streams it
+      cannot handle with a code that allows the client to retry any
+      application action bound to those streams.
+
+   A server MAY close a connection if remembered or assumed 0-RTT
+   transport parameters cannot be supported, using an error code that is
+   appropriate to the specific condition.  For example, a
+   QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA might be used to indicate that
+   exceeding flow control limits caused the error.  A client that has a
+   connection closed due to an error condition SHOULD NOT attempt 0-RTT
+   when attempting to create a new connection.
 
 6.3.3.  New Transport Parameters
 
    New transport parameters can be used to negotiate new protocol
    behavior.  An endpoint MUST ignore transport parameters that it does
-   not support.
+   not support.  Absence of a transport parameter therefore disables any
+   optional protocol feature that is negotiated using the parameter.
+
+   The definition of a transport parameter SHOULD include a default
+   value that a client can use when establishing a new connection.  If
+   no default is specified, the value can be assumed to be absent when
+   attempting 0-RTT.
 
    New transport parameters can be registered according to the rules in
    Section 13.1.
@@ -1099,6 +1113,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The client includes two fields in the transport parameters:
 
+
+
+
+
+Iyengar & Thomson        Expires August 11, 2017               [Page 20]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    o  The negotiated_version is the version that was finally selected
       for use.  This MUST be identical to the value that is on the
       packet that carries the ClientHello.  A server that receives a
@@ -1113,14 +1136,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    A server that processes all packets in a stateful fashion can
    remember how version negotiation was performed and validate the
    initial_version value.
-
-
-
-
-Iyengar & Thomson        Expires August 11, 2017               [Page 20]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    A server that does not maintain state for every packet it receives
    (i.e., a stateless server) uses a different process.  If the initial
@@ -1155,6 +1170,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Transport protocols commonly spend a round trip checking that a
    client owns the transport address (IP and port) that it claims.
    Verifying that a client can receive packets sent to its claimed
+
+
+
+Iyengar & Thomson        Expires August 11, 2017               [Page 21]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    transport address protects against spoofing of this information by
    malicious clients.
 
@@ -1170,13 +1193,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    octets.  This allows a server to send a similar amount of data
    without risking causing an amplication attack toward an unproven
    remote address.
-
-
-
-Iyengar & Thomson        Expires August 11, 2017               [Page 21]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    A server eventually confirms that a client has received its messages
    when the cryptographic handshake successfully completes.  This might
@@ -1209,6 +1225,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    provide a client with a similar sort of token.  When a client resumes
    a TLS connection - whether or not 0-RTT is attempted - it includes
    the ticket in the handshake message.  As with the HelloRetryRequest
+
+
+
+
+Iyengar & Thomson        Expires August 11, 2017               [Page 22]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    cookie, the server can include the state in the ticket it needs to
    validate that the client owns the address.
 
@@ -1226,13 +1251,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    cryptographic verification of a client which has changed its IP
    address because the client continues to use the same session key for
    encrypting and decrypting packets.
-
-
-
-Iyengar & Thomson        Expires August 11, 2017               [Page 22]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    DISCUSS: Simultaneous migration.  Is this reasonable?
 
@@ -1264,6 +1282,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
        negotiation.  The maximum is 10 minutes.  If there is no network
        activity for the duration of the idle timeout, the connection is
        closed.  By default a CONNECTION_CLOSE frame will be sent.  A
+
+
+
+Iyengar & Thomson        Expires August 11, 2017               [Page 23]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
        silent close option can be enabled when it is expensive to send
        an explicit close, such as mobile networks that must wake up the
        radio.
@@ -1279,16 +1305,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
        an open connection, it should send a Public Reset packet in
        return.  (TODO: articulate rules around when a public reset
        should be sent.)
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 11, 2017               [Page 23]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    TODO: Connections that are terminated are added to a TIME_WAIT list
    at the server, so as to absorb any straggler packets in the network.
@@ -1323,28 +1339,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  The "OOO" bits encode the length of the Offset header field as 0,
       16, 24, 32, 40, 48, 56, or 64 bits long.
 
-   o  The "SS" bits encode the length of the Stream ID header field as
-      8, 16, 24, or 32 bits.  (DISCUSS: Consider making this 8, 16, 32,
-      64.)
-
-   A STREAM frame is shown below.
-
-
-
-
-
-
-
-
-
-
-
 
 
 Iyengar & Thomson        Expires August 11, 2017               [Page 24]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   o  The "SS" bits encode the length of the Stream ID header field as
+      8, 16, 24, or 32 bits.  (DISCUSS: Consider making this 8, 16, 32,
+      64.)
+
+   A STREAM frame is shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1387,12 +1393,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    making progress.  Note that when data from multiple streams is
    bundled into a single QUIC packet, loss of that packet blocks all
    those streams from making progress.  An implementation is therefore
-   advised to bundle as few streams as necessary in outgoing packets
-   without losing transmission efficiency to underfilled packets.
-
-
-
-
 
 
 
@@ -1401,6 +1401,9 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 25]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   advised to bundle as few streams as necessary in outgoing packets
+   without losing transmission efficiency to underfilled packets.
 
 7.2.  ACK Frame
 
@@ -1447,9 +1450,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  The two "MM" bits encode the length of the Ack Block Length fields
       as 1, 2, 4, or 6 bytes long.
 
-   An ACK frame is shown below.
-
-
 
 
 
@@ -1457,6 +1457,8 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 26]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   An ACK frame is shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1503,8 +1505,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    field is absent, only the First Ack Block length is present in this
    section.  Otherwise, the Num Blocks field indicates how many
    additional blocks follow the First Ack Block Length field.
-
-
 
 
 
@@ -2879,7 +2879,11 @@ Appendix C.  Change Log
       *RFC Editor's Note:* Please remove this section prior to
       publication of a final version of this document.
 
-C.1.  Since draft-ietf-quic-transport-00:
+C.1.  Since draft-ietf-quic-transport-01:
+
+   o  Defined transport parameters
+
+C.2.  Since draft-ietf-quic-transport-00:
 
    o  Replaced DIVERSIFICATION_NONCE flag with KEY_PHASE flag
 
@@ -2891,7 +2895,7 @@ C.1.  Since draft-ietf-quic-transport-00:
 
    o  Use big endian for all numeric values
 
-C.2.  Since draft-hamilton-quic-transport-protocol-01:
+C.3.  Since draft-hamilton-quic-transport-protocol-01:
 
    o  Adopted as base for draft-ietf-quic-tls.
 
@@ -2901,10 +2905,6 @@ C.2.  Since draft-hamilton-quic-transport-protocol-01:
 
    o  Moved Contributors and Acknowledgments to appendices.
 
-Authors' Addresses
-
-
-
 
 
 
@@ -2913,6 +2913,8 @@ Iyengar & Thomson        Expires August 11, 2017               [Page 52]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+Authors' Addresses
 
    Jana Iyengar (editor)
    Google
@@ -2924,8 +2926,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Mozilla
 
    Email: martin.thomson@gmail.com
-
-
 
 
 

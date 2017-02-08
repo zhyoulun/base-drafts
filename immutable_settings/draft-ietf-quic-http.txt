@@ -4,8 +4,8 @@
 
 QUIC                                                      M. Bishop, Ed.
 Internet-Draft                                                 Microsoft
-Intended status: Standards Track                        February 7, 2017
-Expires: August 11, 2017
+Intended status: Standards Track                        February 8, 2017
+Expires: August 12, 2017
 
 
               Hypertext Transfer Protocol (HTTP) over QUIC
@@ -45,7 +45,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on August 11, 2017.
+   This Internet-Draft will expire on August 12, 2017.
 
 
 
@@ -53,7 +53,7 @@ Status of This Memo
 
 
 
-Bishop                   Expires August 11, 2017                [Page 1]
+Bishop                   Expires August 12, 2017                [Page 1]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -98,7 +98,7 @@ Table of Contents
        5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  13
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  13
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  16
-       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  17
+       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  16
        5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  17
        5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  17
        5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  17
@@ -109,14 +109,14 @@ Table of Contents
 
 
 
-Bishop                   Expires August 11, 2017                [Page 2]
+Bishop                   Expires August 12, 2017                [Page 2]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
 
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  19
      8.1.  Registration of HTTP/QUIC Identification String . . . . .  19
-     8.2.  Registration of Version Hint Alt-Svc Parameter  . . . . .  20
+     8.2.  Registration of QUIC Version Hint Alt-Svc Parameter . . .  20
      8.3.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  20
    9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  21
      9.1.  Normative References  . . . . . . . . . . . . . . . . . .  21
@@ -149,63 +149,58 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 2.  QUIC Advertisement
 
-   A server advertises that it can speak HTTP/QUIC via the Alt-Svc
-   ([RFC7838]) HTTP response header (or the semantically equivalent Alt-
-   Svc HTTP/2 Extension Frame Type), using the ALPN token defined in
-   Section 3.
+   An HTTP origin advertises the availability of an equivalent HTTP/QUIC
+   endpoint via the Alt-Svc HTTP response header or the HTTP/2 ALTSVC
+   frame ([RFC7838]), using the ALPN token defined in Section 3.
 
-   Thus, a server could indicate in an HTTP/1.1 or HTTP/2 response that
-   HTTP/QUIC was available on UDP port 443 by including the following
-   header in any response:
+   For example, an origin could indicate in an HTTP/1.1 or HTTP/2
+   response that HTTP/QUIC was available on UDP port 443 at the same
+   hostname by including the following header in any response:
 
    Alt-Svc: hq=":443"
 
+   On receipt of an Alt-Svc header indicating HTTP/QUIC support, a
+   client MAY attempt to establish a QUIC connection to the indicated
 
 
 
 
-
-Bishop                   Expires August 11, 2017                [Page 3]
+Bishop                   Expires August 12, 2017                [Page 3]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
 
+   host and port and, if successful, send HTTP requests using the
+   mapping described in this document.
+
+   Connectivity problems (e.g. firewall blocking UDP) can result in QUIC
+   connection establishment failure, in which case the client SHOULD
+   continue using the existing connection or try another alternative
+   endpoint offered by the origin.
+
 2.1.  QUIC Version Hints
 
-   This document defines the "v" parameter for Alt-Svc, which is used to
-   provide version-negotiation hints to HTTP/QUIC clients.  Syntax:
+   This document defines the "quic" parameter for Alt-Svc, which MAY be
+   used to provide version-negotiation hints to HTTP/QUIC clients.  QUIC
+   versions are four-octet sequences with no additional constraints on
+   format.  Syntax:
 
-   v = version
-   version = DQUOTE ( "c" version-string / "x" version-number ) DQUOTE
-   version-string = 4tchar; token-safe QUIC version
+   quic = version-number
    version-number = 1*8HEXDIG; hex-encoded QUIC version
 
-   When multiple versions are supported, the "v" parameter MAY be
-   repeated multiple times in a single Alt-Svc entry.  For example, if a
-   server supported both version "Q034" and version 0x00000001, it would
-   specify the following header:
+   Leading zeros SHOULD be omitted for brevity.  When multiple versions
+   are supported, the "quic" parameter MAY be repeated multiple times in
+   a single Alt-Svc entry.  For example, if a server supported both
+   version 0x00000001 and the version rendered in ASCII as "Q034", it
+   could specify the following header:
 
-   Alt-Svc: hq=":443";v="x1";v="cQ034"
+   Alt-Svc: hq=":443";quic=1;quic=51303334
 
    Where multiple versions are listed, the order of the values reflects
    the server's preference (with the first value being the most
-   preferred version).
-
-   QUIC versions are four-octet sequences with no additional constraints
-   on format.  Versions containing octets not allowed in tokens (tchar,
-   [RFC7230], Section 3.2.6) MUST be encoded using the hexadecimal
-   representation.  Versions containing only octets allowed in tokens
-   MAY be encoded using either representation.
-
-   On receipt of an Alt-Svc header indicating QUIC support, a client MAY
-   attempt to establish a QUIC connection on the indicated port and, if
-   successful, send HTTP requests using the mapping described in this
-   document.  Servers SHOULD list only versions which they support, but
-   MAY omit supported versions for any reason.
-
-   Connectivity problems (e.g. firewall blocking UDP) may result in QUIC
-   connection establishment failure, in which case the client should
-   gracefully fall back to HTTP/2.
+   preferred version).  Origins SHOULD list only versions which are
+   supported by the alternative, but MAY omit supported versions for any
+   reason.
 
 3.  Connection Establishment
 
@@ -218,17 +213,18 @@ Internet-Draft               HTTP over QUIC                February 2017
    are set in the initial crypto handshake, HTTP-specific settings are
    conveyed in the SETTINGS frame.  After the QUIC connection is
    established, a SETTINGS frame (Section 5.2.5) MUST be sent as the
-
-
-
-Bishop                   Expires August 11, 2017                [Page 4]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    initial frame of the HTTP control stream (StreamID 3, see Section 4).
    The server MUST NOT send data on any other stream until the client's
    SETTINGS frame has been received.
+
+
+
+
+
+Bishop                   Expires August 12, 2017                [Page 4]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
 3.1.  Draft Version Identification
 
@@ -274,19 +270,18 @@ Internet-Draft               HTTP over QUIC                February 2017
    second least-significant bit differentiating the two streams in a
    request.
 
+   The lower-numbered stream is called the message control stream and
+   carries frames related to the request/response, including HEADERS.
+   The higher-numbered stream is the data stream and carries the
+   request/response body with no additional framing.  Note that a
 
 
 
-Bishop                   Expires August 11, 2017                [Page 5]
+Bishop                   Expires August 12, 2017                [Page 5]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
 
-   The lower-numbered stream is called the message control stream and
-   carries frames related to the request/response, including HEADERS.
-   All request control streams are exempt from connection-level flow
-   control.  The higher-numbered stream is the data stream and carries
-   the request/response body with no additional framing.  Note that a
    request or response without a body will cause this stream to be half-
    closed in the corresponding direction without transferring data.
 
@@ -329,20 +324,19 @@ Internet-Draft               HTTP over QUIC                February 2017
    HTTP responses (see [RFC7230], Section 3.2 and [RFC7231],
    Section 6.2).
 
-
-
-
-
-Bishop                   Expires August 11, 2017                [Page 6]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    The data stream MUST be half-closed immediately after the transfer of
    the body.  If the message does not contain a body, the corresponding
    data stream MUST still be half-closed without transferring any data.
    The "chunked" transfer encoding defined in Section 4.1 of [RFC7230]
    MUST NOT be used.
+
+
+
+
+Bishop                   Expires August 12, 2017                [Page 6]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    Trailing header fields are carried in an additional header block on
    the message control stream.  Such a header block is a sequence of
@@ -387,16 +381,18 @@ Internet-Draft               HTTP over QUIC                February 2017
    N+4 cannot be processed until it has been retransmitted successfully,
    even though the HEADERS for stream N+4 may have arrived.
 
-
-
-Bishop                   Expires August 11, 2017                [Page 7]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    DISCUSS:  Keep HPACK with HOLB?  Redesign HPACK to be order-
       invariant?  How much do we need to retain compatibility with
       HTTP/2's HPACK?
+
+
+
+
+
+Bishop                   Expires August 12, 2017                [Page 7]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
 4.2.2.  The CONNECT Method
 
@@ -441,17 +437,18 @@ Internet-Draft               HTTP over QUIC                February 2017
    any error in the TCP connection, which includes receiving a TCP
    segment with the RST bit set, as a stream error of type
    HTTP_CONNECT_ERROR (Section 6.1).  Correspondingly, a proxy MUST send
+   a TCP segment with the RST bit set if it detects an error with the
+   stream or the QUIC connection.
 
 
 
 
-Bishop                   Expires August 11, 2017                [Page 8]
+
+
+Bishop                   Expires August 12, 2017                [Page 8]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
-
-   a TCP segment with the RST bit set if it detects an error with the
-   stream or the QUIC connection.
 
 4.3.  Stream Priorities
 
@@ -498,17 +495,17 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    As with server push for HTTP/2, the server initiates a server push by
    sending a PUSH_PROMISE frame containing the StreamID of the stream to
+   be pushed, as well as request header fields attributed to the
+   request.  The PUSH_PROMISE frame is sent on the control stream of the
+   associated (client-initiated) request, while the Promised Stream ID
 
 
 
-Bishop                   Expires August 11, 2017                [Page 9]
+Bishop                   Expires August 12, 2017                [Page 9]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
 
-   be pushed, as well as request header fields attributed to the
-   request.  The PUSH_PROMISE frame is sent on the control stream of the
-   associated (client-initiated) request, while the Promised Stream ID
    field specifies the Stream ID of the control stream for the server-
    initiated request.
 
@@ -547,21 +544,6 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    All frames have the following format:
 
-
-
-
-
-
-
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 10]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -571,6 +553,14 @@ Internet-Draft               HTTP over QUIC                February 2017
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                           HTTP/QUIC frame format
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 10]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
 5.2.  Frame Definitions
 
@@ -609,15 +599,6 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    The HEADERS frame payload has the following fields:
 
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 11]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    Sequence Number:  Present only on the first frame of a header block
       sequence.  This MUST be set to zero on the first header block
       sequence, and incremented on each header block.
@@ -628,6 +609,14 @@ Internet-Draft               HTTP over QUIC                February 2017
    HTTP_INTERRUPTED_HEADERS.  (Note that QUIC can intersperse data from
    other streams between frames, or even during transmission of frames,
    so multiplexing is not blocked by this requirement.)
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 11]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    A full header block is contained in a sequence of zero or more
    HEADERS frames without EHB set, followed by a HEADERS frame with EHB
@@ -665,15 +654,6 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    The HEADERS frame payload has the following fields:
 
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 12]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    Prioritized Stream:  A 32-bit stream identifier for the message
       control stream whose priority is being updated.
 
@@ -684,6 +664,15 @@ Internet-Draft               HTTP over QUIC                February 2017
    Weight:  An unsigned 8-bit integer representing a priority weight for
       the stream (see [RFC7540] Section 5.3).  Add one to the value to
       obtain a weight between 1 and 256.
+
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 12]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    A PRIORITY frame MUST have a payload length of nine octets.  A
    PRIORITY frame of any other length MUST be treated as a connection
@@ -721,18 +710,25 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    The SETTINGS frame defines no flags.
 
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 13]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    The payload of a SETTINGS frame consists of zero or more parameters,
    each consisting of an unsigned 16-bit setting identifier and a
    length-prefixed binary value.
+
+
+
+
+
+
+
+
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 13]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -776,21 +772,19 @@ Internet-Draft               HTTP over QUIC                February 2017
    MUST NOT be represented in more bytes than would be used to transfer
    the maximum permitted value.
 
-
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 14]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
 5.2.5.2.  Defined SETTINGS Parameters
 
    Some transport-level options that HTTP/2 specifies via the SETTINGS
    frame are superseded by QUIC transport parameters in HTTP/QUIC.
    Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 14]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    SETTINGS_HEADER_TABLE_SIZE:  An integer with a maximum value of 2^32
       - 1.
@@ -834,20 +828,20 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    o  SETTINGS_MAX_HEADER_LIST_SIZE: 16,384 octets
 
-
-
-
-Bishop                   Expires August 11, 2017               [Page 15]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    Servers MAY continue processing data from clients which exceed its
    current configuration during the initial flight.  In this case, the
    client MUST apply the new settings immediately upon receipt.
 
    If the connection is closed because these or other constraints were
    violated during the 0-RTT flight (e.g. with
+
+
+
+Bishop                   Expires August 12, 2017               [Page 15]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
+
    HTTP_HPACK_DECOMPRESSION_FAILED), clients MAY establish a new
    connection and retry any 0-RTT requests using the settings sent by
    the server on the closed connection.  (This assumes that only
@@ -889,19 +883,20 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    o  No CONTINUATION - HEADERS have EHB; do we need it here?
 
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 16]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
 5.2.7.  PING
 
    PING frames do not exist, since QUIC provides equivalent
    functionality.  Frame type 0x6 is reserved.
+
+
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 16]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
 5.2.8.  GOAWAY frame
 
@@ -945,20 +940,19 @@ Internet-Draft               HTTP over QUIC                February 2017
    HTTP_HPACK_DECOMPRESSION_FAILED (0x05):  HPACK failed to decompress a
       frame and cannot continue.
 
-
-
-
-
-Bishop                   Expires August 11, 2017               [Page 17]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    HTTP_CONNECT_ERROR (0x06):  The connection established in response to
       a CONNECT request was reset or abnormally closed.
 
    HTTP_EXCESSIVE_LOAD (0x07):  The endpoint detected that its peer is
       exhibiting a behavior that might be generating excessive load.
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 17]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    HTTP_VERSION_FALLBACK (0x08):  The requested operation cannot be
       served over HTTP/QUIC.  The peer should retry over HTTP/2.
@@ -966,13 +960,13 @@ Internet-Draft               HTTP over QUIC                February 2017
    HTTP_MALFORMED_HEADERS (0x09):  A HEADERS frame has been received
       with an invalid format.
 
-   HTTP_MALFORMED_PRIORITY (0x0A):  A HEADERS frame has been received
+   HTTP_MALFORMED_PRIORITY (0x0A):  A PRIORITY frame has been received
       with an invalid format.
 
-   HTTP_MALFORMED_SETTINGS (0x0B):  A HEADERS frame has been received
+   HTTP_MALFORMED_SETTINGS (0x0B):  A SETTINGS frame has been received
       with an invalid format.
 
-   HTTP_MALFORMED_PUSH_PROMISE (0x0C):  A HEADERS frame has been
+   HTTP_MALFORMED_PUSH_PROMISE (0x0C):  A PUSH_PROMISE frame has been
       received with an invalid format.
 
    HTTP_INTERRUPTED_HEADERS (0x0E):  A HEADERS frame without the End
@@ -1003,16 +997,18 @@ Internet-Draft               HTTP over QUIC                February 2017
    SETTINGS_TIMEOUT (0x4):  Not applicable, since no acknowledgement of
       SETTINGS is defined.
 
-
-
-Bishop                   Expires August 11, 2017               [Page 18]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
       management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
       from the QUIC layer.
+
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 18]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    FRAME_SIZE_ERROR (0x6)  No single mapping.  See new error codes
       defined in Section 6.1.
@@ -1059,24 +1055,24 @@ Internet-Draft               HTTP over QUIC                February 2017
 
    Protocol:  HTTP over QUIC
 
-
-
-Bishop                   Expires August 11, 2017               [Page 19]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    Identification Sequence:  0x68 0x71 ("hq")
 
    Specification:  This document
 
-8.2.  Registration of Version Hint Alt-Svc Parameter
+
+
+Bishop                   Expires August 12, 2017               [Page 19]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
+
+8.2.  Registration of QUIC Version Hint Alt-Svc Parameter
 
    This document creates a new registration for version-negotiation
    hints in the "Hypertext Transfer Protocol (HTTP) Alt-Svc Parameter"
    registry established in [RFC7838].
 
-   Parameter:  "v"
+   Parameter:  "quic"
 
    Specification:  This document, Section 2.1
 
@@ -1117,7 +1113,11 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 11, 2017               [Page 20]
+
+
+
+
+Bishop                   Expires August 12, 2017               [Page 20]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1173,7 +1173,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 11, 2017               [Page 21]
+Bishop                   Expires August 12, 2017               [Page 21]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1229,7 +1229,7 @@ B.1.  Since draft-ietf-quic-http-01:
 
 
 
-Bishop                   Expires August 11, 2017               [Page 22]
+Bishop                   Expires August 12, 2017               [Page 22]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1285,4 +1285,4 @@ Author's Address
 
 
 
-Bishop                   Expires August 11, 2017               [Page 23]
+Bishop                   Expires August 12, 2017               [Page 23]

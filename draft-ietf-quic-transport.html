@@ -321,6 +321,7 @@ address {
 <link href="#rfc.section.7.9" rel="Chapter" title="7.9 CONNECTION_CLOSE frame"/>
 <link href="#rfc.section.7.10" rel="Chapter" title="7.10 GOAWAY Frame"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 Packetization and Reliability"/>
+<link href="#rfc.section.8.1" rel="Chapter" title="8.1 Special Considerations for PMTU Discovery"/>
 <link href="#rfc.section.9" rel="Chapter" title="9 Streams: QUIC&#x2019;s Data Structuring Abstraction"/>
 <link href="#rfc.section.9.1" rel="Chapter" title="9.1 Life of a Stream"/>
 <link href="#rfc.section.9.1.1" rel="Chapter" title="9.1.1 idle"/>
@@ -468,7 +469,8 @@ address {
 <li>7.9.   <a href="#rfc.section.7.9">CONNECTION_CLOSE frame</a></li>
 <li>7.10.   <a href="#rfc.section.7.10">GOAWAY Frame</a></li>
 </ul><li>8.   <a href="#rfc.section.8">Packetization and Reliability</a></li>
-<li>9.   <a href="#rfc.section.9">Streams: QUIC&#8217;s Data Structuring Abstraction</a></li>
+<ul><li>8.1.   <a href="#rfc.section.8.1">Special Considerations for PMTU Discovery</a></li>
+</ul><li>9.   <a href="#rfc.section.9">Streams: QUIC&#8217;s Data Structuring Abstraction</a></li>
 <ul><li>9.1.   <a href="#rfc.section.9.1">Life of a Stream</a></li>
 <ul><li>9.1.1.   <a href="#rfc.section.9.1.1">idle</a></li>
 <li>9.1.2.   <a href="#rfc.section.9.1.2">reserved</a></li>
@@ -1174,11 +1176,18 @@ Check the flags in the common header
   <li>Reason Phrase: An optional human-readable explanation for why the connection was closed.</li>
 </ul>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#packetization" id="packetization">Packetization and Reliability</a></h1>
-<p id="rfc.section.8.p.1">The maximum packet size for QUIC is the maximum size of the encrypted payload of the resulting UDP datagram.  All QUIC packets SHOULD be sized to fit within the path&#8217;s MTU to avoid IP fragmentation.  The recommended default maximum packet size is 1350 bytes for IPv6 and 1370 bytes for IPv4.  To optimize better, endpoints MAY use PLPMTUD <a href="#RFC4821">[RFC4821]</a> for detecting the path&#8217;s MTU and setting the maximum packet size appropriately.</p>
-<p id="rfc.section.8.p.2">A sender bundles one or more frames in a Regular QUIC packet.  A sender MAY bundle any set of frames in a packet.  All QUIC packets MUST contain a packet number and MAY contain one or more frames (<a href="#frames">Section 5.2.2</a>).  Packet numbers MUST be unique within a connection and MUST NOT be reused within the same connection.  Packet numbers MUST be assigned to packets in a strictly monotonically increasing order.  The initial packet number used, at both the client and the server, MUST be 0.  That is, the first packet in both directions of the connection MUST have a packet number of 0.</p>
-<p id="rfc.section.8.p.3">A sender SHOULD minimize per-packet bandwidth and computational costs by bundling as many frames as possible within a QUIC packet.  A sender MAY wait for a short period of time to bundle multiple frames before sending a packet that is not maximally packed, to avoid sending out large numbers of small packets.  An implementation may use heuristics about expected application sending behavior to determine whether and for how long to wait.  This waiting period is an implementation decision, and an implementation should be careful to delay conservatively, since any delay is likely to increase application-visible latency.</p>
-<p id="rfc.section.8.p.4">Regular QUIC packets are &#8220;containers&#8221; of frames; a packet is never retransmitted whole, but frames in a lost packet may be rebundled and transmitted in a subsequent packet as necessary.</p>
-<p id="rfc.section.8.p.5">A packet may contain frames and/or application data, only some of which may require reliability.  When a packet is detected as lost, the sender re-sends any frames as necessary:</p>
+<p id="rfc.section.8.p.1">The Path Maximum Transmission Unit (PTMU) is the maximum size of the entire IP header, UDP header, and UDP payload. The UDP payload includes the QUIC public header, encrypted payload, and any authentication fields.</p>
+<p id="rfc.section.8.p.2">All QUIC packets SHOULD be sized to fit within the estimated PMTU to avoid IP fragmentation or packet drops. To optimize bandwidth efficiency, endpoints SHOULD use Packetization Layer PMTU Discovery (<a href="#RFC4821">[RFC4821]</a>) and MAY use PMTU Discovery (<a href="#RFC1191">[RFC1191]</a>, <a href="#RFC1981">[RFC1981]</a>) for detecting the PMTU, setting the PMTU appropriately, and storing the result of previous PMTU determinations.</p>
+<p id="rfc.section.8.p.3">In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP packets larger than 1280 octets. Assuming the minimum IP header size, this results in a UDP payload length of 1232 octets for IPv6 and 1252 octets for IPv4.</p>
+<p id="rfc.section.8.p.4">QUIC endpoints that implement any kind of PMTU discovery SHOULD maintain an estimate for each combination of local and remote IP addresses (as each pairing could have a different maximum MTU in the path).</p>
+<p id="rfc.section.8.p.5">QUIC depends on the network path supporting a MTU of at least 1280 octets. This is the IPv6 minimum and therefore also supported by most modern IPv4 networks.  An endpoint MUST NOT reduce their MTU below this number, even if it receives signals that indicate a smaller limit might exist.</p>
+<p id="rfc.section.8.p.6">Clients MUST ensure that the first packet in a connection, and any retransmissions of those octets, has a total size (including IP and UDP headers) of at least 1280 bytes. This might require inclusion of a PADDING frame. It is RECOMMENDED that a packet be padded to exactly 1280 octets unless the client has a reasonable assurance that the PMTU is larger. Sending a packet of this size ensures that the network path supports an MTU of this size and helps mitigate amplification attacks caused by server responses toward an unverified client address.</p>
+<p id="rfc.section.8.p.7">Servers MUST reject the first plaintext packet received from a client if it its total size is less than 1280 octets, to mitigate amplification attacks.</p>
+<p id="rfc.section.8.p.8">If a QUIC endpoint determines that the PMTU between any pair of local and remote IP addresses has fallen below 1280 octets, it MUST immediately cease sending QUIC packets between those IP addresses. This may result in abrupt termination of the connection if all pairs are affected. In this case, an endpoint SHOULD send a Public Reset packet to indicate the failure. The application SHOULD attempt to use TLS over TCP instead.</p>
+<p id="rfc.section.8.p.9">A sender bundles one or more frames in a Regular QUIC packet.  A sender MAY bundle any set of frames in a packet.  All QUIC packets MUST contain a packet number and MAY contain one or more frames (<a href="#frames">Section 5.2.2</a>).  Packet numbers MUST be unique within a connection and MUST NOT be reused within the same connection.  Packet numbers MUST be assigned to packets in a strictly monotonically increasing order.  The initial packet number used, at both the client and the server, MUST be 0.  That is, the first packet in both directions of the connection MUST have a packet number of 0.</p>
+<p id="rfc.section.8.p.10">A sender SHOULD minimize per-packet bandwidth and computational costs by bundling as many frames as possible within a QUIC packet.  A sender MAY wait for a short period of time to bundle multiple frames before sending a packet that is not maximally packed, to avoid sending out large numbers of small packets.  An implementation may use heuristics about expected application sending behavior to determine whether and for how long to wait.  This waiting period is an implementation decision, and an implementation should be careful to delay conservatively, since any delay is likely to increase application-visible latency.</p>
+<p id="rfc.section.8.p.11">Regular QUIC packets are &#8220;containers&#8221; of frames; a packet is never retransmitted whole, but frames in a lost packet may be rebundled and transmitted in a subsequent packet as necessary.</p>
+<p id="rfc.section.8.p.12">A packet may contain frames and/or application data, only some of which may require reliability.  When a packet is detected as lost, the sender re-sends any frames as necessary:</p>
 <p/>
 
 <ul>
@@ -1186,9 +1195,19 @@ Check the flags in the common header
   <li>ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.  New frames of these types may however be bundled with any outgoing packet.</li>
   <li>All other frames MUST be retransmitted.</li>
 </ul>
-<p id="rfc.section.8.p.7">Upon detecting losses, a sender MUST take appropriate congestion control action.  The details of loss detection and congestion control are described in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
-<p id="rfc.section.8.p.8">A receiver acknowledges receipt of a received packet by sending one or more ACK frames containing the packet number of the received packet.  To avoid perpetual acking between endpoints, a receiver MUST NOT generate an ack in response to every packet containing only ACK frames.  However, since it is possible that an endpoint might only send packets containing ACK frames (or other non-retransmittable frames), the receiving peer MAY send an ACK frame after a reasonable number (currently 20) of such packets have been received.</p>
-<p id="rfc.section.8.p.9">Strategies and implications of the frequency of generating acknowledgments are discussed in more detail in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
+<p id="rfc.section.8.p.14">Upon detecting losses, a sender MUST take appropriate congestion control action.  The details of loss detection and congestion control are described in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
+<p id="rfc.section.8.p.15">A receiver acknowledges receipt of a received packet by sending one or more ACK frames containing the packet number of the received packet.  To avoid perpetual acking between endpoints, a receiver MUST NOT generate an ack in response to every packet containing only ACK frames.  However, since it is possible that an endpoint might only send packets containing ACK frames (or other non-retransmittable frames), the receiving peer MAY send an ACK frame after a reasonable number (currently 20) of such packets have been received.</p>
+<p id="rfc.section.8.p.16">Strategies and implications of the frequency of generating acknowledgments are discussed in more detail in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
+<h2 id="rfc.section.8.1"><a href="#rfc.section.8.1">8.1.</a> <a href="#special-considerations-for-pmtu-discovery" id="special-considerations-for-pmtu-discovery">Special Considerations for PMTU Discovery</a></h2>
+<p id="rfc.section.8.1.p.1">Traditional ICMP-based path MTU discovery in IPv4 (<a href="#RFC1191">[RFC1191]</a> is potentially vulnerable to off-path attacks that successfully guess the IP/port 4-tuple and reduce the MTU to a bandwidth-inefficient value. TCP connections mitigate this risk by using the (at minimum) 8 bytes of transport header echoed in the ICMP message to validate the TCP sequence number as valid for the current connection. However, as QUIC operates over UDP, in IPv4 the echoed information could consist only of the IP and UDP headers, which usually has insufficient entropy to mitigate off-path attacks.</p>
+<p id="rfc.section.8.1.p.2">As a result, endpoints that implement PMTUD in IPv4 SHOULD take steps to mitigate this risk. For instance, an application could:</p>
+<p/>
+
+<ul>
+  <li>Set the IPv4 Don&#8217;t Fragment (DF) bit on a small proportion of packets, so that most invalid ICMP messages arrive when there are no DF packets outstanding, and can therefore be identified as spurious.</li>
+  <li>Store additional information from the IP or UDP headers from DF packets (for example, the IP ID or UDP checksum) to further authenticate incoming Datagram Too Big messages.</li>
+  <li>Any reduction in PMTU due to a report contained in an ICMP packet is provisional until QUIC&#8217;s loss detection algorithm determines that the packet is actually lost.</li>
+</ul>
 <h1 id="rfc.section.9"><a href="#rfc.section.9">9.</a> <a href="#streams" id="streams">Streams: QUIC&#8217;s Data Structuring Abstraction</a></h1>
 <p id="rfc.section.9.p.1">Streams in QUIC provide a lightweight, ordered, and bidirectional byte-stream abstraction modeled closely on HTTP/2 streams <a href="#RFC7540">[RFC7540]</a></p>
 <p id="rfc.section.9.p.2">Streams can be created either by the client or the server, can concurrently send data interleaved with other streams, and can be cancelled.</p>
@@ -1469,6 +1488,18 @@ Check the flags in the common header
         <b id="QUIC-TLS">[QUIC-TLS]</b>
       </td>
       <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner, Ed</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="RFC1191">[RFC1191]</b>
+      </td>
+      <td class="top"><a>Mogul, J.</a> and <a>S. Deering</a>, "<a href="http://tools.ietf.org/html/rfc1191">Path MTU discovery</a>", RFC 1191, DOI 10.17487/RFC1191, November 1990.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="RFC1981">[RFC1981]</b>
+      </td>
+      <td class="top"><a>McCann, J.</a>, <a>Deering, S.</a> and <a>J. Mogul</a>, "<a href="http://tools.ietf.org/html/rfc1981">Path MTU Discovery for IP version 6</a>", RFC 1981, DOI 10.17487/RFC1981, August 1996.</td>
     </tr>
     <tr>
       <td class="reference">

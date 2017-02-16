@@ -360,7 +360,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-2-15" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-2-16" />
   <meta name="dct.abstract" content="QUIC is a multiplexed and secure transport protocol that runs on top of UDP.  QUIC builds on past transport experience, and implements mechanisms that make it useful as a modern general-purpose transport protocol.  Using UDP as the basis of QUIC is intended to address compatibility issues with legacy clients and middleboxes.  QUIC authenticates all of its headers, preventing third parties from changing them.  QUIC encrypts most of its headers, thereby limiting protocol evolution to QUIC endpoints only.  Therefore, middleboxes, in large part, are not required to be updated as new protocol versions are deployed.  This document describes the core QUIC protocol, including the conceptual design, wire format, and mechanisms of the QUIC protocol for connection establishment, stream multiplexing, stream and connection-level flow control, and data reliability.  Accompanying documents describe QUIC&#8217;s loss recovery and congestion control, and the use of TLS 1.3 for key negotiation." />
   <meta name="description" content="QUIC is a multiplexed and secure transport protocol that runs on top of UDP.  QUIC builds on past transport experience, and implements mechanisms that make it useful as a modern general-purpose transport protocol.  Using UDP as the basis of QUIC is intended to address compatibility issues with legacy clients and middleboxes.  QUIC authenticates all of its headers, preventing third parties from changing them.  QUIC encrypts most of its headers, thereby limiting protocol evolution to QUIC endpoints only.  Therefore, middleboxes, in large part, are not required to be updated as new protocol versions are deployed.  This document describes the core QUIC protocol, including the conceptual design, wire format, and mechanisms of the QUIC protocol for connection establishment, stream multiplexing, stream and connection-level flow control, and data reliability.  Accompanying documents describe QUIC&#8217;s loss recovery and congestion control, and the use of TLS 1.3 for key negotiation." />
 
@@ -384,12 +384,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 19, 2017</td>
+  <td class="left">Expires: August 20, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">February 15, 2017</td>
+  <td class="right">February 16, 2017</td>
 </tr>
 
     	
@@ -414,7 +414,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 19, 2017.</p>
+<p>This Internet-Draft will expire on August 20, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -1316,8 +1316,9 @@ Check the flags in the common header
 <p id="rfc.section.9.5.p.2">QUIC does not provide frames for exchanging priotization information.  Instead it relies on receiving priority information from the application that uses QUIC.  Protocols that use QUIC are able to define any prioritization scheme that suits their application semantics.  A protocol might define explicit messages for signaling priority, such as those defined in HTTP/2; it could define rules that allow an endpoint to determine priority based on context; or it could leave the determination to the application.</p>
 <p id="rfc.section.9.5.p.3">A QUIC implementation SHOULD provide ways in which an application can indicate the relative priority of streams.  When deciding which streams to dedicate resources to, QUIC SHOULD use the information provided by the application.  Failure to account for priority of streams can result in suboptimal performance.</p>
 <p id="rfc.section.9.5.p.4">Stream priority is most relevant when deciding which stream data will be transmitted.  Often, there will be limits on what can be transmitted as a result of connection flow control or the current congestion controller state.</p>
-<p id="rfc.section.9.5.p.5">Giving preference to the transmission of its own management frames ensures that the protocol functions efficiently.  That is, prioritizing frames other than STREAM frames ensures that loss recovery, congestion control, and flow control operate effectively.  Prioritizing stream 1 over other streams ensures that the cryptographic handshake can complete.</p>
-<p id="rfc.section.9.5.p.6">Choosing to retransmit data that was already sent and determined to be lost can help ensure that flow control doesn&#8217;t cause underutilization or temporary stalling of a connection.  Data sent in STREAM frames counts toward flow control limits from the instant it is initially transmitted, and preferring repair of lost data over sending new data ensures that receiver memory can be freed more quickly.  This is more valuable if the retransmission will repair a gap in a stream; retransmitting a gap in stream data potentially allows more octets of the stream to be made available.</p>
+<p id="rfc.section.9.5.p.5">Giving preference to the transmission of its own management frames ensures that the protocol functions efficiently.  That is, prioritizing frames other than STREAM frames ensures that loss recovery, congestion control, and flow control operate effectively.</p>
+<p id="rfc.section.9.5.p.6">Stream 1 MUST be prioritized over other streams prior to the completion of the cryptographic handshake.  This includes the retransmission of the second flight of client handshake messages, that is, the TLS Finished and any client authentication messages.</p>
+<p id="rfc.section.9.5.p.7">STREAM frames that are determined to be lost SHOULD be retransmitted before sending new data, unless application priorities indicate otherwise.  Retransmitting lost STREAM frames can fill in gaps, which allows the peer to consume already received data and free up flow control window.</p>
 <h1 id="rfc.section.10"><a href="#rfc.section.10">10.</a> <a href="#flow-control" id="flow-control">Flow Control</a></h1>
 <p id="rfc.section.10.p.1">It is necessary to limit the amount of data that a sender may have outstanding at any time, so as to prevent a fast sender from overwhelming a slow receiver, or to prevent a malicious sender from consuming significant resources at a receiver.  This section describes QUIC&#8217;s flow-control mechanisms.</p>
 <p id="rfc.section.10.p.2">QUIC employs a credit-based flow-control scheme similar to HTTP/2&#8217;s flow control <a href="#RFC7540">[RFC7540]</a>.  A receiver advertises the number of octets it is prepared to receive on a given stream and for the entire connection.  This leads to two levels of flow control in QUIC: (i) Connection flow control, which prevents senders from exceeding a receiver&#8217;s buffer capacity for the connection, and (ii) Stream flow control, which prevents a single stream from consuming the entire receive buffer for a connection.</p>

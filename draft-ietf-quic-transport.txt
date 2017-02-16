@@ -100,12 +100,12 @@ Table of Contents
        5.1.2.  Handling Packets from Different Versions  . . . . . .  10
      5.2.  Regular Packets . . . . . . . . . . . . . . . . . . . . .  11
        5.2.1.  Packet Number Compression and Reconstruction  . . . .  12
-       5.2.2.  Frames and Frame Types  . . . . . . . . . . . . . . .  13
+       5.2.2.  Initial Packet Number . . . . . . . . . . . . . . . .  13
+       5.2.3.  Frames and Frame Types  . . . . . . . . . . . . . . .  13
      5.3.  Version Negotiation Packet  . . . . . . . . . . . . . . .  14
      5.4.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  15
    6.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  15
      6.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  15
-     6.2.  Crypto and Transport Handshake  . . . . . . . . . . . . .  16
 
 
 
@@ -114,6 +114,7 @@ Iyengar & Thomson        Expires August 20, 2017                [Page 2]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+     6.2.  Crypto and Transport Handshake  . . . . . . . . . . . . .  16
        6.2.1.  Transport Parameters and Options  . . . . . . . . . .  16
        6.2.2.  Proof of Source Address Ownership . . . . . . . . . .  17
        6.2.3.  Crypto Handshake Protocol Features  . . . . . . . . .  19
@@ -161,7 +162,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
      14.2.  Informative References . . . . . . . . . . . . . . . . .  48
      14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  49
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  49
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  49
 
 
 
@@ -170,6 +170,7 @@ Iyengar & Thomson        Expires August 20, 2017                [Page 3]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  49
    Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  49
      C.1.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  49
      C.2.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  50
@@ -215,7 +216,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       single encryption context that multiplexes streams within it.
 
    o  Connection ID: The identifier for a QUIC connection.
-
 
 
 
@@ -596,14 +596,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    o  Packet Number: The lower 8, 16, 32, or 48 bits of the packet
       number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet
-      is assigned a packet number by the sender.  The first packet sent
-      by an endpoint MUST have a packet number of 1.
+      is assigned a packet number by the sender.  The first packet
+      number is randomized (see Section 5.2.2.
 
    o  Encrypted Payload: The remainder of a Regular packet is both
       authenticated and encrypted once packet protection keys are
       available.  [QUIC-TLS] describes packet protection in detail.
       After decryption, the plaintext consists of a sequence of frames,
-      as shown in Figure 3.  Frames are described in Section 5.2.2.
+      as shown in Figure 3.  Frames are described in Section 5.2.3.
 
 
 
@@ -680,7 +680,17 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    (TODO: Clarify how packet number size can change mid-connection.)
 
-5.2.2.  Frames and Frame Types
+5.2.2.  Initial Packet Number
+
+   The initial value for packet number MUST be a 31-bit random number.
+   That is, the value is selected from an uniform random distribution
+   between 0 and 2^31-1.
+
+   The first set of packets sent by an endpoint MUST include the low
+   32-bits of the packet number.  Once any packet has been acknowledged,
+   subsequent packets can use a shorter packet number encoding.
+
+5.2.3.  Frames and Frame Types
 
    A Regular packet MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.  Frames MUST fit within a
@@ -701,16 +711,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    frame-specific flags.  For all other frames, the Frame Type byte
    simply identifies the frame.  These frames are explained in more
    detail as they are referenced later in the document.
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1756,12 +1756,10 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    A sender bundles one or more frames in a Regular QUIC packet.  A
    sender MAY bundle any set of frames in a packet.  All QUIC packets
    MUST contain a packet number and MAY contain one or more frames
-   (Section 5.2.2).  Packet numbers MUST be unique within a connection
+   (Section 5.2.3).  Packet numbers MUST be unique within a connection
    and MUST NOT be reused within the same connection.  Packet numbers
    MUST be assigned to packets in a strictly monotonically increasing
-   order.  The initial packet number used, at both the client and the
-   server, MUST be 0.  That is, the first packet in both directions of
-   the connection MUST have a packet number of 0.
+   order.
 
    A sender SHOULD minimize per-packet bandwidth and computational costs
    by bundling as many frames as possible within a QUIC packet.  A
@@ -1785,6 +1783,8 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  All application data sent in STREAM frames MUST be retransmitted,
       with one exception.  When an endpoint sends a RST_STREAM frame,
       data outstanding on that stream SHOULD NOT be retransmitted, since
+      subsequent data on this stream is expected to not be delivered by
+      the receiver.
 
 
 
@@ -1793,9 +1793,6 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 32]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-      subsequent data on this stream is expected to not be delivered by
-      the receiver.
 
    o  ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.
       New frames of these types may however be bundled with any outgoing
@@ -1842,6 +1839,9 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  Store additional information from the IP or UDP headers from DF
       packets (for example, the IP ID or UDP checksum) to further
       authenticate incoming Datagram Too Big messages.
+
+
+
 
 
 

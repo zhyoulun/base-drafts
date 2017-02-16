@@ -295,7 +295,8 @@ address {
 <link href="#rfc.section.5.1.2" rel="Chapter" title="5.1.2 Handling Packets from Different Versions"/>
 <link href="#rfc.section.5.2" rel="Chapter" title="5.2 Regular Packets"/>
 <link href="#rfc.section.5.2.1" rel="Chapter" title="5.2.1 Packet Number Compression and Reconstruction"/>
-<link href="#rfc.section.5.2.2" rel="Chapter" title="5.2.2 Frames and Frame Types"/>
+<link href="#rfc.section.5.2.2" rel="Chapter" title="5.2.2 Initial Packet Number"/>
+<link href="#rfc.section.5.2.3" rel="Chapter" title="5.2.3 Frames and Frame Types"/>
 <link href="#rfc.section.5.3" rel="Chapter" title="5.3 Version Negotiation Packet"/>
 <link href="#rfc.section.5.4" rel="Chapter" title="5.4 Public Reset Packet"/>
 <link href="#rfc.section.6" rel="Chapter" title="6 Life of a Connection"/>
@@ -443,7 +444,8 @@ address {
 <li>5.1.2.   <a href="#rfc.section.5.1.2">Handling Packets from Different Versions</a></li>
 </ul><li>5.2.   <a href="#rfc.section.5.2">Regular Packets</a></li>
 <ul><li>5.2.1.   <a href="#rfc.section.5.2.1">Packet Number Compression and Reconstruction</a></li>
-<li>5.2.2.   <a href="#rfc.section.5.2.2">Frames and Frame Types</a></li>
+<li>5.2.2.   <a href="#rfc.section.5.2.2">Initial Packet Number</a></li>
+<li>5.2.3.   <a href="#rfc.section.5.2.3">Frames and Frame Types</a></li>
 </ul><li>5.3.   <a href="#rfc.section.5.3">Version Negotiation Packet</a></li>
 <li>5.4.   <a href="#rfc.section.5.4">Public Reset Packet</a></li>
 </ul><li>6.   <a href="#rfc.section.6">Life of a Connection</a></li>
@@ -660,8 +662,8 @@ Check the flags in the common header
 
 <ul>
   <li>QUIC Version: A 32-bit opaque tag that represents the version of the QUIC protocol.  Only present in the client-to-server direction, and if the VERSION flag is set.  Version Negotiation is described in <a href="#version-negotiation">Section 6.1</a>.</li>
-  <li>Packet Number: The lower 8, 16, 32, or 48 bits of the packet number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet is assigned a packet number by the sender.  The first packet sent by an endpoint MUST have a packet number of 1.</li>
-  <li>Encrypted Payload: The remainder of a Regular packet is both authenticated and encrypted once packet protection keys are available.  <a href="#QUIC-TLS">[QUIC-TLS]</a> describes packet protection in detail.  After decryption, the plaintext consists of a sequence of frames, as shown in <a href="#regular-packet-frames">Figure 3</a>.  Frames are described in <a href="#frames">Section 5.2.2</a>.</li>
+  <li>Packet Number: The lower 8, 16, 32, or 48 bits of the packet number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet is assigned a packet number by the sender.  The first packet number is randomized (see <a href="#initial-packet-number">Section 5.2.2</a>.</li>
+  <li>Encrypted Payload: The remainder of a Regular packet is both authenticated and encrypted once packet protection keys are available.  <a href="#QUIC-TLS">[QUIC-TLS]</a> describes packet protection in detail.  After decryption, the plaintext consists of a sequence of frames, as shown in <a href="#regular-packet-frames">Figure 3</a>.  Frames are described in <a href="#frames">Section 5.2.3</a>.</li>
 </ul>
 <div id="rfc.figure.3"/>
 <div id="regular-packet-frames"/>
@@ -690,8 +692,11 @@ Check the flags in the common header
   <li>If a sender sets PACKET_NUMBER_SIZE bits to 00, it MUST NOT have more than (2^6) packets in flight.  <br/><br/> DISCUSS: Should the receiver be required to enforce this rule that the sender MUST NOT exceed the inflight limit?  Specifically, should the receiver drop packets that are received outside this window?  <br/><br/> Any truncated packet number received from a peer MUST be reconstructed as the value closest to the next expected packet number from that peer.</li>
 </ul>
 <p id="rfc.section.5.2.1.p.3">(TODO: Clarify how packet number size can change mid-connection.)</p>
-<h3 id="rfc.section.5.2.2"><a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#frames" id="frames">Frames and Frame Types</a></h3>
-<p id="rfc.section.5.2.2.p.1">A Regular packet MUST contain at least one frame, and MAY contain multiple frames and multiple frame types.  Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC packet boundary.  Each frame begins with a Frame Type byte, indicating its type, followed by additional type-dependent fields:</p>
+<h3 id="rfc.section.5.2.2"><a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#initial-packet-number" id="initial-packet-number">Initial Packet Number</a></h3>
+<p id="rfc.section.5.2.2.p.1">The initial value for packet number MUST be a 31-bit random number.  That is, the value is selected from an uniform random distribution between 0 and 2^31-1.</p>
+<p id="rfc.section.5.2.2.p.2">The first set of packets sent by an endpoint MUST include the low 32-bits of the packet number.  Once any packet has been acknowledged, subsequent packets can use a shorter packet number encoding.</p>
+<h3 id="rfc.section.5.2.3"><a href="#rfc.section.5.2.3">5.2.3.</a> <a href="#frames" id="frames">Frames and Frame Types</a></h3>
+<p id="rfc.section.5.2.3.p.1">A Regular packet MUST contain at least one frame, and MAY contain multiple frames and multiple frame types.  Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC packet boundary.  Each frame begins with a Frame Type byte, indicating its type, followed by additional type-dependent fields:</p>
 <div id="rfc.figure.4"/>
 <div id="frame-layout"/>
 <pre>
@@ -702,7 +707,7 @@ Check the flags in the common header
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 4: Generic Frame Layout</p>
-<p id="rfc.section.5.2.2.p.2">The following table lists currently defined frame types.  Note that the Frame Type byte in STREAM and ACK frames is used to carry other frame-specific flags.  For all other frames, the Frame Type byte simply identifies the frame.  These frames are explained in more detail as they are referenced later in the document.</p>
+<p id="rfc.section.5.2.3.p.2">The following table lists currently defined frame types.  Note that the Frame Type byte in STREAM and ACK frames is used to carry other frame-specific flags.  For all other frames, the Frame Type byte simply identifies the frame.  These frames are explained in more detail as they are referenced later in the document.</p>
 <table cellpadding="3" cellspacing="0" class="tt full center">
   <thead>
     <tr>
@@ -1174,7 +1179,7 @@ Check the flags in the common header
 <p id="rfc.section.8.p.6">Clients MUST ensure that the first packet in a connection, and any retransmissions of those octets, has a total size (including IP and UDP headers) of at least 1280 bytes. This might require inclusion of PADDING frames. It is RECOMMENDED that a packet be padded to exactly 1280 octets unless the client has a reasonable assurance that the PMTU is larger. Sending a packet of this size ensures that the network path supports an MTU of this size and helps mitigate amplification attacks caused by server responses toward an unverified client address.</p>
 <p id="rfc.section.8.p.7">Servers MUST reject the first plaintext packet received from a client if it its total size is less than 1280 octets, to mitigate amplification attacks.</p>
 <p id="rfc.section.8.p.8">If a QUIC endpoint determines that the PMTU between any pair of local and remote IP addresses has fallen below 1280 octets, it MUST immediately cease sending QUIC packets between those IP addresses. This may result in abrupt termination of the connection if all pairs are affected. In this case, an endpoint SHOULD send a Public Reset packet to indicate the failure. The application SHOULD attempt to use TLS over TCP instead.</p>
-<p id="rfc.section.8.p.9">A sender bundles one or more frames in a Regular QUIC packet.  A sender MAY bundle any set of frames in a packet.  All QUIC packets MUST contain a packet number and MAY contain one or more frames (<a href="#frames">Section 5.2.2</a>).  Packet numbers MUST be unique within a connection and MUST NOT be reused within the same connection.  Packet numbers MUST be assigned to packets in a strictly monotonically increasing order.  The initial packet number used, at both the client and the server, MUST be 0.  That is, the first packet in both directions of the connection MUST have a packet number of 0.</p>
+<p id="rfc.section.8.p.9">A sender bundles one or more frames in a Regular QUIC packet.  A sender MAY bundle any set of frames in a packet.  All QUIC packets MUST contain a packet number and MAY contain one or more frames (<a href="#frames">Section 5.2.3</a>).  Packet numbers MUST be unique within a connection and MUST NOT be reused within the same connection.  Packet numbers MUST be assigned to packets in a strictly monotonically increasing order.</p>
 <p id="rfc.section.8.p.10">A sender SHOULD minimize per-packet bandwidth and computational costs by bundling as many frames as possible within a QUIC packet.  A sender MAY wait for a short period of time to bundle multiple frames before sending a packet that is not maximally packed, to avoid sending out large numbers of small packets.  An implementation may use heuristics about expected application sending behavior to determine whether and for how long to wait.  This waiting period is an implementation decision, and an implementation should be careful to delay conservatively, since any delay is likely to increase application-visible latency.</p>
 <p id="rfc.section.8.p.11">Regular QUIC packets are &#8220;containers&#8221; of frames; a packet is never retransmitted whole, but frames in a lost packet may be rebundled and transmitted in a subsequent packet as necessary.</p>
 <p id="rfc.section.8.p.12">A packet may contain frames and/or application data, only some of which may require reliability.  When a packet is detected as lost, the sender re-sends any frames as necessary:</p>

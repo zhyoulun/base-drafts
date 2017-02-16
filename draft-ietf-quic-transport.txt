@@ -147,7 +147,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
      9.3.  Stream Concurrency  . . . . . . . . . . . . . . . . . . .  39
      9.4.  Sending and Receiving Data  . . . . . . . . . . . . . . .  40
    10. Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .  40
-     10.1.  Edge Cases and Other Considerations  . . . . . . . . . .  41
+     10.1.  Edge Cases and Other Considerations  . . . . . . . . . .  42
        10.1.1.  Mid-stream RST_STREAM  . . . . . . . . . . . . . . .  42
        10.1.2.  Response to a RST_STREAM . . . . . . . . . . . . . .  42
        10.1.3.  Offset Increment . . . . . . . . . . . . . . . . . .  42
@@ -159,7 +159,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  47
      14.1.  Normative References . . . . . . . . . . . . . . . . . .  47
      14.2.  Informative References . . . . . . . . . . . . . . . . .  48
-     14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  48
+     14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  49
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  49
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  49
 
@@ -172,7 +172,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  49
      C.1.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  49
-     C.2.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  49
+     C.2.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  50
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  50
 
 1.  Introduction
@@ -2186,6 +2186,14 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 39]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   All streams, including stream 1, count toward this limit.  Thus, a
+   concurrent stream limit of 0 will cause a connection to be unusable.
+   Application protocols that use QUIC might require a certain minimum
+   number of streams to function correctly.  If a peer advertises an
+   MSPC value that is too small for the selected application protocol to
+   function, an endpoint MUST terminate the connection with an error of
+   type QUIC_TOO_MANY_OPEN_STREAMS (Section 11).
+
 9.4.  Sending and Receiving Data
 
    Once a stream is created, endpoints may use the stream to send and
@@ -2226,6 +2234,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    flow control [RFC7540].  A receiver advertises the number of octets
    it is prepared to receive on a given stream and for the entire
    connection.  This leads to two levels of flow control in QUIC: (i)
+
+
+
+Iyengar & Thomson        Expires August 20, 2017               [Page 40]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    Connection flow control, which prevents senders from exceeding a
    receiver's buffer capacity for the connection, and (ii) Stream flow
    control, which prevents a single stream from consuming the entire
@@ -2234,13 +2250,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    A receiver sends WINDOW_UPDATE frames to the sender to advertise
    additional credit by sending the absolute byte offset in the stream
    or in the connection which it is willing to receive.
-
-
-
-Iyengar & Thomson        Expires August 20, 2017               [Page 40]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    The initial flow control credit is 65536 bytes for both the stream
    and connection flow controllers.
@@ -2281,15 +2290,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    bytes consumed on all contributing streams to determine the
    connection-level flow control offset to be advertised.
 
-10.1.  Edge Cases and Other Considerations
-
-   There are some edge cases which must be considered when dealing with
-   stream and connection level flow control.  Given enough time, both
-   endpoints must agree on flow control state.  If one end believes it
-   can send more than the other end is willing to receive, the
-   connection will be torn down when too much data arrives.  Conversely
-   if a sender believes it is blocked, while endpoint B expects more
-
 
 
 
@@ -2298,6 +2298,14 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 41]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+10.1.  Edge Cases and Other Considerations
+
+   There are some edge cases which must be considered when dealing with
+   stream and connection level flow control.  Given enough time, both
+   endpoints must agree on flow control state.  If one end believes it
+   can send more than the other end is willing to receive, the
+   connection will be torn down when too much data arrives.  Conversely
+   if a sender believes it is blocked, while endpoint B expects more
    data can be received, then the connection can be in a deadlock, with
    the sender waiting for a WINDOW_UPDATE which will never come.
 
@@ -2337,14 +2345,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    WINDOW_UPDATE with small offset increments is undesirable.  At the
    same time, sending WINDOW_UPDATES with large offset increments
    requires the sender to commit to that amount of buffer.
-   Implementations must find the correct tradeoff between these sides to
-   determine how large an offset increment to send in a WINDOW_UPDATE.
-
-   A receiver MAY use an autotuning mechanism to tune the size of the
-   offset increment to advertise based on a roundtrip time estimate and
-   the rate at which the receiving application consumes data, similar to
-   common TCP implementations.
-
 
 
 
@@ -2353,6 +2353,14 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 42]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   Implementations must find the correct tradeoff between these sides to
+   determine how large an offset increment to send in a WINDOW_UPDATE.
+
+   A receiver MAY use an autotuning mechanism to tune the size of the
+   offset increment to advertise based on a roundtrip time estimate and
+   the rate at which the receiving application consumes data, similar to
+   common TCP implementations.
 
 10.1.4.  BLOCKED frames
 
@@ -2395,20 +2403,19 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_INTERNAL_ERROR (0x80000001):  Connection has reached an invalid
       state.
 
-   QUIC_STREAM_DATA_AFTER_TERMINATION (0x80000002):  There were data
-      frames after the a fin or reset.
-
-   QUIC_INVALID_PACKET_HEADER (0x80000003):  Control frame is malformed.
-
-   QUIC_INVALID_FRAME_DATA (0x80000004):  Frame data is malformed.
-
-
 
 
 Iyengar & Thomson        Expires August 20, 2017               [Page 43]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   QUIC_STREAM_DATA_AFTER_TERMINATION (0x80000002):  There were data
+      frames after the a fin or reset.
+
+   QUIC_INVALID_PACKET_HEADER (0x80000003):  Control frame is malformed.
+
+   QUIC_INVALID_FRAME_DATA (0x80000004):  Frame data is malformed.
 
    QUIC_MULTIPLE_TERMINATION_OFFSETS (0x80000005):  Multiple final
       offset values were received on the same stream
@@ -2452,19 +2459,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_INVALID_ACK_DATA (0x80000009):  ACK frame data is malformed.
 
-   QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):  Version
-      negotiation packet is malformed.
-
-   QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):  Public RST packet is
-      malformed.
-
-
 
 
 Iyengar & Thomson        Expires August 20, 2017               [Page 44]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):  Version
+      negotiation packet is malformed.
+
+   QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):  Public RST packet is
+      malformed.
 
    QUIC_DECRYPTION_FAILURE (0x8000000c):  There was an error decrypting.
 
@@ -2509,18 +2515,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_ERROR_MIGRATING_ADDRESS (0x8000001a):  There was an error
       encountered migrating addresses.
 
-   QUIC_ERROR_MIGRATING_PORT (0x80000056):  There was an error
-      encountered migrating port only.
-
-   QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):  We received a
-      STREAM_FRAME with no data and no fin flag set.
-
 
 
 Iyengar & Thomson        Expires August 20, 2017               [Page 45]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   QUIC_ERROR_MIGRATING_PORT (0x80000056):  There was an error
+      encountered migrating port only.
+
+   QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):  We received a
+      STREAM_FRAME with no data and no fin flag set.
 
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA (0x8000003b):  The peer
       received too much data, violating flow control.
@@ -2565,18 +2571,16 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_IP_ADDRESS_CHANGED (0x80000050):  IP address changed causing
       connection close.
 
-   QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):  Stream frames arrived too
-      discontiguously so that stream sequencer buffer maintains too many
-      gaps.
-
-
-
 
 
 Iyengar & Thomson        Expires August 20, 2017               [Page 46]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):  Stream frames arrived too
+      discontiguously so that stream sequencer buffer maintains too many
+      gaps.
 
    QUIC_TOO_MANY_SESSIONS_ON_SERVER (0x80000060):  Connection closed
       because server hit max number of sessions allowed.
@@ -2621,10 +2625,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control".
 
-   [QUIC-TLS]
-              Thomson, M., Ed. and S. Turner, Ed., "Using Transport
-              Layer Security (TLS) to Secure QUIC".
-
 
 
 
@@ -2633,6 +2633,10 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 47]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   [QUIC-TLS]
+              Thomson, M., Ed. and S. Turner, Ed., "Using Transport
+              Layer Security (TLS) to Secure QUIC".
 
    [RFC1191]  Mogul, J. and S. Deering, "Path MTU discovery", RFC 1191,
               DOI 10.17487/RFC1191, November 1990,
@@ -2677,10 +2681,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    [SST]      Ford, B., "Structured Streams: A New Transport
               Abstraction", ACM SIGCOMM 2007 , August 2007.
 
-14.3.  URIs
-
-   [1] https://github.com/quicwg/base-drafts/wiki/QUIC-Versions
-
 
 
 
@@ -2689,6 +2689,10 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 48]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+14.3.  URIs
+
+   [1] https://github.com/quicwg/base-drafts/wiki/QUIC-Versions
 
 Appendix A.  Contributors
 
@@ -2731,13 +2735,9 @@ C.1.  Since draft-ietf-quic-transport-00:
 
    o  Use big endian for all numeric values
 
-C.2.  Since draft-hamilton-quic-transport-protocol-01:
 
-   o  Adopted as base for draft-ietf-quic-tls.
 
-   o  Updated authors/editors list.
 
-   o  Added IANA Considerations section.
 
 
 
@@ -2745,6 +2745,14 @@ Iyengar & Thomson        Expires August 20, 2017               [Page 49]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+C.2.  Since draft-hamilton-quic-transport-protocol-01:
+
+   o  Adopted as base for draft-ietf-quic-tls.
+
+   o  Updated authors/editors list.
+
+   o  Added IANA Considerations section.
 
    o  Moved Contributors and Acknowledgments to appendices.
 
@@ -2760,14 +2768,6 @@ Authors' Addresses
    Mozilla
 
    Email: martin.thomson@gmail.com
-
-
-
-
-
-
-
-
 
 
 

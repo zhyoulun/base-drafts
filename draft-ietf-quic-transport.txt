@@ -1768,24 +1768,24 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    application-visible latency.
 
    Regular QUIC packets are "containers" of frames; a packet is never
-   retransmitted whole, but frames in a lost packet may be rebundled and
-   transmitted in a subsequent packet as necessary.
+   retransmitted whole.  How an endpoint handles the loss of the frame
+   depends on the type of the frame.  Some frames are simply
+   retransmitted, some have their contents moved to new frames, and
+   others are never retransmitted.
 
-   A packet may contain frames and/or application data, only some of
-   which may require reliability.  When a packet is detected as lost,
-   the sender re-sends any frames as necessary:
+   When a packet is detected as lost, the sender re-sends any frames as
+   necessary:
 
    o  All application data sent in STREAM frames MUST be retransmitted,
-      with one exception.  When an endpoint sends a RST_STREAM frame,
-      data outstanding on that stream SHOULD NOT be retransmitted, since
-      subsequent data on this stream is expected to not be delivered by
-      the receiver.
+      unless the endpoint has sent a RST_STREAM for that stream.  When
+      an endpoint sends a RST_STREAM frame, data outstanding on that
+      stream SHOULD NOT be retransmitted, since subsequent data on this
+      stream is expected to not be delivered by the receiver.
 
    o  ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.
-      New frames of these types may however be bundled with any outgoing
-      packet.
-
-   o  All other frames MUST be retransmitted.
+      ACK and STOP_WAITING frames are cumulative, so new frames
+      containing updated information will be sent as described in
+      Section 7.2.
 
 
 
@@ -1793,6 +1793,8 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 32]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   o  All other frames MUST be retransmitted.
 
    Upon detecting losses, a sender MUST take appropriate congestion
    control action.  The details of loss detection and congestion control
@@ -1837,8 +1839,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  Any reduction in PMTU due to a report contained in an ICMP packet
       is provisional until QUIC's loss detection algorithm determines
       that the packet is actually lost.
-
-
 
 
 

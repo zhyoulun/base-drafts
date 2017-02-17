@@ -1176,13 +1176,13 @@ Check the flags in the common header
 <p id="rfc.section.8.p.8">If a QUIC endpoint determines that the PMTU between any pair of local and remote IP addresses has fallen below 1280 octets, it MUST immediately cease sending QUIC packets between those IP addresses. This may result in abrupt termination of the connection if all pairs are affected. In this case, an endpoint SHOULD send a Public Reset packet to indicate the failure. The application SHOULD attempt to use TLS over TCP instead.</p>
 <p id="rfc.section.8.p.9">A sender bundles one or more frames in a Regular QUIC packet (see <a href="#frames">Section 5.4</a>).</p>
 <p id="rfc.section.8.p.10">A sender SHOULD minimize per-packet bandwidth and computational costs by bundling as many frames as possible within a QUIC packet.  A sender MAY wait for a short period of time to bundle multiple frames before sending a packet that is not maximally packed, to avoid sending out large numbers of small packets.  An implementation may use heuristics about expected application sending behavior to determine whether and for how long to wait.  This waiting period is an implementation decision, and an implementation should be careful to delay conservatively, since any delay is likely to increase application-visible latency.</p>
-<p id="rfc.section.8.p.11">Regular QUIC packets are &#8220;containers&#8221; of frames; a packet is never retransmitted whole, but frames in a lost packet may be rebundled and transmitted in a subsequent packet as necessary.</p>
-<p id="rfc.section.8.p.12">A packet may contain frames and/or application data, only some of which may require reliability.  When a packet is detected as lost, the sender re-sends any frames as necessary:</p>
+<p id="rfc.section.8.p.11">Regular QUIC packets are &#8220;containers&#8221; of frames; a packet is never retransmitted whole.  How an endpoint handles the loss of the frame depends on the type of the frame.  Some frames are simply retransmitted, some have their contents moved to new frames, and others are never retransmitted.</p>
+<p id="rfc.section.8.p.12">When a packet is detected as lost, the sender re-sends any frames as necessary:</p>
 <p/>
 
 <ul>
-  <li>All application data sent in STREAM frames MUST be retransmitted, with one exception.  When an endpoint sends a RST_STREAM frame, data outstanding on that stream SHOULD NOT be retransmitted, since subsequent data on this stream is expected to not be delivered by the receiver.</li>
-  <li>ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.  New frames of these types may however be bundled with any outgoing packet.</li>
+  <li>All application data sent in STREAM frames MUST be retransmitted, unless the endpoint has sent a RST_STREAM for that stream.  When an endpoint sends a RST_STREAM frame, data outstanding on that stream SHOULD NOT be retransmitted, since subsequent data on this stream is expected to not be delivered by the receiver.</li>
+  <li>ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.  ACK and STOP_WAITING frames are cumulative, so new frames containing updated information will be sent as described in <a href="#frame-ack">Section 7.2</a>.</li>
   <li>All other frames MUST be retransmitted.</li>
 </ul>
 <p id="rfc.section.8.p.14">Upon detecting losses, a sender MUST take appropriate congestion control action.  The details of loss detection and congestion control are described in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>

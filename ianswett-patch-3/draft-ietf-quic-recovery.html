@@ -317,7 +317,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-2-15" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-2-17" />
   <meta name="dct.abstract" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
   <meta name="description" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
 
@@ -341,8 +341,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 19, 2017</td>
-  <td class="right">February 15, 2017</td>
+  <td class="left">Expires: August 21, 2017</td>
+  <td class="right">February 17, 2017</td>
 </tr>
 
     	
@@ -367,7 +367,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 19, 2017.</p>
+<p>This Internet-Draft will expire on August 21, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -610,25 +610,29 @@ address {
     if (handshake packets are outstanding):
       // Handshake retransmission alarm.
       if (smoothed_rtt == 0):
-        alarm_duration = max(2 * initial_rtt, kMinTLPTimeout) &lt;&lt; handshake_count;
+        alarm_duration = 2 * initial_rtt
       else:
-        alarm_duration = max(2 * smoothed_rtt, kMinTLPTimeout) &lt;&lt; handshake_count;
+        alarm_duration = 2 * smoothed_rtt
+      alarm_duration = max(alarm_duration, kMinTLPTimeout)
+      alarm_duration = alarm_duration &lt;&lt; handshake_count
       handshake_count++;
     else if (largest sent packet is acked):
-      // Early retransmit {{!RFC 5827}} with an alarm to reduce spurious retransmits.
+      // Early retransmit {{!RFC 5827}}
+      // with an alarm to reduce spurious retransmits.
       alarm_duration = 0.25 x smoothed_rtt;
     else if (tlp_count &lt; kMaxTLPs):
       // Tail Loss Probe alarm.
       if (retransmittable_packets_outstanding = 1):
-        alarm_duration = max(1.5 x smoothed_rtt + kDelayedAckTimeout,
-                             2 x smoothed_rtt);
+        alarm_duration = 1.5 x smoothed_rtt + kDelayedAckTimeout
       else:
-        alarm_duration = max (kMinTLPTimeout, 2 x smoothed_rtt);
+        alarm_duration = kMinTLPTimeout
+      alarm_duration = max(alarm_duration, 2 x smoothed_rtt);
       tlp_count++;
     else:
       // RTO alarm.
       if (rto_count = 0):
-        alarm_duration = max(kMinRTOTimeout, smoothed_rtt + 4 x rttvar);
+        alarm_duration = smoothed_rtt + 4 x rttvar
+        alarm_duration = max(alarm_duration, kMinRTOTimeout)
       else:
         alarm_duration = loss_detection_alarm.get_delay() &lt;&lt; 1;
       rto_count++;
@@ -641,7 +645,7 @@ address {
 <pre>
    OnAlarm(acked_packet):
      lost_packets = DetectLostPackets(acked_packet);
-     MaybeRetransmitLostPackets();
+     MaybeRetransmit(lost_packets);
      SetLossDetectionAlarm();
 </pre>
 <h2 id="rfc.section.3.10"><a href="#rfc.section.3.10">3.10.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h2>
@@ -649,18 +653,18 @@ address {
 <h3 id="rfc.section.3.10.1"><a href="#rfc.section.3.10.1">3.10.1.</a> <a href="#handshake-packets-1" id="handshake-packets-1">Handshake Packets</a></h3>
 <p id="rfc.section.3.10.1.p.1">The receiver MUST ignore unencrypted packets that ack encrypted packets.  The receiver MUST trust encrypted acks for unencrypted packets, however.  Aside from this, loss detection for handshake packets when an ack is processed is identical to other packets.</p>
 <h3 id="rfc.section.3.10.2"><a href="#rfc.section.3.10.2">3.10.2.</a> <a href="#psuedocode-1" id="psuedocode-1">Psuedocode</a></h3>
-<p id="rfc.section.3.10.2.p.1">DetectLostPackets takes one parameter, acked_packet, which is the packet number of the largest acked packet, and returns a list of packet numbers detected as lost.</p>
+<p id="rfc.section.3.10.2.p.1">DetectLostPackets takes one parameter, acked, which is the largest acked packet, and returns a list of packets detected as lost.</p>
 <p id="rfc.section.3.10.2.p.2">Pseudocode for DetectLostPackets follows:</p>
 <pre>
-   DetectLostPackets(acked_packet):
+   DetectLostPackets(acked):
      lost_packets = {};
-     foreach (unacked_packet less than acked_packet):
-       if (unacked_packet.time_sent &lt;
-           acked_packet.time_sent - kTimeReorderThreshold * smoothed_rtt):
-         lost_packets.insert(unacked_packet.packet_number);
-       else if (unacked_packet.packet_number &lt;
-                acked_packet.packet_number - reordering_threshold)
-         lost_packets.insert(unacked_packet.packet_number);
+     foreach (unacked less than acked):
+       time_delta = acked.time_sent - unacked.time_sent
+       packet_delta = acked.packet_number - unacked.packet_number
+       if (time_delta &gt; kTimeReorderThreshold * smoothed_rtt):
+         lost_packets.insert(unacked);
+       else if (packet_delta &gt; reordering_threshold)
+         lost_packets.insert(unacked);
      return lost_packets;
 </pre>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a></h1>
@@ -675,7 +679,7 @@ address {
       <td class="reference">
         <b id="QUIC-TLS">[QUIC-TLS]</b>
       </td>
-      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner, Ed</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
+      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
     </tr>
     <tr>
       <td class="reference">

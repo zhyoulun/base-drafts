@@ -124,15 +124,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    7.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  21
      7.1.  STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  21
      7.2.  ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  23
-       7.2.1.  Ack Block Section . . . . . . . . . . . . . . . . . .  25
-       7.2.2.  Timestamp Section . . . . . . . . . . . . . . . . . .  25
+       7.2.1.  ACK Block Section . . . . . . . . . . . . . . . . . .  25
+       7.2.2.  Timestamp Section . . . . . . . . . . . . . . . . . .  26
      7.3.  STOP_WAITING Frame  . . . . . . . . . . . . . . . . . . .  27
-     7.4.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  27
+     7.4.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  28
      7.5.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  28
-     7.6.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  28
+     7.6.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  29
      7.7.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  29
      7.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  29
-     7.9.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  29
+     7.9.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  30
      7.10. GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  30
    8.  Packetization and Reliability . . . . . . . . . . . . . . . .  31
      8.1.  Special Considerations for PMTU Discovery . . . . . . . .  33
@@ -155,7 +155,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
        10.1.4.  BLOCKED frames . . . . . . . . . . . . . . . . . . .  43
    11. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .  43
    12. Security and Privacy Considerations . . . . . . . . . . . . .  47
-     12.1.  Spoofed Ack Attack . . . . . . . . . . . . . . . . . . .  47
+     12.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  47
    13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  47
    14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  47
      14.1.  Normative References . . . . . . . . . . . . . . . . . .  47
@@ -303,15 +303,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    help both congestion control and loss recovery in fundamental ways.
    Each QUIC packet carries a new packet number, including those
    carrying retransmitted data.  This obviates the need for a separate
-   mechanism to distinguish acks for retransmissions from those for
-   original transmissions, avoiding TCP's retransmission ambiguity
-   problem.  QUIC acknowledgments also explicitly encode the delay
-   between the receipt of a packet and its acknowledgment being sent,
-   and together with the monotonically-increasing packet numbers, this
-   allows for precise network roundtrip-time (RTT) calculation.  QUIC's
-   ACK frames support up to 256 ack blocks, so QUIC is more resilient to
-   reordering than TCP with SACK support, as well as able to keep more
-   bytes on the wire when there is reordering or loss.
+   mechanism to distinguish acknowledgments for retransmissions from
+   those for original transmissions, avoiding TCP's retransmission
+   ambiguity problem.  QUIC acknowledgments also explicitly encode the
+   delay between the receipt of a packet and its acknowledgment being
+   sent, and together with the monotonically-increasing packet numbers,
+   this allows for precise network roundtrip-time (RTT) calculation.
+   QUIC's ACK frames support up to 256 ACK blocks, so QUIC is more
+   resilient to reordering than TCP with SACK support, as well as able
+   to keep more bytes on the wire when there is reordering or loss.
 
 3.4.  Stream and Connection Flow Control
 
@@ -1252,35 +1252,35 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    Receivers send ACK frames to inform senders which packets they have
    received, as well as which packets are considered missing.  The ACK
-   frame contains between 1 and 256 ack blocks.  Ack blocks are ranges
+   frame contains between 1 and 256 ACK blocks.  ACK blocks are ranges
    of acknowledged packets.
 
    To limit the ACK blocks to the ones that haven't yet been received by
    the sender, the sender periodically sends STOP_WAITING frames that
-   signal the receiver to stop acking packets below a specified sequence
-   number, raising the Least Unacked packet number at the receiver.  A
-   sender of an ACK frame thus reports only those ACK blocks between the
-   received Least Unacked and the reported Largest Acked packet numbers.
-   The endpoint SHOULD raise the Least Unacked communicated via future
-   STOP_WAITING frames to the most recently received Largest Acked.
+   signal the receiver to stop acknowledging packets below a specified
+   sequence number, raising the Least Unacked packet number at the
+   receiver.  A sender of an ACK frame thus reports only those ACK
+   blocks between the received Least Unacked and the reported Largest
+   Acknowledged packet numbers.  The endpoint SHOULD raise the Least
+   Unacked communicated via future STOP_WAITING frames to the most
+   recently received Largest Acknowledged.
 
-   Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet is
-   acked, even if it does not appear in a future ACK frame, it is
-   assumed to be acked.
+   Unlike TCP SACKs, QUIC ACK blocks are cumulative and therefore
+   irrevocable.  Once a packet has been acknowledged, even if it does
+   not appear in a future ACK frame, it is assumed to be acknowledged.
 
    A sender MAY intentionally skip packet numbers to introduce entropy
-   into the connection, to avoid opportunistic ack attacks.  The sender
-   MUST close the connection if an unsent packet number is acked.  The
-   format of the ACK frame is efficient at expressing blocks of missing
-   packets; skipping packet numbers between 1 and 255 effectively
-   provides up to 8 bits of efficient entropy on demand, which should be
-   adequate protection against most opportunistic ack attacks.
+   into the connection, to avoid opportunistic acknowledgement attacks.
+   The sender MUST close the connection if an unsent packet number is
+   acknowledged.  The format of the ACK frame is efficient at expressing
+   blocks of missing packets; skipping packet numbers between 1 and 255
+   effectively provides up to 8 bits of efficient entropy on demand,
+   which should be adequate protection against most opportunistic
+   acknowledgement attacks.
 
    The type byte for a ACK frame contains embedded flags, and is
    formatted as "01NULLMM".  These bits are parsed as follows:
 
-   o  The first two bits must be set to 01 indicating that this is an
-      ACK frame.
 
 
 
@@ -1290,15 +1290,19 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 23]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-   o  The "N" bit indicates whether the frame has more than 1 ack range
-      (i.e., whether the Ack Block Section contains a Num Blocks field).
+   o  The first two bits must be set to 01 indicating that this is an
+      ACK frame.
+
+   o  The "N" bit indicates whether the frame has more than 1 range of
+      acknowledged packets (i.e., whether the ACK Block Section contains
+      a Num Blocks field).
 
    o  The "U" bit is unused and MUST be set to zero.
 
-   o  The two "LL" bits encode the length of the Largest Acked field as
-      1, 2, 4, or 6 bytes long.
+   o  The two "LL" bits encode the length of the Largest Acknowledged
+      field as 1, 2, 4, or 6 bytes long.
 
-   o  The two "MM" bits encode the length of the Ack Block Length fields
+   o  The two "MM" bits encode the length of the ACK Block Length fields
       as 1, 2, 4, or 6 bytes long.
 
    An ACK frame is shown below.
@@ -1306,11 +1310,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Num Blocks(8)]|   NumTS (8)   |  Largest Acked (8/16/32/48) ...
+   |[Num Blocks(8)]|   NumTS (8)   |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |        Ack Delay (16)         |
+   |                Largest Acknowledged (8/16/32/48)            ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                     Ack Block Section (*)                   ...
+   |        ACK Delay (16)         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                     ACK Block Section (*)                   ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                     Timestamp Section (*)                   ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1320,23 +1326,17 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    The fields in the ACK frame are as follows:
 
    o  Num Blocks (opt): An optional 8-bit unsigned value specifying the
-      number of additional ack blocks (besides the required First Ack
+      number of additional ACK blocks (besides the required First ACK
       Block) in this ACK frame.  Only present if the 'N' flag bit is 1.
 
    o  Num Timestamps: An unsigned 8-bit number specifying the total
       number of <packet number, timestamp> pairs in the Timestamp
       Section.
 
-   o  Largest Acked: A variable-sized unsigned value representing the
-      largest packet number the peer is acking in this packet (typically
-      the largest that the peer has seen thus far.)
+   o  Largest Acknowledged: A variable-sized unsigned value representing
+      the largest packet number the peer is acknowledging in this packet
+      (typically the largest that the peer has seen thus far.)
 
-   o  Ack Delay: Time from when the largest acked packet, as indicated
-      in the Largest Acked field, was received by this peer to when this
-      ack was sent.
-
-   o  Ack Block Section: Contains one or more blocks of packet numbers
-      which have been successfully received.  See Section 7.2.1.
 
 
 
@@ -1346,54 +1346,54 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 24]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   o  ACK Delay: The time from when the largest acknowledged packet, as
+      indicated in the Largest Acknowledged field, was received by this
+      peer to when this ACK was sent.
+
+   o  ACK Block Section: Contains one or more blocks of packet numbers
+      which have been successfully received, see Section 7.2.1.
+
    o  Timestamp Section: Contains zero or more timestamps reporting
       transit delay of received packets.  See Section 7.2.2.
 
-7.2.1.  Ack Block Section
+7.2.1.  ACK Block Section
 
-   The Ack Block Section contains between one and 256 blocks of packet
+   The ACK Block Section contains between one and 256 blocks of packet
    numbers which have been successfully received.  If the Num Blocks
-   field is absent, only the First Ack Block length is present in this
+   field is absent, only the First ACK Block length is present in this
    section.  Otherwise, the Num Blocks field indicates how many
-   additional blocks follow the First Ack Block Length field.
+   additional blocks follow the First ACK Block Length field.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |              First Ack Block Length (8/16/32/48)            ...
+   |              First ACK Block Length (8/16/32/48)            ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |  [Gap 1 (8)]  |       [Ack Block 1 Length (8/16/32/48)]     ...
+   |  [Gap 1 (8)]  |       [ACK Block 1 Length (8/16/32/48)]     ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |  [Gap 2 (8)]  |       [Ack Block 2 Length (8/16/32/48)]     ...
+   |  [Gap 2 (8)]  |       [ACK Block 2 Length (8/16/32/48)]     ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
                                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |  [Gap N (8)]  |       [Ack Block N Length (8/16/32/48)]     ...
+   |  [Gap N (8)]  |       [ACK Block N Length (8/16/32/48)]     ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-                        Figure 9: Ack Block Section
+                        Figure 9: ACK Block Section
 
-   The fields in the Ack Block Section are:
+   The fields in the ACK Block Section are:
 
-   o  First Ack Block Length: An unsigned packet number delta that
-      indicates the number of contiguous additional packets being acked
-      starting at the Largest Acked.
+   o  First ACK Block Length: An unsigned packet number delta that
+      indicates the number of contiguous additional packets being
+      acknowledged starting at the Largest Acknowledged.
 
    o  Gap To Next Block (opt, repeated): An unsigned number specifying
       the number of contiguous missing packets from the end of the
-      previous ack block to the start of the next.
+      previous ACK block to the start of the next.
 
-   o  Ack Block Length (opt, repeated): An unsigned packet number delta
-      that indicates the number of contiguous packets being acked
+   o  ACK Block Length (opt, repeated): An unsigned packet number delta
+      that indicates the number of contiguous packets being acknowledged
       starting after the end of the previous gap.  Along with the
       previous field, this field is repeated "Num Blocks" times.
-
-7.2.2.  Timestamp Section
-
-   The Timestamp Section contains between zero and 255 measurements of
-   packet receive times relative to the beginning of the connection.
-
-
 
 
 
@@ -1401,6 +1401,11 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 25]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+7.2.2.  Timestamp Section
+
+   The Timestamp Section contains between zero and 255 measurements of
+   packet receive times relative to the beginning of the connection.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1422,24 +1427,36 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The fields in the Timestamp Section are:
 
-   o  Delta Largest Acked (opt): An optional 8-bit unsigned packet
-      number delta specifying the delta between the largest acked and
-      the first packet whose timestamp is being reported.  In other
-      words, this first packet number may be computed as (Largest Acked
-      - Delta Largest Acked.)
+   o  Delta Largest Acknowledged (opt): An optional 8-bit unsigned
+      packet number delta specifying the delta between the largest
+      acknowledged and the first packet whose timestamp is being
+      reported.  In other words, this first packet number may be
+      computed as (Largest Acknowledged - Delta Largest Acknowledged.)
 
    o  First Timestamp (opt): An optional 32-bit unsigned value
       specifying the time delta in microseconds, from the beginning of
       the connection to the arrival of the packet indicated by Delta
-      Largest Acked.
+      Largest Acknowledged.
 
    o  Delta Largest Acked 1..N (opt, repeated): (Same as above.)
 
    o  Time Since Previous Timestamp 1..N(opt, repeated): An optional
       16-bit unsigned value specifying time delta from the previous
-      reported timestamp.  It is encoded in the same format as the Ack
+      reported timestamp.  It is encoded in the same format as the ACK
       Delay.  Along with the previous field, this field is repeated "Num
       Timestamps" times.
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 26]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 7.2.2.1.  Time Format
 
@@ -1450,14 +1467,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    exponent, specifying time in microseconds.  The bit format is loosely
    modeled after IEEE 754.  For example, 1 microsecond is represented as
    0x1, which has an exponent of zero, presented in the 5 high order
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 26]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    bits, and mantissa of 1, presented in the 11 low order bits.  When
    the explicit exponent is greater than zero, an implicit high-order
    12th bit of 1 is assumed in the mantissa.  For example, a floating
@@ -1492,10 +1501,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       from the complete packet number of the enclosing packet to
       determine the least unacked packet number.  The resulting least
       unacked packet number is the earliest packet for which the sender
-      is still awaiting an ack.  If the receiver is missing any packets
+      is still awaiting an ACK.  If the receiver is missing any packets
       earlier than this packet, the receiver SHOULD consider those
       packets to be irrecoverably lost and MUST NOT report those packets
-      as missing in subsequent acks.
+      as missing in subsequent ACKs.
+
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 27]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 7.4.  WINDOW_UPDATE Frame
 
@@ -1505,14 +1522,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    flow control window, or non-zero, indicating that the specified
    stream should increase its flow control window.  The frame is as
    follows:
-
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 27]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1552,6 +1561,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The BLOCKED frame contains a single field:
 
+
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 28]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    o  Stream ID: A 32-bit unsigned number indicating the stream which is
       flow control blocked.  A non-zero Stream ID field specifies the
       stream that is flow control blocked.  When zero, the Stream ID
@@ -1561,14 +1579,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    An endpoint may use a RST_STREAM frame (type=0x01) to abruptly
    terminate a stream.  The frame is as follows:
-
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 28]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1608,16 +1618,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Endpoints can use PING frames (type=0x07) to verify that their peers
    are still alive or to check reachability to the peer.  The PING frame
    contains no additional fields.  The receiver of a PING frame simply
-   needs to ACK the packet containing this frame.  The PING frame SHOULD
-   be used to keep a connection alive when a stream is open.  The
-   default is to send a PING frame after 15 seconds of quiescence.  A
-   PING frame has no additional fields.
-
-7.9.  CONNECTION_CLOSE frame
-
-   An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
-   peer that the connection is being closed.  If there are open streams
-   that haven't been explicitly closed, they are implicitly closed when
 
 
 
@@ -1626,6 +1626,16 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 29]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   needs to acknowledge the packet containing this frame.  The PING
+   frame SHOULD be used to keep a connection alive when a stream is
+   open.  The default is to send a PING frame after 15 seconds of
+   quiescence.  A PING frame has no additional fields.
+
+7.9.  CONNECTION_CLOSE frame
+
+   An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
+   peer that the connection is being closed.  If there are open streams
+   that haven't been explicitly closed, they are implicitly closed when
    the connection is closed.  (Ideally, a GOAWAY frame would be sent
    with enough time that all streams are torn down.)  The frame is as
    follows:
@@ -1659,6 +1669,19 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    streams, and will not accept any new streams.  The frame is as
    follows:
 
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 30]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1673,14 +1696,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    o  Error Code: A 32-bit field error code which indicates the reason
       for closing this connection.
-
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 30]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    o  Last Good Stream ID: The last Stream ID which was accepted by the
       sender of the GOAWAY message.  If no streams were replied to, this
@@ -1714,6 +1729,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC endpoints that implement any kind of PMTU discovery SHOULD
    maintain an estimate for each combination of local and remote IP
+
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 31]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    addresses (as each pairing could have a different maximum MTU in the
    path).
 
@@ -1730,14 +1754,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    1280 octets unless the client has a reasonable assurance that the
    PMTU is larger.  Sending a packet of this size ensures that the
    network path supports an MTU of this size and helps mitigate
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 31]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    amplification attacks caused by server responses toward an unverified
    client address.
 
@@ -1770,6 +1786,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Regular QUIC packets are "containers" of frames; a packet is never
    retransmitted whole.  How an endpoint handles the loss of the frame
    depends on the type of the frame.  Some frames are simply
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 32]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    retransmitted, some have their contents moved to new frames, and
    others are never retransmitted.
 
@@ -1787,13 +1811,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       containing updated information will be sent as described in
       Section 7.2.
 
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 32]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    o  All other frames MUST be retransmitted.
 
    Upon detecting losses, a sender MUST take appropriate congestion
@@ -1802,12 +1819,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    A receiver acknowledges receipt of a received packet by sending one
    or more ACK frames containing the packet number of the received
-   packet.  To avoid perpetual acking between endpoints, a receiver MUST
-   NOT generate an ack in response to every packet containing only ACK
-   frames.  However, since it is possible that an endpoint might only
-   send packets containing ACK frames (or other non-retransmittable
-   frames), the receiving peer MAY send an ACK frame after a reasonable
-   number (currently 20) of such packets have been received.
+   packet.  To avoid perpetual acknowledgment between endpoints, a
+   receiver MUST NOT generate an ACK frame in response to every packet
+   containing only ACK frames.  However, since it is possible that an
+   endpoint might only send packets containing ACK frames (or other non-
+   retransmittable frames), the receiving peer MAY send an ACK frame
+   after a reasonable number (currently 20) of such packets have been
+   received.
 
    Strategies and implications of the frequency of generating
    acknowledgments are discussed in more detail in [QUIC-RECOVERY].
@@ -1824,6 +1842,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    could consist only of the IP and UDP headers, which usually has
    insufficient entropy to mitigate off-path attacks.
 
+
+
+
+Iyengar & Thomson        Expires August 21, 2017               [Page 33]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    As a result, endpoints that implement PMTUD in IPv4 SHOULD take steps
    to mitigate this risk.  For instance, an application could:
 
@@ -1839,16 +1865,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  Any reduction in PMTU due to a report contained in an ICMP packet
       is provisional until QUIC's loss detection algorithm determines
       that the packet is actually lost.
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 21, 2017               [Page 33]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
 9.  Streams: QUIC's Data Structuring Abstraction
 
@@ -1882,22 +1898,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    lifecycle of a QUIC stream therefore closely follows that of an
    HTTP/2 stream [RFC7540], with some differences to accommodate the
    possibility of out-of-order delivery due to the use of multiple
-   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
-   following figure and described below.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1905,6 +1905,9 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 34]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
+   following figure and described below.
 
                            app     +--------+
                     reserve_stream |        |
@@ -1951,9 +1954,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
                      Figure 12: Lifecycle of a stream
 
-   Note that this diagram shows stream state transitions and the frames
-   and flags that affect those transitions only.  For the purpose of
-   state transitions, the FIN flag is processed as a separate event to
 
 
 
@@ -1962,6 +1962,9 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 35]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   Note that this diagram shows stream state transitions and the frames
+   and flags that affect those transitions only.  For the purpose of
+   state transitions, the FIN flag is processed as a separate event to
    the frame that bears it; a STREAM frame with the FIN flag set can
    cause two state transitions.  When the FIN bit is sent on an empty
    STREAM frame, the offset in the STREAM frame MUST be one greater than
@@ -2005,9 +2008,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    o  Sending or receiving a RST_STREAM frame causes the stream to
       become "closed".
-
-
-
 
 
 
@@ -2587,7 +2587,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
 12.  Security and Privacy Considerations
 
-12.1.  Spoofed Ack Attack
+12.1.  Spoofed ACK Attack
 
    An attacker receives an STK from the server and then releases the IP
    address on which it received the STK.  The attacker may, in the
@@ -2599,19 +2599,21 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    There are two possible mitigations to this attack.  The simplest one
    is that a server can unilaterally create a gap in packet-number
-   space.  In the non-attack scenario, the client will send an ack with
-   a larger largest acked.  In the attack scenario, the attacker may ack
-   a packet in the gap.  If the server sees an ack for a packet that was
-   never sent, the connection can be aborted.
+   space.  In the non-attack scenario, the client will send an ACK frame
+   with the larger value for largest acknowledged.  In the attack
+   scenario, the attacker could acknowledge a packet in the gap.  If the
+   server sees an acknowledgment for a packet that was never sent, the
+   connection can be aborted.
 
-   The second mitigation is that the server can require that acks for
-   sent packets match the encryption level of the sent packet.  This
-   mitigation is useful if the connection has an ephemeral forward-
-   secure key that is generated and used for every new connection.  If a
-   packet sent is encrypted with a forward-secure key, then any acks
-   that are received for them must also be forward-secure encrypted.
-   Since the attacker will not have the forward secure key, the attacker
-   will not be able to generate forward-secure encrypted ack packets.
+   The second mitigation is that the server can require that
+   acknowledgments for sent packets match the encryption level of the
+   sent packet.  This mitigation is useful if the connection has an
+   ephemeral forward-secure key that is generated and used for every new
+   connection.  If a packet sent is encrypted with a forward-secure key,
+   then any acknowledgments that are received for them MUST also be
+   forward-secure encrypted.  Since the attacker will not have the
+   forward secure key, the attacker will not be able to generate
+   forward-secure encrypted packets with ACK frames.
 
 13.  IANA Considerations
 
@@ -2624,8 +2626,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    [QUIC-RECOVERY]
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control".
-
-
 
 
 

@@ -99,11 +99,11 @@ Table of Contents
        5.1.1.  Identifying Packet Types  . . . . . . . . . . . . . .  10
        5.1.2.  Handling Packets from Different Versions  . . . . . .  10
      5.2.  Regular Packets . . . . . . . . . . . . . . . . . . . . .  11
-       5.2.1.  Packet Number Compression and Reconstruction  . . . .  12
-       5.2.2.  Initial Packet Number . . . . . . . . . . . . . . . .  13
-       5.2.3.  Frames and Frame Types  . . . . . . . . . . . . . . .  13
-     5.3.  Version Negotiation Packet  . . . . . . . . . . . . . . .  14
-     5.4.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  15
+     5.3.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  12
+       5.3.1.  Initial Packet Number . . . . . . . . . . . . . . . .  13
+     5.4.  Frames and Frame Types  . . . . . . . . . . . . . . . . .  13
+     5.5.  Version Negotiation Packet  . . . . . . . . . . . . . . .  14
+     5.6.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  15
    6.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  15
      6.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  15
 
@@ -564,7 +564,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    o  the location and size of the Connection ID field, and
 
-   o  the Version (or Supported Versions, Section 5.3) field.
+   o  the Version (or Supported Versions, Section 5.5) field.
 
    All other values MUST be ignored when processing a packet that
    contains an unsupported version.
@@ -597,13 +597,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  Packet Number: The lower 8, 16, 32, or 48 bits of the packet
       number, based on the PACKET_NUMBER_SIZE flag.  Each Regular packet
       is assigned a packet number by the sender.  The first packet
-      number is randomized (see Section 5.2.2.
+      number is randomized (see Section 5.3.1.
 
    o  Encrypted Payload: The remainder of a Regular packet is both
       authenticated and encrypted once packet protection keys are
       available.  [QUIC-TLS] describes packet protection in detail.
       After decryption, the plaintext consists of a sequence of frames,
-      as shown in Figure 3.  Frames are described in Section 5.2.3.
+      as shown in Figure 3.  Frames are described in Section 5.4.
 
 
 
@@ -632,40 +632,40 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
                   Figure 3: Contents of Encrypted Payload
 
-5.2.1.  Packet Number Compression and Reconstruction
+5.3.  Packet Numbers
 
-   The complete packet number is a 64-bit unsigned number and is used as
-   part of a cryptographic nonce for packet encryption.  To reduce the
-   number of bits required to represent the packet number over the wire,
-   at most 48 bits of the packet number are transmitted over the wire.
-   A QUIC endpoint MUST NOT reuse a complete packet number within the
-   same connection (that is, under the same cryptographic keys).  If the
-   total number of packets transmitted in this connection reaches 2^64 -
-   1, the sender MUST close the connection by sending a CONNECTION_CLOSE
-   frame with the error code QUIC_SEQUENCE_NUMBER_LIMIT_REACHED
-   (connection termination is described in Section 6.4.)  For
-   unambiguous reconstruction of the complete packet number by a
-   receiver from the lower-order bits, a QUIC sender MUST NOT have more
-   than 2^(packet_number_size - 2) in flight at any point in the
-   connection.  In other words,
+   The packet number is a 64-bit unsigned number and is used as part of
+   a cryptographic nonce for packet encryption.  Each endpoint maintains
+   a separate packet number for sending and receiving.  The packet
+   number for sending MUST increase by at least one after sending any
+   packet.
 
-   o  If a sender sets PACKET_NUMBER_SIZE bits to 11, it MUST NOT have
-      more than (2^46) packets in flight.
+   A QUIC endpoint MUST NOT reuse a packet number within the same
+   connection (that is, under the same cryptographic keys).  If the
+   packet number for sending reaches 2^64 - 1, the sender MUST close the
+   connection by sending a CONNECTION_CLOSE frame with the error code
+   QUIC_SEQUENCE_NUMBER_LIMIT_REACHED (connection termination is
+   described in Section 6.4.)
 
-   o  If a sender sets PACKET_NUMBER_SIZE bits to 10, it MUST NOT have
-      more than (2^30) packets in flight.
+   To reduce the number of bits required to represent the packet number
+   over the wire, only the least significant bits of the packet number
+   are transmitted over the wire, up to 48 bits.  The actual packet
+   number for each packet is reconstructed at the receiver based on the
+   largest packet number received on a successfully authenticated
+   packet.
 
-   o  If a sender sets PACKET_NUMBER_SIZE bits to 01, it MUST NOT have
-      more than (2^14) packets in flight.
+   A packet number is decoded by finding the packet number value that is
+   closest to the next expected packet.  The next expected packet is the
+   highest received packet number plus one.  For example, if the highest
+   successfully authenticated packet had a packet number of 0xaa82f30e,
+   then a packet containing a 16-bit value of 0x1f94 will be decoded as
+   0xaa831f94.
 
-   o  If a sender sets PACKET_NUMBER_SIZE bits to 00, it MUST NOT have
-      more than (2^6) packets in flight.
-
-      DISCUSS: Should the receiver be required to enforce this rule that
-      the sender MUST NOT exceed the inflight limit?  Specifically,
-      should the receiver drop packets that are received outside this
-      window?
-
+   To enable unambiguous reconstruction of the packet number, an
+   endpoint MUST use a packet number size that is able to represent 4
+   times more packet numbers than the endpoint has currently
+   outstanding.  A packet is outstanding if it sent but has neither been
+   acknowledged nor been marked as lost (see [QUIC-RECOVERY]).  As a
 
 
 
@@ -674,13 +674,14 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 12]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-      Any truncated packet number received from a peer MUST be
-      reconstructed as the value closest to the next expected packet
-      number from that peer.
+   result, the size of the packet number encoding is at least two more
+   bits than the base 2 logarithm of the number of outstanding packets,
+   rounded up.  For example, if an endpoint has 14,389 packets
+   outstanding, the next packet uses a 16-bit or larger packet number
+   encoding; a 32-bit packet number is needed if there are 20,000
+   packets outstanding.
 
-   (TODO: Clarify how packet number size can change mid-connection.)
-
-5.2.2.  Initial Packet Number
+5.3.1.  Initial Packet Number
 
    The initial value for packet number MUST be a 31-bit random number.
    That is, the value is selected from an uniform random distribution
@@ -690,7 +691,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    32-bits of the packet number.  Once any packet has been acknowledged,
    subsequent packets can use a shorter packet number encoding.
 
-5.2.3.  Frames and Frame Types
+5.4.  Frames and Frame Types
 
    A Regular packet MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.  Frames MUST fit within a
@@ -711,7 +712,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    frame-specific flags.  For all other frames, the Frame Type byte
    simply identifies the frame.  These frames are explained in more
    detail as they are referenced later in the document.
-
 
 
 
@@ -754,7 +754,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
           | 0x80 - 0xff      | STREAM           | Section 7.1  |
           +------------------+------------------+--------------+
 
-5.3.  Version Negotiation Packet
+5.5.  Version Negotiation Packet
 
    A Version Negotiation packet is only sent by the server, MUST have
    the VERSION flag set, and MUST include the full 64-bit Connection ID.
@@ -786,7 +786,7 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 14]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-5.4.  Public Reset Packet
+5.6.  Public Reset Packet
 
    A Public Reset packet MUST have the PUBLIC_RESET flag set, and MUST
    include the full 64-bit connection ID.  The content of the Public
@@ -828,7 +828,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    If the version selected by the client is not acceptable to the
    server, the server discards the incoming packet and responds with a
-   version negotiation packet (Section 5.3).  This includes the VERSION
+   version negotiation packet (Section 5.5).  This includes the VERSION
    flag and a list of versions that the server will accept.  A server
    MUST send a version negotiation packet for every packet that it
    receives with an unacceptable version.
@@ -850,10 +850,11 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    When the client receives a Version Negotiation packet from the
    server, it should select an acceptable protocol version.  If the
    server lists an acceptable version, the client selects that version
-   and resends all packets using that version.  The resent packets MUST
-   use new packet numbers.  These packets MUST continue to have the
-   VERSION flag set and MUST include the new negotiated protocol
-   version.
+   and reattempts to created a connection using that version.  Though
+   the contents of a packet might not change in response to version
+   negotiation, a client MUST increase the packet number it uses on
+   every packet it sends.  Packets MUST continue to have the VERSION
+   flag set and MUST include the new negotiated protocol version.
 
    The client MUST set the VERSION flag and include its selected version
    on all packets until it has 1-RTT keys and it has received a packet
@@ -889,7 +890,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The transport component of the handshake is responsible for
    exchanging and negotiating the following parameters for a QUIC
-   connection.  Not all parameters are negotiated; some parameters are
 
 
 
@@ -898,6 +898,7 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 16]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   connection.  Not all parameters are negotiated; some parameters are
    sent in just one direction.  These parameters and options are encoded
    and handed off to the crypto handshake protocol to be transmitted to
    the peer.
@@ -945,7 +946,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Transport protocols commonly spend a round trip checking that a
    client owns the transport address (IP and port) that it claims.
    Verifying that a client can receive packets sent to its claimed
-
 
 
 
@@ -1753,13 +1753,8 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    packet to indicate the failure.  The application SHOULD attempt to
    use TLS over TCP instead.
 
-   A sender bundles one or more frames in a Regular QUIC packet.  A
-   sender MAY bundle any set of frames in a packet.  All QUIC packets
-   MUST contain a packet number and MAY contain one or more frames
-   (Section 5.2.3).  Packet numbers MUST be unique within a connection
-   and MUST NOT be reused within the same connection.  Packet numbers
-   MUST be assigned to packets in a strictly monotonically increasing
-   order.
+   A sender bundles one or more frames in a Regular QUIC packet (see
+   Section 5.4).
 
    A sender SHOULD minimize per-packet bandwidth and computational costs
    by bundling as many frames as possible within a QUIC packet.  A
@@ -1786,6 +1781,11 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       subsequent data on this stream is expected to not be delivered by
       the receiver.
 
+   o  ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.
+      New frames of these types may however be bundled with any outgoing
+      packet.
+
+   o  All other frames MUST be retransmitted.
 
 
 
@@ -1793,12 +1793,6 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 32]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   o  ACK, STOP_WAITING, and PADDING frames MUST NOT be retransmitted.
-      New frames of these types may however be bundled with any outgoing
-      packet.
-
-   o  All other frames MUST be retransmitted.
 
    Upon detecting losses, a sender MUST take appropriate congestion
    control action.  The details of loss detection and congestion control
@@ -1840,6 +1834,12 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       packets (for example, the IP ID or UDP checksum) to further
       authenticate incoming Datagram Too Big messages.
 
+   o  Any reduction in PMTU due to a report contained in an ICMP packet
+      is provisional until QUIC's loss detection algorithm determines
+      that the packet is actually lost.
+
+
+
 
 
 
@@ -1849,10 +1849,6 @@ Iyengar & Thomson        Expires August 21, 2017               [Page 33]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   o  Any reduction in PMTU due to a report contained in an ICMP packet
-      is provisional until QUIC's loss detection algorithm determines
-      that the packet is actually lost.
 
 9.  Streams: QUIC's Data Structuring Abstraction
 
@@ -1888,6 +1884,10 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
+
+
+
+
 
 
 

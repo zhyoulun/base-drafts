@@ -314,7 +314,7 @@ address {
 <link href="#rfc.section.7.3" rel="Chapter" title="7.3 Receiving Out-of-Order Protected Frames"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 QUIC-Specific Additions to the TLS Handshake"/>
 <link href="#rfc.section.8.1" rel="Chapter" title="8.1 Protocol and Version Negotiation"/>
-<link href="#rfc.section.8.2" rel="Chapter" title="8.2 QUIC Extension"/>
+<link href="#rfc.section.8.2" rel="Chapter" title="8.2 QUIC Transport Parameters Extension"/>
 <link href="#rfc.section.8.3" rel="Chapter" title="8.3 Priming 0-RTT"/>
 <link href="#rfc.section.9" rel="Chapter" title="9 Security Considerations"/>
 <link href="#rfc.section.9.1" rel="Chapter" title="9.1 Packet Reflection Attack Mitigation"/>
@@ -337,7 +337,7 @@ address {
 
   <meta name="dct.creator" content="Thomson, M., Ed. and S. Turner, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-tls-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-2-17" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-2-22" />
   <meta name="dct.abstract" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
   <meta name="description" content="This document describes how Transport Layer Security (TLS) can be used to secure QUIC." />
 
@@ -361,12 +361,12 @@ address {
   <td class="right">S. Turner, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 21, 2017</td>
+  <td class="left">Expires: August 26, 2017</td>
   <td class="right">sn3rd</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">February 17, 2017</td>
+  <td class="right">February 22, 2017</td>
 </tr>
 
     	
@@ -391,7 +391,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 21, 2017.</p>
+<p>This Internet-Draft will expire on August 26, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -440,7 +440,7 @@ address {
 <li>7.3.   <a href="#rfc.section.7.3">Receiving Out-of-Order Protected Frames</a></li>
 </ul><li>8.   <a href="#rfc.section.8">QUIC-Specific Additions to the TLS Handshake</a></li>
 <ul><li>8.1.   <a href="#rfc.section.8.1">Protocol and Version Negotiation</a></li>
-<li>8.2.   <a href="#rfc.section.8.2">QUIC Extension</a></li>
+<li>8.2.   <a href="#rfc.section.8.2">QUIC Transport Parameters Extension</a></li>
 <li>8.3.   <a href="#rfc.section.8.3">Priming 0-RTT</a></li>
 </ul><li>9.   <a href="#rfc.section.9">Security Considerations</a></li>
 <ul><li>9.1.   <a href="#rfc.section.9.1">Packet Reflection Attack Mitigation</a></li>
@@ -593,11 +593,13 @@ address {
 <p id="rfc.section.4.2.p.2">Additional functions might be needed to configure TLS.</p>
 <h3 id="rfc.section.4.2.1"><a href="#rfc.section.4.2.1">4.2.1.</a> <a href="#handshake-interface" id="handshake-interface">Handshake Interface</a></h3>
 <p id="rfc.section.4.2.1.p.1">In order to drive the handshake, TLS depends on being able to send and receive handshake messages on stream 1.  There are two basic functions on this interface: one where QUIC requests handshake messages and one where QUIC provides handshake packets.</p>
-<p id="rfc.section.4.2.1.p.2">A QUIC client starts TLS by requesting TLS handshake octets from TLS.  The client acquires handshake octets before sending its first packet.</p>
-<p id="rfc.section.4.2.1.p.3">A QUIC server starts the process by providing TLS with stream 1 octets.</p>
-<p id="rfc.section.4.2.1.p.4">Each time that an endpoint receives data on stream 1, it delivers the octets to TLS if it is able.  Each time that TLS is provided with new data, new handshake octets are requested from TLS.  TLS might not provide any octets if the handshake messages it has received are incomplete or it has no data to send.</p>
-<p id="rfc.section.4.2.1.p.5">Once the TLS handshake is complete, this is indicated to QUIC along with any final handshake octets that TLS needs to send.  Once the handshake is complete, TLS becomes passive.  TLS can still receive data from its peer and respond in kind that data, but it will not need to send more data unless specifically requested - either by an application or QUIC.  One reason to send data is that the server might wish to provide additional or updated session tickets to a client.</p>
-<p id="rfc.section.4.2.1.p.6">When the handshake is complete, QUIC only needs to provide TLS with any data that arrives on stream 1.  In the same way that is done during the handshake, new data is requested from TLS after providing received data.</p>
+<p id="rfc.section.4.2.1.p.2">Before starting the handshake QUIC provides TLS with the transport parameters (see <a href="#quic_parameters">Section 8.2</a>) that it wishes to carry.</p>
+<p id="rfc.section.4.2.1.p.3">A QUIC client starts TLS by requesting TLS handshake octets from TLS.  The client acquires handshake octets before sending its first packet.</p>
+<p id="rfc.section.4.2.1.p.4">A QUIC server starts the process by providing TLS with stream 1 octets.</p>
+<p id="rfc.section.4.2.1.p.5">Each time that an endpoint receives data on stream 1, it delivers the octets to TLS if it is able.  Each time that TLS is provided with new data, new handshake octets are requested from TLS.  TLS might not provide any octets if the handshake messages it has received are incomplete or it has no data to send.</p>
+<p id="rfc.section.4.2.1.p.6">Once the TLS handshake is complete, this is indicated to QUIC along with any final handshake octets that TLS needs to send.  TLS also provides QUIC with the transport parameters that the peer advertised during the handshake.</p>
+<p id="rfc.section.4.2.1.p.7">Once the handshake is complete, TLS becomes passive.  TLS can still receive data from its peer and respond in kind, but it will not need to send more data unless specifically requested - either by an application or QUIC.  One reason to send data is that the server might wish to provide additional or updated session tickets to a client.</p>
+<p id="rfc.section.4.2.1.p.8">When the handshake is complete, QUIC only needs to provide TLS with any data that arrives on stream 1.  In the same way that is done during the handshake, new data is requested from TLS after providing received data.</p>
 <p/>
 
 <dl>
@@ -727,7 +729,7 @@ Get Handshake
 <p id="rfc.section.5.3.p.3">Once TLS has provided a key, the contents of regular QUIC packets immediately after any TLS messages have been sent are protected by the AEAD selected by TLS.</p>
 <p id="rfc.section.5.3.p.4">The key, K, for the AEAD is either the client packet protection key (client_pp_key_n) or the server packet protection key (server_pp_key_n), derived as defined in <a href="#key-expansion">Section 5.2</a>.</p>
 <p id="rfc.section.5.3.p.5">The nonce, N, for the AEAD is formed by combining either the packet protection IV (either client_pp_iv_n or server_pp_iv_n) with packet numbers.  The 64 bits of the reconstructed QUIC packet number in network byte order is left-padded with zeros to the size of the IV.  The exclusive OR of the padded packet number and the IV forms the AEAD nonce.</p>
-<p id="rfc.section.5.3.p.6">The associated data, A, for the AEAD is an empty sequence.</p>
+<p id="rfc.section.5.3.p.6">The associated data, A, for the AEAD is the contents of the QUIC header, starting from the flags octet in the common header.</p>
 <p id="rfc.section.5.3.p.7">The input plaintext, P, for the AEAD is the contents of the QUIC frame following the packet number, as described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
 <p id="rfc.section.5.3.p.8">The output ciphertext, C, of the AEAD is transmitted in place of P.</p>
 <p id="rfc.section.5.3.p.9">Prior to TLS providing keys, no record protection is performed and the plaintext, P, is transmitted unmodified.</p>
@@ -820,7 +822,7 @@ Get Handshake
 <p/>
 
 <ul>
-  <li>Transport parameters and options are made usable and authenticated as part of the TLS handshake (see <a href="#quic_parameters">Section 8.2</a>).</li>
+  <li>Transport parameters are made usable and authenticated as part of the TLS handshake (see <a href="#quic_parameters">Section 8.2</a>).</li>
   <li>Most unprotected messages are treated as fatal errors when received except for the small number necessary to permit the handshake to complete (see <a href="#pre-hs-unprotected">Section 7.1</a>).</li>
   <li>Protected packets can either be discarded or saved and later used (see <a href="#pre-hs-protected">Section 7.3</a>).</li>
 </ul>
@@ -871,11 +873,17 @@ Get Handshake
 <h2 id="rfc.section.8.1"><a href="#rfc.section.8.1">8.1.</a> <a href="#version-negotiation" id="version-negotiation">Protocol and Version Negotiation</a></h2>
 <p id="rfc.section.8.1.p.1">The QUIC version negotiation mechanism is used to negotiate the version of QUIC that is used prior to the completion of the handshake.  However, this packet is not authenticated, enabling an active attacker to force a version downgrade.</p>
 <p id="rfc.section.8.1.p.2">To ensure that a QUIC version downgrade is not forced by an attacker, version information is copied into the TLS handshake, which provides integrity protection for the QUIC negotiation.  This does not prevent version downgrade during the handshake, though it means that such a downgrade causes a handshake failure.</p>
-<p id="rfc.section.8.1.p.3">Protocols that use the QUIC transport MUST use Application Layer Protocol Negotiation (ALPN) <a href="#RFC7301">[RFC7301]</a>.  The ALPN identifier for the protocol MUST be specific to the QUIC version that it operates over.  When constructing a ClientHello, clients MUST include a list of all the ALPN identifiers that they support, regardless of whether the QUIC version that they have currently selected supports that protocol.</p>
-<p id="rfc.section.8.1.p.4">Servers SHOULD select an application protocol based solely on the information in the ClientHello, not using the QUIC version that the client has selected.  If the protocol that is selected is not supported with the QUIC version that is in use, the server MAY send a QUIC version negotiation packet to select a compatible version.</p>
-<p id="rfc.section.8.1.p.5">If the server cannot select a combination of ALPN identifier and QUIC version it MUST abort the connection.  A client MUST abort a connection if the server picks an incompatible version of QUIC version and ALPN.</p>
-<h2 id="rfc.section.8.2"><a href="#rfc.section.8.2">8.2.</a> <a href="#quic_parameters" id="quic_parameters">QUIC Extension</a></h2>
-<p id="rfc.section.8.2.p.1">QUIC defines an extension for use with TLS.  That extension defines transport-related parameters.  This provides integrity protection for these values.  Including these in the TLS handshake also make the values that a client sets available to a server one-round trip earlier than parameters that are carried in QUIC packets.  This document does not define that extension.</p>
+<p id="rfc.section.8.1.p.3">TLS uses Application Layer Protocol Negotiation (ALPN) <a href="#RFC7301">[RFC7301]</a> to select an application protocol.  The application-layer protocol MAY restrict the QUIC versions that it can operate over.  Servers MUST select an application protocol compatible with the QUIC version that the client has selected.</p>
+<p id="rfc.section.8.1.p.4">If the server cannot select a compatible combination of application protocol and QUIC version, it MUST abort the connection. A client MUST abort a connection if the server picks an incompatible combination of QUIC version and ALPN identifier.</p>
+<h2 id="rfc.section.8.2"><a href="#rfc.section.8.2">8.2.</a> <a href="#quic_parameters" id="quic_parameters">QUIC Transport Parameters Extension</a></h2>
+<p id="rfc.section.8.2.p.1">QUIC transport parameters are carried in a TLS extension. Different versions of QUIC might define a different format for this struct.</p>
+<p id="rfc.section.8.2.p.2">Including transport parameters in the TLS handshake provides integrity protection for these values.</p>
+<pre>
+   enum {
+      quic_transport_parameters(26), (65535)
+   } ExtensionType;
+</pre>
+<p id="rfc.section.8.2.p.3">The <samp>extension_data</samp> field of the quic_transport_parameters extension contains a value that is defined by the version of QUIC that is in use.  The quic_transport_parameters extension carries a TransportParameters when the version of QUIC defined in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a> is used.</p>
 <h2 id="rfc.section.8.3"><a href="#rfc.section.8.3">8.3.</a> <a href="#priming-0-rtt" id="priming-0-rtt">Priming 0-RTT</a></h2>
 <p id="rfc.section.8.3.p.1">QUIC uses TLS without modification.  Therefore, it is possible to use a pre-shared key that was obtained in a TLS connection over TCP to enable 0-RTT in QUIC.  Similarly, QUIC can provide a pre-shared key that can be used to enable 0-RTT in TCP.</p>
 <p id="rfc.section.8.3.p.2">All the restrictions on the use of 0-RTT apply, with the exception of the ALPN label, which MUST only change to a label that is explicitly designated as being compatible.  The client indicates which ALPN label it has chosen by placing that ALPN label first in the ALPN extension.</p>

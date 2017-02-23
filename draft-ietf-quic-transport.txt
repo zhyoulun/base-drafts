@@ -134,17 +134,16 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    9.  Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  37
      9.1.  Life of a Stream  . . . . . . . . . . . . . . . . . . . .  37
        9.1.1.  idle  . . . . . . . . . . . . . . . . . . . . . . . .  39
-       9.1.2.  reserved  . . . . . . . . . . . . . . . . . . . . . .  39
-       9.1.3.  open  . . . . . . . . . . . . . . . . . . . . . . . .  40
-       9.1.4.  half-closed (local) . . . . . . . . . . . . . . . . .  40
-       9.1.5.  half-closed (remote)  . . . . . . . . . . . . . . . .  40
-       9.1.6.  closed  . . . . . . . . . . . . . . . . . . . . . . .  41
+       9.1.2.  open  . . . . . . . . . . . . . . . . . . . . . . . .  39
+       9.1.3.  half-closed (local) . . . . . . . . . . . . . . . . .  40
+       9.1.4.  half-closed (remote)  . . . . . . . . . . . . . . . .  40
+       9.1.5.  closed  . . . . . . . . . . . . . . . . . . . . . . .  40
      9.2.  Stream Identifiers  . . . . . . . . . . . . . . . . . . .  42
      9.3.  Stream Concurrency  . . . . . . . . . . . . . . . . . . .  42
      9.4.  Sending and Receiving Data  . . . . . . . . . . . . . . .  43
      9.5.  Stream Prioritization . . . . . . . . . . . . . . . . . .  43
    10. Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .  44
-     10.1.  Edge Cases and Other Considerations  . . . . . . . . . .  46
+     10.1.  Edge Cases and Other Considerations  . . . . . . . . . .  45
        10.1.1.  Mid-stream RST_STREAM  . . . . . . . . . . . . . . .  46
        10.1.2.  Response to a RST_STREAM . . . . . . . . . . . . . .  46
        10.1.3.  Offset Increment . . . . . . . . . . . . . . . . . .  46
@@ -160,8 +159,9 @@ Internet-Draft           QUIC Transport Protocol           February 2017
      14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  54
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  54
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  54
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  55
-     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  55
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  54
+     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  54
+     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  55
 
 
 
@@ -170,7 +170,6 @@ Iyengar & Thomson        Expires August 27, 2017                [Page 3]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  55
      C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  55
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  55
 
@@ -217,6 +216,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
       single encryption context that multiplexes streams within it.
 
    o  Connection ID: The identifier for a QUIC connection.
+
 
 
 
@@ -2077,50 +2077,50 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
 
-                           app     +--------+
-                    reserve_stream |        |
-                    ,--------------|  idle  |
-                   /               |        |
-                  /                +--------+
-                 V                      |
-           +----------+ send data/      |
-           |          | recv data       | send data/
-       ,---| reserved |------------.    | recv data
-       |   |          |             \   |
-       |   +----------+              v  v
-       |               recv FIN/   +--------+ send FIN/
-       |            app read_close |        | app write_close
-       |                 ,---------|  open  |-----------.
-       |                /          |        |            \
-       |               v           +--------+             v
-       |        +----------+            |             +----------+
-       |        |   half   |            |             |   half   |
-       |        |  closed  |            | send RST/   |  closed  |
-       |        | (remote) |            | recv RST    | (local)  |
-       |        +----------+            |             +----------+
-       |            |                   |                    |
-       |            | send FIN/         |          recv FIN/ |
-       |            | app write_close/  |    app read_close/ |
-       |            | send RST/         v          send RST/ |
-       |            | recv RST     +--------+      recv RST  |
-       | send RST/  `------------->|        |<---------------'
-       | recv RST                  | closed |
-       `-------------------------->|        |
-                                   +--------+
+                               +--------+
+                               |        |
+                               |  idle  |
+                               |        |
+                               +--------+
+                                    |
+                                    | send data/
+                                    | recv data/
+                                    | recv higher stream
+                                    |
+                                    v
+                               +--------+
+                   recv FIN    |        |    send FIN
+                     ,---------|  open  |-----------.
+                    /          |        |            \
+                   v           +--------+             v
+            +----------+            |             +----------+
+            |   half   |            |             |   half   |
+            |  closed  |            | send RST/   |  closed  |
+            | (remote) |            | recv RST    |  (local) |
+            +----------+            |             +----------+
+                |                   |                    |
+                | send FIN/         |          recv FIN/ |
+                | send RST/         v          send RST/ |
+                | recv RST     +--------+      recv RST  |
+                `------------->|        |<---------------'
+                               | closed |
+                               |        |
+                               +--------+
 
-          send:   endpoint sends this frame
-          recv:   endpoint receives this frame
+      send:   endpoint sends this frame
+      recv:   endpoint receives this frame
 
-          data: application data in a STREAM frame
-          FIN: FIN flag in a STREAM frame
-          RST: RST_STREAM frame
-
-          app: application API signals to QUIC
-          reserve_stream: causes a StreamID to be reserved for later use
-          read_close: causes stream to be half-closed without a FIN
-          write_close: causes stream to be half-closed without a FIN
+      data: application data in a STREAM frame
+      FIN: FIN flag in a STREAM frame
+      RST: RST_STREAM frame
 
                      Figure 13: Lifecycle of a stream
+
+   Note that this diagram shows stream state transitions and the frames
+   and flags that affect those transitions only.  For the purpose of
+   state transitions, the FIN flag is processed as a separate event to
+   the frame that bears it; a STREAM frame with the FIN flag set can
+   cause two state transitions.  When the FIN flag is sent on an empty
 
 
 
@@ -2130,11 +2130,6 @@ Iyengar & Thomson        Expires August 27, 2017               [Page 38]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-   Note that this diagram shows stream state transitions and the frames
-   and flags that affect those transitions only.  For the purpose of
-   state transitions, the FIN flag is processed as a separate event to
-   the frame that bears it; a STREAM frame with the FIN flag set can
-   cause two state transitions.  When the FIN bit is sent on an empty
    STREAM frame, the offset in the STREAM frame MUST be one greater than
    the last data byte sent on this stream.
 
@@ -2158,35 +2153,19 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Section 9.2.  The same STREAM frame can also cause a stream to
    immediately become "half-closed".
 
-   An application can reserve an idle stream for later use.  The stream
-   state for the reserved stream transitions to "reserved".
+   Receiving a STREAM frame on a peer-initiated stream (that is, a
+   packet sent by a server on an even-numbered stream or a client packet
+   on an odd-numbered stream) also causes all lower-numbered "idle"
+   streams in the same direction to become "open".  This could occur if
+   a peer begins sending on streams in a different order to their
+   creation, or it could happen if packets are lost or reordered in
+   transit.
 
    Receiving any frame other than STREAM or RST_STREAM on a stream in
    this state MUST be treated as a connection error (Section 11) of type
    YYYY.
 
-9.1.2.  reserved
-
-   A stream in this state has been reserved for later use by the
-   application.  In this state only the following transitions are
-   possible:
-
-   o  Sending or receiving a STREAM frame causes the stream to become
-      "open".
-
-   o  Sending or receiving a RST_STREAM frame causes the stream to
-      become "closed".
-
-
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 39]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
-9.1.3.  open
+9.1.2.  open
 
    A stream in the "open" state may be used by both peers to send frames
    of any type.  In this state, a sending peer must observe the flow-
@@ -2200,10 +2179,17 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    receiving endpoint MUST NOT process the FIN flag until all preceding
    data on the stream has been received.
 
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 39]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    Either endpoint can send a RST_STREAM frame from this state, causing
    it to transition immediately to "closed".
 
-9.1.4.  half-closed (local)
+9.1.3.  half-closed (local)
 
    A stream that is in the "half-closed (local)" state MUST NOT be used
    for sending STREAM frames; WINDOW_UPDATE and RST_STREAM MAY be sent
@@ -2214,7 +2200,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    RST_STREAM frame.
 
    An endpoint that closes a stream MUST NOT send data beyond the final
-   offset that it has chosen, see Section 9.1.6 for details.
+   offset that it has chosen, see Section 9.1.5 for details.
 
    An endpoint can receive any type of frame in this state.  Providing
    flow-control credit using WINDOW_UPDATE frames is necessary to
@@ -2222,17 +2208,31 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    MAY ignore WINDOW_UPDATE frames for this stream, which might arrive
    for a short period after a frame bearing the FIN flag is sent.
 
-9.1.5.  half-closed (remote)
+9.1.4.  half-closed (remote)
 
    A stream that is "half-closed (remote)" is no longer being used by
    the peer to send any data.  In this state, a sender is no longer
    obligated to maintain a receiver stream-level flow-control window.
 
    A stream that is in the "half-closed (remote)" state will have a
-   final offset for received data, see Section 9.1.6 for details.
+   final offset for received data, see Section 9.1.5 for details.
 
    A stream in this state can be used by the endpoint to send frames of
    any type.  In this state, the endpoint continues to observe
+   advertised stream-level and connection-level flow-control limits
+   (Section 10).
+
+   A stream can transition from this state to "closed" by sending a
+   frame that contains a FIN flag or when either peer sends a RST_STREAM
+   frame.
+
+9.1.5.  closed
+
+   The "closed" state is the terminal state.
+
+   An endpoint will learn the final offset of the data it receives on a
+   stream when it enters the "half-closed (remote)" or "closed" state.
+   The final offset is carried explicitly in the RST_STREAM frame;
 
 
 
@@ -2242,20 +2242,6 @@ Iyengar & Thomson        Expires August 27, 2017               [Page 40]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-   advertised stream-level and connection-level flow-control limits
-   (Section 10).
-
-   A stream can transition from this state to "closed" by sending a
-   frame that contains a FIN flag or when either peer sends a RST_STREAM
-   frame.
-
-9.1.6.  closed
-
-   The "closed" state is the terminal state.
-
-   An endpoint will learn the final offset of the data it receives on a
-   stream when it enters the "half-closed (remote)" or "closed" state.
-   The final offset is carried explicitly in the RST_STREAM frame;
    otherwise, the final offset is the offset of the end of the data
    carried in STREAM frame marked with a FIN flag.
 
@@ -2290,14 +2276,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    STREAM frames received after sending RST_STREAM are counted toward
    the connection and stream flow-control windows.  Even though these
    frames might be ignored, because they are sent before their sender
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 41]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    receives the RST_STREAM, the sender will consider the frames to count
    against its flow-control windows.
 
@@ -2307,6 +2285,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    error (Section 11).  Frames of unknown types are ignored.
 
    (TODO: QUIC_STREAM_NO_ERROR is a special case.  Write it up.)
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 41]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 9.2.  Stream Identifiers
 
@@ -2323,9 +2313,10 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    StreamID 1 MUST NOT be used for application data, and MUST be the
    first client-initiated stream.
 
-   Streams MUST be created or reserved in sequential order, but MAY be
-   used in arbitrary order.  A QUIC endpoint MUST NOT reuse a StreamID
-   on a given connection.
+   A QUIC endpoint cannot reuse a StreamID on a given connection.
+   Streams MUST be created in sequential order.  Open streams can be
+   used in any order.  Streams that are used out of order result in
+   lower-numbered streams in the same direction being counted as open.
 
    All streams, including stream 1, count toward this limit.  Thus, a
    concurrent stream limit of 0 will cause a connection to be unusable.
@@ -2346,14 +2337,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    concurrent streams the server can initiate, and servers specify the
    maximum number of concurrent streams the client can initiate.
 
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 42]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    Streams that are in the "open" state or in either of the "half-
    closed" states count toward the maximum number of streams that an
    endpoint is permitted to open.  Streams in any of these three states
@@ -2363,6 +2346,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    that receives a STREAM frame that causes its advertised concurrent
    stream limit to be exceeded MUST treat this as a stream error of type
    QUIC_TOO_MANY_OPEN_STREAMS (Section 11).
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 42]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 9.4.  Sending and Receiving Data
 
@@ -2402,14 +2392,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC does not provide frames for exchanging priotization information.
    Instead it relies on receiving priority information from the
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 43]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    application that uses QUIC.  Protocols that use QUIC are able to
    define any prioritization scheme that suits their application
    semantics.  A protocol might define explicit messages for signaling
@@ -2420,6 +2402,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    A QUIC implementation SHOULD provide ways in which an application can
    indicate the relative priority of streams.  When deciding which
    streams to dedicate resources to, QUIC SHOULD use the information
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 43]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    provided by the application.  Failure to account for priority of
    streams can result in suboptimal performance.
 
@@ -2458,14 +2448,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    connection.  This leads to two levels of flow control in QUIC: (i)
    Connection flow control, which prevents senders from exceeding a
    receiver's buffer capacity for the connection, and (ii) Stream flow
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 44]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    control, which prevents a single stream from consuming the entire
    receive buffer for a connection.
 
@@ -2475,6 +2457,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The initial flow control credit is 65536 bytes for both the stream
    and connection flow controllers.
+
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 44]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    A receiver MAY advertise a larger offset at any point in the
    connection by sending a WINDOW_UPDATE frame.  A receiver MUST NOT
@@ -2512,16 +2502,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    bytes consumed on all contributing streams to determine the
    connection-level flow control offset to be advertised.
 
-
-
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 45]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
 10.1.  Edge Cases and Other Considerations
 
    There are some edge cases which must be considered when dealing with
@@ -2532,6 +2512,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    if a sender believes it is blocked, while endpoint B expects more
    data can be received, then the connection can be in a deadlock, with
    the sender waiting for a WINDOW_UPDATE which will never come.
+
+
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 45]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 10.1.1.  Mid-stream RST_STREAM
 
@@ -2569,6 +2558,17 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    WINDOW_UPDATE with small offset increments is undesirable.  At the
    same time, sending WINDOW_UPDATES with large offset increments
    requires the sender to commit to that amount of buffer.
+   Implementations must find the correct tradeoff between these sides to
+   determine how large an offset increment to send in a WINDOW_UPDATE.
+
+   A receiver MAY use an autotuning mechanism to tune the size of the
+   offset increment to advertise based on a roundtrip time estimate and
+   the rate at which the receiving application consumes data, similar to
+   common TCP implementations.
+
+
+
+
 
 
 
@@ -2577,14 +2577,6 @@ Iyengar & Thomson        Expires August 27, 2017               [Page 46]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   Implementations must find the correct tradeoff between these sides to
-   determine how large an offset increment to send in a WINDOW_UPDATE.
-
-   A receiver MAY use an autotuning mechanism to tune the size of the
-   offset increment to advertise based on a roundtrip time estimate and
-   the rate at which the receiving application consumes data, similar to
-   common TCP implementations.
 
 10.1.4.  BLOCKED frames
 
@@ -2627,19 +2619,20 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_INTERNAL_ERROR (0x80000001):  Connection has reached an invalid
       state.
 
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 47]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    QUIC_STREAM_DATA_AFTER_TERMINATION (0x80000002):  There were data
       frames after the a fin or reset.
 
    QUIC_INVALID_PACKET_HEADER (0x80000003):  Control frame is malformed.
 
    QUIC_INVALID_FRAME_DATA (0x80000004):  Frame data is malformed.
+
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 47]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    QUIC_MULTIPLE_TERMINATION_OFFSETS (0x80000005):  Multiple final
       offset values were received on the same stream
@@ -2683,18 +2676,19 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_INVALID_ACK_DATA (0x80000009):  ACK frame data is malformed.
 
+   QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):  Version
+      negotiation packet is malformed.
+
+   QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):  Public RST packet is
+      malformed.
+
+
 
 
 Iyengar & Thomson        Expires August 27, 2017               [Page 48]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):  Version
-      negotiation packet is malformed.
-
-   QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):  Public RST packet is
-      malformed.
 
    QUIC_DECRYPTION_FAILURE (0x8000000c):  There was an error decrypting.
 
@@ -2739,18 +2733,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_ERROR_MIGRATING_ADDRESS (0x8000001a):  There was an error
       encountered migrating addresses.
 
+   QUIC_ERROR_MIGRATING_PORT (0x80000056):  There was an error
+      encountered migrating port only.
+
+   QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):  We received a
+      STREAM_FRAME with no data and no fin flag set.
+
 
 
 Iyengar & Thomson        Expires August 27, 2017               [Page 49]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   QUIC_ERROR_MIGRATING_PORT (0x80000056):  There was an error
-      encountered migrating port only.
-
-   QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):  We received a
-      STREAM_FRAME with no data and no fin flag set.
 
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA (0x8000003b):  The peer
       received too much data, violating flow control.
@@ -2795,16 +2789,18 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_IP_ADDRESS_CHANGED (0x80000050):  IP address changed causing
       connection close.
 
+   QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):  Stream frames arrived too
+      discontiguously so that stream sequencer buffer maintains too many
+      gaps.
+
+
+
 
 
 Iyengar & Thomson        Expires August 27, 2017               [Page 50]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):  Stream frames arrived too
-      discontiguously so that stream sequencer buffer maintains too many
-      gaps.
 
    QUIC_TOO_MANY_SESSIONS_ON_SERVER (0x80000060):  Connection closed
       because server hit max number of sessions allowed.
@@ -2850,6 +2846,10 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    This space is split into two spaces that are governed by different
    policies.  Values with the first byte in the range 0x00 to 0xfe (in
    hexadecimal) are assigned via the Specification Required policy
+   [RFC5226].  Values with the first byte 0xff are reserved for Private
+   Use [RFC5226].
+
+   Registrations MUST include the following fields:
 
 
 
@@ -2857,11 +2857,6 @@ Iyengar & Thomson        Expires August 27, 2017               [Page 51]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-   [RFC5226].  Values with the first byte 0xff are reserved for Private
-   Use [RFC5226].
-
-   Registrations MUST include the following fields:
 
    Value:  The numeric value of the assignment (registrations will be
       between 0x0000 and 0xfeff).
@@ -2904,16 +2899,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               Version 1.3", draft-ietf-tls-tls13-18 (work in progress),
               October 2016.
 
-
-
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 52]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    [QUIC-RECOVERY]
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control".
@@ -2921,6 +2906,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    [QUIC-TLS]
               Thomson, M., Ed. and S. Turner, Ed., "Using Transport
               Layer Security (TLS) to Secure QUIC".
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 52]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    [RFC1191]  Mogul, J. and S. Deering, "Path MTU discovery", RFC 1191,
               DOI 10.17487/RFC1191, November 1990,
@@ -2959,17 +2951,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               DOI 10.17487/RFC4086, June 2005,
               <http://www.rfc-editor.org/info/rfc4086>.
 
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 27, 2017               [Page 53]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    [RFC6824]  Ford, A., Raiciu, C., Handley, M., and O. Bonaventure,
               "TCP Extensions for Multipath Operation with Multiple
               Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
@@ -2979,6 +2960,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               "Transport Layer Security (TLS) Application-Layer Protocol
               Negotiation Extension", RFC 7301, DOI 10.17487/RFC7301,
               July 2014, <http://www.rfc-editor.org/info/rfc7301>.
+
+
+
+
+
+Iyengar & Thomson        Expires August 27, 2017               [Page 53]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -3016,6 +3006,16 @@ Appendix B.  Acknowledgments
    discussions and public ones on the quic@ietf.org and proto-
    quic@chromium.org mailing lists.  Our thanks to all.
 
+Appendix C.  Change Log
+
+      *RFC Editor's Note:* Please remove this section prior to
+      publication of a final version of this document.
+
+C.1.  Since draft-ietf-quic-transport-01:
+
+   o  Defined transport parameters
+
+
 
 
 
@@ -3025,15 +3025,6 @@ Iyengar & Thomson        Expires August 27, 2017               [Page 54]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
-
-Appendix C.  Change Log
-
-      *RFC Editor's Note:* Please remove this section prior to
-      publication of a final version of this document.
-
-C.1.  Since draft-ietf-quic-transport-01:
-
-   o  Defined transport parameters
 
 C.2.  Since draft-ietf-quic-transport-00:
 
@@ -3069,6 +3060,15 @@ Authors' Addresses
    Mozilla
 
    Email: martin.thomson@gmail.com
+
+
+
+
+
+
+
+
+
 
 
 

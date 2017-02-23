@@ -588,10 +588,12 @@ address {
 <p id="rfc.section.4.p.1">QUIC versions are identified using a 32-bit value.</p>
 <p id="rfc.section.4.p.2">The version 0x00000000 is reserved to represent an invalid version.  This version of the specification is identified by the number 0x00000001.</p>
 <p id="rfc.section.4.p.3">Versions with the most significant 16 bits of the version number cleared are reserved for use in future IETF consensus documents.</p>
-<p id="rfc.section.4.p.4">[[RFC editor: please remove the remainder of this section before publication.]]</p>
-<p id="rfc.section.4.p.5">The version number for the final version of this specification (0x00000001), is reserved for the version of the protocol that is published as an RFC.</p>
-<p id="rfc.section.4.p.6">Version numbers used to identify IETF drafts are created by adding the draft number to 0xff000000.  For example, draft-ietf-quic-transport-13 would be identified as 0xff00000D.</p>
-<p id="rfc.section.4.p.7">Implementors are encouraged to register version numbers of QUIC that they are using for private experimentation on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
+<p id="rfc.section.4.p.4">Versions that follow the pattern 0x?a?a?a?a are reserved for use in forcing version negotiation to be exercised.  That is, any version number where the low four bits of all octets is 1010 (in binary).  A client or server MAY advertise support for any of these reserved versions.</p>
+<p id="rfc.section.4.p.5">Reserved version numbers will probably never represent a real protocol; a client MAY use one of these version numbers with the expectation that the server will initiate version negotiation; a server MAY advertise support for one of these versions and can expect that clients ignore the value.</p>
+<p id="rfc.section.4.p.6">[[RFC editor: please remove the remainder of this section before publication.]]</p>
+<p id="rfc.section.4.p.7">The version number for the final version of this specification (0x00000001), is reserved for the version of the protocol that is published as an RFC.</p>
+<p id="rfc.section.4.p.8">Version numbers used to identify IETF drafts are created by adding the draft number to 0xff000000.  For example, draft-ietf-quic-transport-13 would be identified as 0xff00000D.</p>
+<p id="rfc.section.4.p.9">Implementors are encouraged to register version numbers of QUIC that they are using for private experimentation on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#packet-types-and-formats" id="packet-types-and-formats">Packet Types and Formats</a></h1>
 <p id="rfc.section.5.p.1">We first describe QUIC&#8217;s packet types and their formats, since some are referenced in subsequent mechanisms.</p>
 <p id="rfc.section.5.p.2">All numeric values are encoded in network byte order (that is, big-endian) and all field sizes are in bits.  When discussing individual bits of fields, the least significant bit is referred to as bit 0.  Hexadecimal notation is used for describing the value of fields.</p>
@@ -819,6 +821,10 @@ Check the flags in the common header
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 5: Version Negotiation Packet</p>
+<p id="rfc.section.5.5.p.2">A server that generates a version negotiation packet SHOULD include one of the reserved version numbers (those following the pattern 0x?a?a?a?a).  This ensures that clients are able to correctly handle an unsupported version.</p>
+<p id="rfc.section.5.5.p.3">The design of version negotiation permits a server to avoid maintaining state for packets that it rejects in this fashion.  However, when the server generates a version negotiation packet, it cannot randomly generate a reserved version number.  This is because the server is required to include the same value in its transport parameters (see <a href="#version-validation">Section 6.3.4</a>).  To avoid the selected version number changing during connection establishment, the reserved version can be generated as a function of values that will be available to the server when later generating its handshake packets.</p>
+<p id="rfc.section.5.5.p.4">A pseudorandom function that takes client address information (IP and port) and the client selected version as input would ensure that there is sufficient variability in the values that a server uses.</p>
+<p id="rfc.section.5.5.p.5">A client MAY send a packet using a reserved version number.  This can be used to solicit a list of supported versions from a server.</p>
 <h2 id="rfc.section.5.6"><a href="#rfc.section.5.6">5.6.</a> <a href="#public-reset-packet" id="public-reset-packet">Public Reset Packet</a></h2>
 <p id="rfc.section.5.6.p.1">A Public Reset packet MUST have the PUBLIC_RESET flag set, and MUST include the full 64-bit connection ID.  The content of the Public Reset packet is TBD.</p>
 <div id="rfc.figure.6"/>

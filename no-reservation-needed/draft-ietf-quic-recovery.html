@@ -293,8 +293,13 @@ address {
 <link href="#rfc.section.3.5" rel="Chapter" title="3.5 On Sending a Packet"/>
 <link href="#rfc.section.3.6" rel="Chapter" title="3.6 On Ack Receipt"/>
 <link href="#rfc.section.3.7" rel="Chapter" title="3.7 On Packet Acknowledgment"/>
-<link href="#rfc.section.3.8" rel="Chapter" title="3.8 On Alarm Firing"/>
-<link href="#rfc.section.3.9" rel="Chapter" title="3.9 Detecting Lost Packets"/>
+<link href="#rfc.section.3.8" rel="Chapter" title="3.8 Setting the Loss Detection Alarm"/>
+<link href="#rfc.section.3.8.1" rel="Chapter" title="3.8.1 Handshake Packets"/>
+<link href="#rfc.section.3.8.2" rel="Chapter" title="3.8.2 Psuedocode"/>
+<link href="#rfc.section.3.9" rel="Chapter" title="3.9 On Alarm Firing"/>
+<link href="#rfc.section.3.10" rel="Chapter" title="3.10 Detecting Lost Packets"/>
+<link href="#rfc.section.3.10.1" rel="Chapter" title="3.10.1 Handshake Packets"/>
+<link href="#rfc.section.3.10.2" rel="Chapter" title="3.10.2 Psuedocode"/>
 <link href="#rfc.section.4" rel="Chapter" title="4 Congestion Control"/>
 <link href="#rfc.section.5" rel="Chapter" title="5 IANA Considerations"/>
 <link href="#rfc.references" rel="Chapter" title="6 References"/>
@@ -312,7 +317,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-2-8" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-2-23" />
   <meta name="dct.abstract" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
   <meta name="description" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
 
@@ -336,8 +341,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: August 12, 2017</td>
-  <td class="right">February 8, 2017</td>
+  <td class="left">Expires: August 27, 2017</td>
+  <td class="right">February 23, 2017</td>
 </tr>
 
     	
@@ -362,7 +367,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 12, 2017.</p>
+<p>This Internet-Draft will expire on August 27, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -390,9 +395,14 @@ address {
 <li>3.5.   <a href="#rfc.section.3.5">On Sending a Packet</a></li>
 <li>3.6.   <a href="#rfc.section.3.6">On Ack Receipt</a></li>
 <li>3.7.   <a href="#rfc.section.3.7">On Packet Acknowledgment</a></li>
-<li>3.8.   <a href="#rfc.section.3.8">On Alarm Firing</a></li>
-<li>3.9.   <a href="#rfc.section.3.9">Detecting Lost Packets</a></li>
-</ul><li>4.   <a href="#rfc.section.4">Congestion Control</a></li>
+<li>3.8.   <a href="#rfc.section.3.8">Setting the Loss Detection Alarm</a></li>
+<ul><li>3.8.1.   <a href="#rfc.section.3.8.1">Handshake Packets</a></li>
+<li>3.8.2.   <a href="#rfc.section.3.8.2">Psuedocode</a></li>
+</ul><li>3.9.   <a href="#rfc.section.3.9">On Alarm Firing</a></li>
+<li>3.10.   <a href="#rfc.section.3.10">Detecting Lost Packets</a></li>
+<ul><li>3.10.1.   <a href="#rfc.section.3.10.1">Handshake Packets</a></li>
+<li>3.10.2.   <a href="#rfc.section.3.10.2">Psuedocode</a></li>
+</ul></ul><li>4.   <a href="#rfc.section.4">Congestion Control</a></li>
 <li>5.   <a href="#rfc.section.5">IANA Considerations</a></li>
 <li>6.   <a href="#rfc.references">References</a></li>
 <ul><li>6.1.   <a href="#rfc.references.1">Normative References</a></li>
@@ -440,41 +450,62 @@ address {
 <p id="rfc.section.3.1.p.1">Constants used in loss recovery and congestion control are based on a combination of RFCs, papers, and common practice.  Some may need to be changed or negotiated in order to better suit a variety of environments.</p>
 <p/>
 
-<ul>
-  <li>kMaxTLPs: 2 Maximum number of tail loss probes before an RTO fires.</li>
-  <li>kReorderingThreshold: 3 Maximum reordering in packet number space before FACK style loss detection considers a packet lost.</li>
-  <li>kTimeReorderingThreshold: 1/8 Maximum reordering in time sapce before time based loss detection considers a packet lost.  In fraction of an RTT.</li>
-  <li>kMinTLPTimeout: 10ms Minimum time in the future a tail loss probe alarm may be set for.</li>
-  <li>kMinRTOTimeout: 200ms Minimum time in the future an RTO alarm may be set for.</li>
-  <li>kDelayedAckTimeout: 25ms The length of the peer&#8217;s delayed ack timer.</li>
-</ul>
+<dl>
+  <dt>kMaxTLPs (default 2):</dt>
+  <dd style="margin-left: 8">Maximum number of tail loss probes before an RTO fires.</dd>
+  <dt>kReorderingThreshold (default 3):</dt>
+  <dd style="margin-left: 8">Maximum reordering in packet number space before FACK style loss detection considers a packet lost.</dd>
+  <dt>kTimeReorderingThreshold (default 1/8):</dt>
+  <dd style="margin-left: 8">Maximum reordering in time sapce before time based loss detection considers a packet lost.  In fraction of an RTT.</dd>
+  <dt>kMinTLPTimeout (default 10ms):</dt>
+  <dd style="margin-left: 8">Minimum time in the future a tail loss probe alarm may be set for.</dd>
+  <dt>kMinRTOTimeout (default 200ms):</dt>
+  <dd style="margin-left: 8">Minimum time in the future an RTO alarm may be set for.</dd>
+  <dt>kDelayedAckTimeout (default 25ms):</dt>
+  <dd style="margin-left: 8">The length of the peer&#8217;s delayed ack timer.</dd>
+  <dt>kDefaultInitialRtt (default 200ms):</dt>
+  <dd style="margin-left: 8">The default RTT used before an RTT sample is taken.</dd>
+</dl>
 <h2 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#variables-of-interest" id="variables-of-interest">Variables of interest</a></h2>
 <p id="rfc.section.3.2.p.1">We first describe the variables required to implement the loss detection mechanisms described in this section.</p>
 <p/>
 
-<ul>
-  <li>loss_detection_alarm: Multi-modal alarm used for loss detection.</li>
-  <li>alarm_mode: QUIC maintains a single loss detection alarm, which switches between various modes.  This mode is used to determine the duration of the alarm.</li>
-  <li>handshake_count: The number of times the handshake packets have been retransmitted without receiving an ack.</li>
-  <li>tlp_count: The number of times a tail loss probe has been sent without receiving an ack.</li>
-  <li>rto_count: The number of times an rto has been sent without receiving an ack.</li>
-  <li>smoothed_rtt: The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a></li>
-  <li>rttvar: The RTT variance, computed as described in <a href="#RFC6298">[RFC6298]</a></li>
-  <li>reordering_threshold: The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</li>
-  <li>use_time_loss: When true, loss detection operates solely based on reordering threshold in time, rather than in packet number gaps.</li>
-  <li>sent_packets: An association of packet numbers to information about them.</li>
-</ul>
+<dl>
+  <dt>loss_detection_alarm:</dt>
+  <dd style="margin-left: 8">Multi-modal alarm used for loss detection.</dd>
+  <dt>alarm_mode:</dt>
+  <dd style="margin-left: 8">QUIC maintains a single loss detection alarm, which switches between various modes.  This mode is used to determine the duration of the alarm.</dd>
+  <dt>handshake_count:</dt>
+  <dd style="margin-left: 8">The number of times the handshake packets have been retransmitted without receiving an ack.</dd>
+  <dt>tlp_count:</dt>
+  <dd style="margin-left: 8">The number of times a tail loss probe has been sent without receiving an ack.</dd>
+  <dt>rto_count:</dt>
+  <dd style="margin-left: 8">The number of times an rto has been sent without receiving an ack.</dd>
+  <dt>smoothed_rtt:</dt>
+  <dd style="margin-left: 8">The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
+  <dt>rttvar:</dt>
+  <dd style="margin-left: 8">The RTT variance, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
+  <dt>initial_rtt:</dt>
+  <dd style="margin-left: 8">The initial RTT used before any RTT measurements have been made.</dd>
+  <dt>reordering_threshold:</dt>
+  <dd style="margin-left: 8">The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</dd>
+  <dt>use_time_loss:</dt>
+  <dd style="margin-left: 8">When true, loss detection operates solely based on reordering threshold in time, rather than in packet number gaps.</dd>
+  <dt>sent_packets:</dt>
+  <dd style="margin-left: 8">An association of packet numbers to information about them.</dd>
+</dl>
 <h2 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#initialization" id="initialization">Initialization</a></h2>
 <p id="rfc.section.3.3.p.1">At the beginning of the connection, initialize the loss detection variables as follows:</p>
 <pre>
-   loss_detection_alarm.reset();
-   handshake_count = 0;
-   tlp_count = 0;
-   rto_count = 0;
-   reordering_threshold = kReorderingThreshold;
-   use_time_loss = false;
-   smoothed_rtt = 0;
-   rttvar = 0;
+   loss_detection_alarm.reset()
+   handshake_count = 0
+   tlp_count = 0
+   rto_count = 0
+   reordering_threshold = kReorderingThreshold
+   use_time_loss = false
+   smoothed_rtt = 0
+   rttvar = 0
+   initial_rtt = kDefaultInitialRtt
 </pre>
 <h2 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#setting-the-loss-detection-alarm" id="setting-the-loss-detection-alarm">Setting the Loss Detection Alarm</a></h2>
 <p id="rfc.section.3.4.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
@@ -482,33 +513,37 @@ address {
 <pre>
  SetLossDetectionAlarm():
     if (retransmittable packets are not outstanding):
-      loss_detection_alarm.cancel();
-      return;
+      loss_detection_alarm.cancel()
+      return
 
     if (handshake packets are outstanding):
       // Handshake retransmission alarm.
-      alarm_duration = max(1.5 * smoothed_rtt, kMinTLPTimeout) &lt;&lt; handshake_count;
+      alarm_duration = max(1.5 * smoothed_rtt, kMinTLPTimeout)
+                         &lt;&lt; handshake_count
       handshake_count++;
     else if (largest sent packet is acked):
-      // Early retransmit {{!RFC 5827}} with an alarm to reduce spurious retransmits.
-      alarm_duration = 0.25 x smoothed_rtt;
+      // Early retransmit {{!RFC 5827}}
+      // with an alarm to reduce spurious retransmits.
+      alarm_duration = 0.25 * smoothed_rtt
     else if (tlp_count &lt; kMaxTLPs):
       // Tail Loss Probe alarm.
       if (retransmittable_packets_outstanding = 1):
-        alarm_duration = max(1.5 x smoothed_rtt + kDelayedAckTimeout,
-                             2 x smoothed_rtt);
+        alarm_duration = max(
+                           1.5 * smoothed_rtt + kDelayedAckTimeout,
+                           2 * smoothed_rtt)
       else:
-        alarm_duration = max (kMinTLPTimeout, 2 x smoothed_rtt);
+        alarm_duration = max (kMinTLPTimeout, 2 * smoothed_rtt)
       tlp_count++;
     else:
       // RTO alarm.
       if (rto_count = 0):
-        alarm_duration = max(kMinRTOTimeout, smoothed_rtt + 4 x rttvar);
+        alarm_duration = max(kMinRTOTimeout,
+                             smoothed_rtt + 4 * rttvar)
       else:
-        alarm_duration = loss_detection_alarm.get_delay() &lt;&lt; 1;
-      rto_count++;
+        alarm_duration = loss_detection_alarm.get_delay() &lt;&lt; 1
+      rto_count++
 
-    loss_detection_alarm.set(now + alarm_duration);
+    loss_detection_alarm.set(now + alarm_duration)
 </pre>
 <h2 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5.</a> <a href="#on-sending-a-packet" id="on-sending-a-packet">On Sending a Packet</a></h2>
 <p id="rfc.section.3.5.p.1">After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called.  The parameters to OnPacketSent are as follows:</p>
@@ -537,14 +572,14 @@ address {
      if (sent_packets[ack.largest_acked]):
        rtt_sample = now - sent_packets[ack.largest_acked].time
        if (rtt_sample &gt; ack.ack_delay):
-         rtt_sample -= ack.delay;
+         rtt_sample -= ack.delay
        UpdateRtt(rtt_sample)
      // Find all newly acked packets.
      for acked_packet in DetermineNewlyAckedPackets():
        OnPacketAcked(acked_packet)
 
-     DetectLostPackets(ack.largest_acked_packet);
-     SetLossDetectionAlarm();
+     DetectLostPackets(ack.largest_acked_packet)
+     SetLossDetectionAlarm()
 
 
    UpdateRtt(rtt_sample):
@@ -562,37 +597,89 @@ address {
 <p id="rfc.section.3.7.p.3">Pseudocode for OnPacketAcked follows:</p>
 <pre>
    OnPacketAcked(acked_packet):
-     handshake_count = 0;
-     tlp_count = 0;
-     rto_count = 0;
-     # TODO: Don't remove packets immediately, since they can be used for
-     # detecting spurous retransmits.
-     sent_packets.remove(acked_packet);
+     handshake_count = 0
+     tlp_count = 0
+     rto_count = 0
+     # TODO: Don't remove packets immediately, since they can be
+     # used for detecting spurous retransmits.
+     sent_packets.remove(acked_packet)
 </pre>
-<h2 id="rfc.section.3.8"><a href="#rfc.section.3.8">3.8.</a> <a href="#on-alarm-firing" id="on-alarm-firing">On Alarm Firing</a></h2>
-<p id="rfc.section.3.8.p.1">QUIC uses one loss recovery alarm, which when set, can be in one of several modes.  When the alarm fires, the mode determines the action to be performed.  OnAlarm returns a list of packet numbers that are detected as lost.</p>
-<p id="rfc.section.3.8.p.2">Pseudocode for OnAlarm follows:</p>
+<h2 id="rfc.section.3.8"><a href="#rfc.section.3.8">3.8.</a> <a href="#setting-the-loss-detection-alarm-1" id="setting-the-loss-detection-alarm-1">Setting the Loss Detection Alarm</a></h2>
+<p id="rfc.section.3.8.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
+<h3 id="rfc.section.3.8.1"><a href="#rfc.section.3.8.1">3.8.1.</a> <a href="#handshake-packets" id="handshake-packets">Handshake Packets</a></h3>
+<p id="rfc.section.3.8.1.p.1">The initial flight has no prior RTT sample.  A client SHOULD remember the previous RTT it observed when resumption is attempted and use that for an initial RTT value.  If no previous RTT is available, the initial RTT defaults to 200ms.  Once an RTT measurement is taken, it MUST replace initial_rtt.</p>
+<p id="rfc.section.3.8.1.p.2">Endpoints MUST retransmit handshake frames if not acknowledged within a time limit. This time limit will start as the largest of twice the rtt value and MinTLPTimeout.  Each consecutive handshake retransmission doubles the time limit, until an acknowledgement is received.</p>
+<p id="rfc.section.3.8.1.p.3">Handshake frames may be cancelled by handshake state transitions.  In particular, all non-protected frames SHOULD be no longer be transmitted once packet protection is available.</p>
+<p id="rfc.section.3.8.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
+<p id="rfc.section.3.8.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
+<p id="rfc.section.3.8.1.p.6">(Add sections for early retransmit and TLP/RTO here)</p>
+<h3 id="rfc.section.3.8.2"><a href="#rfc.section.3.8.2">3.8.2.</a> <a href="#psuedocode" id="psuedocode">Psuedocode</a></h3>
+<p id="rfc.section.3.8.2.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
+<pre>
+ SetLossDetectionAlarm():
+    if (retransmittable packets are not outstanding):
+      loss_detection_alarm.cancel();
+      return
+
+    if (handshake packets are outstanding):
+      // Handshake retransmission alarm.
+      if (smoothed_rtt == 0):
+        alarm_duration = 2 * initial_rtt
+      else:
+        alarm_duration = 2 * smoothed_rtt
+      alarm_duration = max(alarm_duration, kMinTLPTimeout)
+      alarm_duration = alarm_duration &lt;&lt; handshake_count
+      handshake_count++;
+    else if (largest sent packet is acked):
+      // Early retransmit {{!RFC 5827}}
+      // with an alarm to reduce spurious retransmits.
+      alarm_duration = 0.25 * smoothed_rtt
+    else if (tlp_count &lt; kMaxTLPs):
+      // Tail Loss Probe alarm.
+      if (retransmittable_packets_outstanding = 1):
+        alarm_duration = 1.5 * smoothed_rtt + kDelayedAckTimeout
+      else:
+        alarm_duration = kMinTLPTimeout
+      alarm_duration = max(alarm_duration, 2 * smoothed_rtt)
+      tlp_count++
+    else:
+      // RTO alarm.
+      if (rto_count = 0):
+        alarm_duration = smoothed_rtt + 4 * rttvar
+        alarm_duration = max(alarm_duration, kMinRTOTimeout)
+      else:
+        alarm_duration = loss_detection_alarm.get_delay() &lt;&lt; 1
+      rto_count++
+
+    loss_detection_alarm.set(now + alarm_duration)
+</pre>
+<h2 id="rfc.section.3.9"><a href="#rfc.section.3.9">3.9.</a> <a href="#on-alarm-firing" id="on-alarm-firing">On Alarm Firing</a></h2>
+<p id="rfc.section.3.9.p.1">QUIC uses one loss recovery alarm, which when set, can be in one of several modes.  When the alarm fires, the mode determines the action to be performed.  OnAlarm returns a list of packet numbers that are detected as lost.</p>
+<p id="rfc.section.3.9.p.2">Pseudocode for OnAlarm follows:</p>
 <pre>
    OnAlarm(acked_packet):
-     lost_packets = DetectLostPackets(acked_packet);
-     MaybeRetransmitLostPackets();
-     SetLossDetectionAlarm();
+     lost_packets = DetectLostPackets(acked_packet)
+     MaybeRetransmit(lost_packets)
+     SetLossDetectionAlarm()
 </pre>
-<h2 id="rfc.section.3.9"><a href="#rfc.section.3.9">3.9.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h2>
-<p id="rfc.section.3.9.p.1">Packets in QUIC are only considered lost once a larger packet number is acknowledged.  DetectLostPackets is called every time there is a new largest packet or if the loss detection alarm fires the previous largest acked packet is supplied.</p>
-<p id="rfc.section.3.9.p.2">DetectLostPackets takes one parameter, acked_packet, which is the packet number of the largest acked packet, and returns a list of packet numbers detected as lost.</p>
-<p id="rfc.section.3.9.p.3">Pseudocode for DetectLostPackets follows:</p>
+<h2 id="rfc.section.3.10"><a href="#rfc.section.3.10">3.10.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h2>
+<p id="rfc.section.3.10.p.1">Packets in QUIC are only considered lost once a larger packet number is acknowledged.  DetectLostPackets is called every time there is a new largest packet or if the loss detection alarm fires the previous largest acked packet is supplied.</p>
+<h3 id="rfc.section.3.10.1"><a href="#rfc.section.3.10.1">3.10.1.</a> <a href="#handshake-packets-1" id="handshake-packets-1">Handshake Packets</a></h3>
+<p id="rfc.section.3.10.1.p.1">The receiver MUST ignore unprotected packets that ack protected packets.  The receiver MUST trust protected acks for unprotected packets, however.  Aside from this, loss detection for handshake packets when an ack is processed is identical to other packets.</p>
+<h3 id="rfc.section.3.10.2"><a href="#rfc.section.3.10.2">3.10.2.</a> <a href="#psuedocode-1" id="psuedocode-1">Psuedocode</a></h3>
+<p id="rfc.section.3.10.2.p.1">DetectLostPackets takes one parameter, acked, which is the largest acked packet, and returns a list of packets detected as lost.</p>
+<p id="rfc.section.3.10.2.p.2">Pseudocode for DetectLostPackets follows:</p>
 <pre>
-   DetectLostPackets(acked_packet):
-     lost_packets = {};
-     foreach (unacked_packet less than acked_packet):
-       if (unacked_packet.time_sent &lt;
-           acked_packet.time_sent - kTimeReorderThreshold * smoothed_rtt):
-         lost_packets.insert(unacked_packet.packet_number);
-       else if (unacked_packet.packet_number &lt;
-                acked_packet.packet_number - reordering_threshold)
-         lost_packets.insert(unacked_packet.packet_number);
-     return lost_packets;
+   DetectLostPackets(acked):
+     lost_packets = {}
+     foreach (unacked less than acked):
+       time_delta = acked.time_sent - unacked.time_sent
+       packet_delta = acked.packet_number - unacked.packet_number
+       if (time_delta &gt; kTimeReorderThreshold * smoothed_rtt):
+         lost_packets.insert(unacked)
+       else if (packet_delta &gt; reordering_threshold)
+         lost_packets.insert(unacked)
+     return lost_packets
 </pre>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a></h1>
 <p id="rfc.section.4.p.1">(describe NewReno-style congestion control for QUIC.) (describe appropriate byte counting.) (define recovery based on packet numbers.) (describe min_rtt based hystart.) (describe how QUIC&#8217;s F-RTO delays reducing CWND until an ack is received.)</p>
@@ -606,7 +693,7 @@ address {
       <td class="reference">
         <b id="QUIC-TLS">[QUIC-TLS]</b>
       </td>
-      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner, Ed</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
+      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
     </tr>
     <tr>
       <td class="reference">

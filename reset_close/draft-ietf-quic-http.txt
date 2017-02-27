@@ -4,8 +4,8 @@
 
 QUIC                                                      M. Bishop, Ed.
 Internet-Draft                                                 Microsoft
-Intended status: Standards Track                       February 24, 2017
-Expires: August 28, 2017
+Intended status: Standards Track                       February 27, 2017
+Expires: August 31, 2017
 
 
               Hypertext Transfer Protocol (HTTP) over QUIC
@@ -45,7 +45,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on August 28, 2017.
+   This Internet-Draft will expire on August 31, 2017.
 
 
 
@@ -53,7 +53,7 @@ Status of This Memo
 
 
 
-Bishop                   Expires August 28, 2017                [Page 1]
+Bishop                   Expires August 31, 2017                [Page 1]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Bishop                   Expires August 28, 2017                [Page 2]
+Bishop                   Expires August 31, 2017                [Page 2]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -165,7 +165,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 3]
+Bishop                   Expires August 31, 2017                [Page 3]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -221,7 +221,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 4]
+Bishop                   Expires August 31, 2017                [Page 4]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -277,7 +277,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 5]
+Bishop                   Expires August 31, 2017                [Page 5]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -286,10 +286,10 @@ Internet-Draft               HTTP over QUIC                February 2017
    closed in the corresponding direction without transferring data.
 
    Pairs of streams must be utilized sequentially, with no gaps.  The
-   data stream MUST be reserved with the QUIC implementation when the
-   message control stream is opened or reserved, and MUST be closed
-   after transferring the body, or else closed immediately after sending
-   the request headers if there is no body.
+   data stream is opened at the same time as the message control stream
+   is opened and is closed after transferring the body.  The data stream
+   is closed immediately after sending the request headers if there is
+   no body.
 
    HTTP does not need to do any separate multiplexing when using QUIC -
    data sent over a QUIC stream always maps to a particular HTTP
@@ -333,7 +333,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 6]
+Bishop                   Expires August 31, 2017                [Page 6]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -389,7 +389,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 7]
+Bishop                   Expires August 31, 2017                [Page 7]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -445,7 +445,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 8]
+Bishop                   Expires August 31, 2017                [Page 8]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -501,7 +501,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017                [Page 9]
+Bishop                   Expires August 31, 2017                [Page 9]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -557,7 +557,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 10]
+Bishop                   Expires August 31, 2017               [Page 10]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -576,17 +576,12 @@ Internet-Draft               HTTP over QUIC                February 2017
    are not commutative, the PRIORITY region of HEADERS is not supported.
    A separate PRIORITY frame MUST be used.
 
-   Padding MUST NOT be used.  The flags defined are:
-
-   Reserved (0x1):  Reserved for HTTP/2 compatibility.
+   HTTP/2 padding is not defined and MUST NOT be used.  One flag is
+   defined:
 
    End Header Block (0x4):  This frame concludes a header block.
 
-   Reserved (0x8):  Reserved for HTTP/2 compatibility.
-
-   Reserved (0x20):  Reserved for HTTP/2 compatibility.
-
-   A HEADERS frame with the Reserved bits set MUST be treated as a
+   A HEADERS frame with any other flags set MUST be treated as a
    connection error of type HTTP_MALFORMED_HEADERS.
 
        0                   1                   2                   3
@@ -610,22 +605,28 @@ Internet-Draft               HTTP over QUIC                February 2017
    other streams between frames, or even during transmission of frames,
    so multiplexing is not blocked by this requirement.)
 
-
-
-
-Bishop                   Expires August 28, 2017               [Page 11]
-
-Internet-Draft               HTTP over QUIC                February 2017
-
-
    A full header block is contained in a sequence of zero or more
    HEADERS frames without EHB set, followed by a HEADERS frame with EHB
    set.
+
+
+
+
+
+Bishop                   Expires August 31, 2017               [Page 11]
+
+Internet-Draft               HTTP over QUIC                February 2017
+
 
    On receipt, header blocks (HEADERS, PUSH_PROMISE) MUST be processed
    by the HPACK decoder in sequence.  If a block is missing, all
    subsequent HPACK frames MUST be held until it arrives, or the
    connection terminated.
+
+   When the Sequence counter reaches its maximum value (0xFFFF), the
+   next increment returns it to zero.  An endpoint MUST NOT wrap the
+   Sequence counter to zero until the previous zero-value header block
+   has been confirmed received.
 
 5.2.3.  PRIORITY
 
@@ -668,8 +669,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-
-Bishop                   Expires August 28, 2017               [Page 12]
+Bishop                   Expires August 31, 2017               [Page 12]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -725,7 +725,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 13]
+Bishop                   Expires August 31, 2017               [Page 13]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -781,7 +781,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 14]
+Bishop                   Expires August 31, 2017               [Page 14]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -837,7 +837,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 15]
+Bishop                   Expires August 31, 2017               [Page 15]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -893,7 +893,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 16]
+Bishop                   Expires August 31, 2017               [Page 16]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -949,7 +949,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 17]
+Bishop                   Expires August 31, 2017               [Page 17]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1005,7 +1005,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 18]
+Bishop                   Expires August 31, 2017               [Page 18]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1061,7 +1061,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 19]
+Bishop                   Expires August 31, 2017               [Page 19]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1117,7 +1117,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 20]
+Bishop                   Expires August 31, 2017               [Page 20]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1173,7 +1173,7 @@ Internet-Draft               HTTP over QUIC                February 2017
 
 
 
-Bishop                   Expires August 28, 2017               [Page 21]
+Bishop                   Expires August 31, 2017               [Page 21]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1229,7 +1229,7 @@ B.2.  Since draft-ietf-quic-http-00:
 
 
 
-Bishop                   Expires August 28, 2017               [Page 22]
+Bishop                   Expires August 31, 2017               [Page 22]
 
 Internet-Draft               HTTP over QUIC                February 2017
 
@@ -1285,4 +1285,4 @@ Author's Address
 
 
 
-Bishop                   Expires August 28, 2017               [Page 23]
+Bishop                   Expires August 31, 2017               [Page 23]

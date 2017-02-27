@@ -97,15 +97,15 @@ Table of Contents
      5.4.  Frames and Frame Types  . . . . . . . . . . . . . . . . .  13
      5.5.  Version Negotiation Packet  . . . . . . . . . . . . . . .  14
      5.6.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  15
+       5.6.1.  Public Reset Proof  . . . . . . . . . . . . . . . . .  16
    6.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  16
-     6.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  16
-     6.2.  Cryptographic and Transport Handshake . . . . . . . . . .  17
+     6.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  17
+     6.2.  Cryptographic and Transport Handshake . . . . . . . . . .  18
      6.3.  Transport Parameters  . . . . . . . . . . . . . . . . . .  18
        6.3.1.  Transport Parameter Definitions . . . . . . . . . . .  20
        6.3.2.  Values of Transport Parameters for 0-RTT  . . . . . .  20
        6.3.3.  New Transport Parameters  . . . . . . . . . . . . . .  21
        6.3.4.  Version Negotiation Validation  . . . . . . . . . . .  21
-     6.4.  Proof of Source Address Ownership . . . . . . . . . . . .  23
 
 
 
@@ -114,6 +114,7 @@ Iyengar & Thomson        Expires August 31, 2017                [Page 2]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+     6.4.  Proof of Source Address Ownership . . . . . . . . . . . .  23
        6.4.1.  Client Address Validation Procedure . . . . . . . . .  23
        6.4.2.  Address Validation on Session Resumption  . . . . . .  24
        6.4.3.  Address Validation Token Integrity  . . . . . . . . .  25
@@ -151,17 +152,16 @@ Internet-Draft           QUIC Transport Protocol           February 2017
        10.1.2.  Response to a RST_STREAM . . . . . . . . . . . . . .  48
        10.1.3.  Offset Increment . . . . . . . . . . . . . . . . . .  48
        10.1.4.  BLOCKED frames . . . . . . . . . . . . . . . . . . .  49
-   11. Error Codes . . . . . . . . . . . . . . . . . . . . . . . . .  49
-   12. Security and Privacy Considerations . . . . . . . . . . . . .  53
-     12.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  53
-   13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  53
-     13.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  53
-   14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  54
-     14.1.  Normative References . . . . . . . . . . . . . . . . . .  54
-     14.2.  Informative References . . . . . . . . . . . . . . . . .  55
-     14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  56
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  56
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  56
+   11. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  49
+     11.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  49
+     11.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  50
+     11.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  50
+   12. Security and Privacy Considerations . . . . . . . . . . . . .  54
+     12.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  54
+   13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  55
+     13.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  55
+   14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  56
+     14.1.  Normative References . . . . . . . . . . . . . . . . . .  56
 
 
 
@@ -170,11 +170,15 @@ Iyengar & Thomson        Expires August 31, 2017                [Page 3]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  57
-     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  57
-     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  57
-     C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  57
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  57
+     14.2.  Informative References . . . . . . . . . . . . . . . . .  57
+     14.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  57
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  58
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  58
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  58
+     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  58
+     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  58
+     C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  59
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  59
 
 1.  Introduction
 
@@ -215,16 +219,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  Stream: A logical, bi-directional channel of ordered bytes within
       a QUIC connection.
 
-   o  Connection: A conversation between two QUIC endpoints with a
-      single encryption context that multiplexes streams within it.
-
-
 
 
 Iyengar & Thomson        Expires August 31, 2017                [Page 4]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   o  Connection: A conversation between two QUIC endpoints with a
+      single encryption context that multiplexes streams within it.
 
    o  Connection ID: The identifier for a QUIC connection.
 
@@ -271,9 +274,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC relies on a combined cryptographic and transport handshake for
    setting up a secure transport connection.  QUIC connections are
    expected to commonly use 0-RTT handshakes, meaning that for most QUIC
-   connections, data can be sent immediately following the client
-   handshake packet, without waiting for a reply from the server.  QUIC
-   provides a dedicated stream (Stream ID 1) to be used for performing
 
 
 
@@ -282,6 +282,9 @@ Iyengar & Thomson        Expires August 31, 2017                [Page 5]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   connections, data can be sent immediately following the client
+   handshake packet, without waiting for a reply from the server.  QUIC
+   provides a dedicated stream (Stream ID 1) to be used for performing
    the cryptographic handshake and QUIC options negotiation.  The format
    of the QUIC options and parameters used during negotiation are
    described in this document, but the handshake protocol that runs on
@@ -327,9 +330,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    that stream, allowing the peer to send more data on that stream.  In
    addition to this stream-level flow control, QUIC implements
    connection-level flow control to limit the aggregate buffer that a
-   QUIC receiver is willing to allocate to all streams on a connection.
-   Connection-level flow control works in the same way as stream-level
-
 
 
 
@@ -338,6 +338,8 @@ Iyengar & Thomson        Expires August 31, 2017                [Page 6]
 Internet-Draft           QUIC Transport Protocol           February 2017
 
 
+   QUIC receiver is willing to allocate to all streams on a connection.
+   Connection-level flow control works in the same way as stream-level
    flow control, but the bytes delivered and highest received offset are
    all aggregates across all streams.
 
@@ -383,8 +385,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC version negotiation allows for multiple versions of the protocol
    to be deployed and used concurrently.  Version negotiation is
    described in Section 6.1.
-
-
 
 
 
@@ -845,10 +845,40 @@ Internet-Draft           QUIC Transport Protocol           February 2017
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    Public Reset Fields (*)                  ...
+   |                    Public Reset Proof (*)                   ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                        Figure 6: Public Reset Packet
+
+   A Public Reset packet is used to abruptly terminate communications.
+   Public Reset is provided as an option of last resort for endpoints
+   that do not have access to the state of a connection.  This is
+   intended for use by an endpoint that has lost state (for example,
+   through a crash or outage), or middleboxes that wish to indicate that
+   a path is no longer usable.
+
+   Endpoints that wish to indicate fatal errors with a connection MUST
+   use a CONNECTION_CLOSE frame in preference to Public Reset if they
+   have sufficient state to do so.
+
+   Whether the Public Reset Proof field is included in a Public Reset
+   packet depends on the entity that generates the packet.
+
+   A Public Reset packet sent by an endpoint indicates that it does not
+   have the state necessary to continue with a connection.  In this
+   case, the endpoint will include the fields that prove that it
+   originally participated in the connection (see Section 5.6.1 for
+   details).
+
+   Upon receipt of a Public Reset packet that contains a valid proof, an
+   endpoint MUST tear down state associated with the connection.  The
+   endpoint MUST then cease sending packets on the connection and SHOULD
+   discard any subsequent packets that arrive.  A Public Reset that does
+   not contain a valid proof MUST be ignored.
+
+5.6.1.  Public Reset Proof
+
+   Details to be added.
 
 6.  Life of a Connection
 
@@ -860,6 +890,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    either endpoint, due to NAT rebinding or mobility, as described in
    Section 6.5.  Finally a connection may be terminated by either
    endpoint, as described in Section 6.6.
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 16]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 6.1.  Version Negotiation
 
@@ -890,14 +927,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    When the client receives a Version Negotiation packet from the
    server, it should select an acceptable protocol version.  If the
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 16]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    server lists an acceptable version, the client selects that version
    and reattempts to created a connection using that version.  Though
    the contents of a packet might not change in response to version
@@ -915,6 +944,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    to a Version Negotiation packet from the server.  Once a client
    receives a packet from the server with the VERSION flag unset, it
    MUST ignore the flag in subsequently received packets.
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 17]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    Version negotiation uses unprotected data.  The result of the
    negotiation MUST be revalidated once the cryptographic handshake has
@@ -946,14 +984,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    o  authenticated values for the transport parameters of the peer (see
       Section 6.3)
 
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 17]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    o  authenticated confirmation of version negotiation (see
       Section 6.3.4)
 
@@ -972,36 +1002,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    During connection establishment, both endpoints make authenticated
    declarations of their transport parameters.  These declarations are
    made unilaterally by each endpoint.  Endpoints are required to comply
-   with the restrictions implied by these parameters; the description of
-   each parameter includes rules for its handling.
-
-   The format of the transport parameters is the TransportParameters
-   struct from Figure 7.  This is described using the presentation
-   language from Section 3 of [I-D.ietf-tls-tls13].
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1009,6 +1009,13 @@ Iyengar & Thomson        Expires August 31, 2017               [Page 18]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   with the restrictions implied by these parameters; the description of
+   each parameter includes rules for its handling.
+
+   The format of the transport parameters is the TransportParameters
+   struct from Figure 7.  This is described using the presentation
+   language from Section 3 of [I-D.ietf-tls-tls13].
 
       uint32 QuicVersion;
 
@@ -1052,19 +1059,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    Section 6.3.4) before the connection establishment is considered
    properly complete.
 
-   Definitions for each of the defined transport parameters are included
-   in Section 6.3.1.
-
-
-
-
-
 
 
 Iyengar & Thomson        Expires August 31, 2017               [Page 19]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   Definitions for each of the defined transport parameters are included
+   in Section 6.3.1.
 
 6.3.1.  Transport Parameter Definitions
 
@@ -1111,9 +1114,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    If assumed values change as a result of completing the handshake, the
    client is expected to respect the new values.  This introduces some
-   potential problems, particularly with respect to transport parameters
-   that establish limits:
-
 
 
 
@@ -1121,6 +1121,9 @@ Iyengar & Thomson        Expires August 31, 2017               [Page 20]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   potential problems, particularly with respect to transport parameters
+   that establish limits:
 
    o  A client might exceed a newly declared connection or stream flow
       control limit with 0-RTT data.  If this occurs, the client ceases
@@ -1166,10 +1169,7 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    The cryptographic handshake provides integrity protection for the
    negotiated version as part of the transport parameters (see
-   Section 6.3).  As a result, modification of version negotiation
-   packets by an attacker can be detected.
 
-   The client includes two fields in the transport parameters:
 
 
 
@@ -1177,6 +1177,11 @@ Iyengar & Thomson        Expires August 31, 2017               [Page 21]
 
 Internet-Draft           QUIC Transport Protocol           February 2017
 
+
+   Section 6.3).  As a result, modification of version negotiation
+   packets by an attacker can be detected.
+
+   The client includes two fields in the transport parameters:
 
    o  The negotiated_version is the version that was finally selected
       for use.  This MUST be identical to the value that is on the
@@ -1221,11 +1226,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_VERSION_NEGOTIATION_MISMATCH error code if version negotiation
    occurred but it would have selected a different version based on the
    value of the supported_versions list.
-
-
-
-
-
 
 
 
@@ -2704,7 +2704,73 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    should send a WINDOW_UPDATE frame at least two roundtrips before it
    expects the sender to get blocked.
 
-11.  Error Codes
+11.  Error Handling
+
+   An endpoint that detects an error SHOULD signal the existence of that
+   error to its peer.  Errors can affect an entire connection (see
+   Section 11.1), or a single stream (see Section 11.2).
+
+   The most appropriate error code (Section 11.3) SHOULD be included in
+   the frame that signals the error.  Where this specification
+   identifies error conditions, it also identifies the error code that
+   is used.
+
+   Public Reset is not suitable for any error that can be signaled with
+   a CONNECTION_CLOSE or RST_STREAM frame.  Public Reset MUST NOT be
+   sent by an endpoint that has the state necessary to send a frame on
+   the connection.
+
+11.1.  Connection Errors
+
+   Errors that result in the connection being unusable, such as an
+   obvious violation of protocol semantics or corruption of state that
+   affects an entire connection, MUST be signaled using a
+   CONNECTION_CLOSE frame (Section 7.9).  An endpoint MAY close the
+   connection in this manner, even if the error only affects a single
+   stream.
+
+   A CONNECTION_CLOSE frame could be sent in a packet that is lost.  An
+   endpoint SHOULD be prepared to retransmit a packet containing a
+   CONNECTION_CLOSE frame if it receives more packets on a terminated
+   connection.  Limiting the number of retransmissions and the time over
+   which this final packet is sent limits the effort expended on
+   terminated connections.
+
+   An endpoint that chooses not to retransmit packets containing
+   CONNECTION_CLOSE risks a peer missing the first such packet.  The
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 49]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
+   only mechanism available to an endpoint that continues to receive
+   data for a terminated connection is to send a Public Reset packet.
+
+11.2.  Stream Errors
+
+   If the error affects a single stream, but otherwise leaves the
+   connection in a recoverable state, the endpoint can sent a RST_STREAM
+   frame (Section 7.6) with an appropriate error code to terminate just
+   the affected stream.
+
+   Stream 1 is critical to the functioning of the entire connection.  If
+   stream 1 is closed with either a RST_STREAM or STREAM frame bearing
+   the FIN flag, an endpoint MUST generate a connection error of type
+   QUIC_CLOSED_CRITICAL_STREAM.
+
+   Some application protocols make other streams critical to that
+   protocol.  An application protocol does not need to inform the
+   transport that a stream is critical; it can instead generate
+   appropriate errors in response to being notified that the critical
+   stream is closed.
+
+   An endpoint MAY send a RST_STREAM frame in the same packet as a
+   CONNECTION_CLOSE frame.
+
+11.3.  Error Codes
 
    Error codes are 32 bits long, with the first two bits indicating the
    source of the error code:
@@ -2728,6 +2794,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    the entire connection and have no defined semantics in the other
    context.
 
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 50]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    QUIC_INTERNAL_ERROR (0x80000001):  Connection has reached an invalid
       state.
 
@@ -2738,18 +2812,13 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_INVALID_FRAME_DATA (0x80000004):  Frame data is malformed.
 
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 49]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    QUIC_MULTIPLE_TERMINATION_OFFSETS (0x80000005):  Multiple final
       offset values were received on the same stream
 
    QUIC_STREAM_CANCELLED (0x80000006):  The stream was cancelled
+
+   QUIC_CLOSED_CRITICAL_STREAM (0x80000007):  A stream that is critical
+      to the protocol was closed.
 
    QUIC_MISSING_PAYLOAD (0x80000030):  The packet contained no payload.
 
@@ -2780,6 +2849,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_INVALID_BLOCKED_DATA (0x8000003A):  BLOCKED frame data is
       malformed.
 
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 51]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    QUIC_INVALID_STOP_WAITING_DATA (0x8000003C):  STOP_WAITING frame data
       is malformed.
 
@@ -2793,14 +2871,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_INVALID_PUBLIC_RST_PACKET (0x8000000b):  Public RST packet is
       malformed.
-
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 50]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    QUIC_DECRYPTION_FAILURE (0x8000000c):  There was an error decrypting.
 
@@ -2836,6 +2906,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    QUIC_DECOMPRESSION_FAILURE (0x80000018):  There was an error
       decompressing data.
 
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 52]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    QUIC_NETWORK_IDLE_TIMEOUT (0x80000019):  The connection timed out due
       to no network activity.
 
@@ -2850,13 +2928,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_EMPTY_STREAM_FRAME_NO_FIN (0x80000032):  We received a
       STREAM_FRAME with no data and no fin flag set.
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 51]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA (0x8000003b):  The peer
       received too much data, violating flow control.
@@ -2890,6 +2961,15 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_TOO_MANY_RTOS (0x80000055):  QUIC timed out after too many RTOs.
 
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 53]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    QUIC_ENCRYPTION_LEVEL_INCORRECT (0x8000002c):  A packet was received
       with the wrong encryption level (i.e. it should have been
       encrypted but was not.)
@@ -2903,16 +2983,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 
    QUIC_ADDRESS_VALIDATION_FAILURE (0x80000051):  Client address
       validation failed.
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 52]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
 
    QUIC_TOO_MANY_FRAME_GAPS (0x8000005d):  Stream frames arrived too
       discontiguously so that stream sequencer buffer maintains too many
@@ -2948,6 +3018,14 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    connection.  If a packet sent is encrypted with a forward-secure key,
    then any acknowledgments that are received for them MUST also be
    forward-secure encrypted.  Since the attacker will not have the
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 54]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
+
    forward secure key, the attacker will not be able to generate
    forward-secure encrypted packets with ACK frames.
 
@@ -2962,14 +3040,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    This space is split into two spaces that are governed by different
    policies.  Values with the first byte in the range 0x00 to 0xfe (in
    hexadecimal) are assigned via the Specification Required policy
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 53]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    [RFC5226].  Values with the first byte 0xff are reserved for Private
    Use [RFC5226].
 
@@ -2990,6 +3060,27 @@ Internet-Draft           QUIC Transport Protocol           February 2017
    architecturally dubious).
 
    The initial contents of this registry are shown in Table 1.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 55]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
             +--------+------------------------+---------------+
             | Value  | Parameter Name         | Specification |
@@ -3016,16 +3107,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               Version 1.3", draft-ietf-tls-tls13-18 (work in progress),
               October 2016.
 
-
-
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 54]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    [QUIC-RECOVERY]
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control".
@@ -3046,6 +3127,16 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 56]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
    [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
               Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
@@ -3071,17 +3162,6 @@ Internet-Draft           QUIC Transport Protocol           February 2017
               DOI 10.17487/RFC4086, June 2005,
               <http://www.rfc-editor.org/info/rfc4086>.
 
-
-
-
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 55]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
    [RFC6824]  Ford, A., Raiciu, C., Handley, M., and O. Bonaventure,
               "TCP Extensions for Multipath Operation with Multiple
               Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
@@ -3103,6 +3183,16 @@ Internet-Draft           QUIC Transport Protocol           February 2017
 14.3.  URIs
 
    [1] https://github.com/quicwg/base-drafts/wiki/QUIC-Versions
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 57]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 Appendix A.  Contributors
 
@@ -3128,16 +3218,6 @@ Appendix B.  Acknowledgments
    discussions and public ones on the quic@ietf.org and proto-
    quic@chromium.org mailing lists.  Our thanks to all.
 
-
-
-
-
-
-Iyengar & Thomson        Expires August 31, 2017               [Page 56]
-
-Internet-Draft           QUIC Transport Protocol           February 2017
-
-
 Appendix C.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
@@ -3158,6 +3238,17 @@ C.2.  Since draft-ietf-quic-transport-00:
    o  Error code space is divided into regions for each component
 
    o  Use big endian for all numeric values
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 58]
+
+Internet-Draft           QUIC Transport Protocol           February 2017
+
 
 C.3.  Since draft-hamilton-quic-transport-protocol-01:
 
@@ -3189,4 +3280,25 @@ Authors' Addresses
 
 
 
-Iyengar & Thomson        Expires August 31, 2017               [Page 57]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 31, 2017               [Page 59]

@@ -1982,15 +1982,17 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Error Code:  A 32-bit field error code which indicates the reason for
       closing this connection.
 
-   Last Client Stream ID:  The last client-initiated Stream ID which was
-      accepted by the sender of the GOAWAY frame.  All higher-numbered,
-      client-initiated streams (that is, odd-numbered streams) are
-      implicitly reset by sending or receiving the GOAWAY frame.
+   Last Client Stream ID:  The highest-numbered, client-initiated stream
+      on which the endpoint sending the GOAWAY frame either sent data,
+      or received and delivered data.  All higher-numbered, client-
+      initiated streams (that is, odd-numbered streams) are implicitly
+      reset by sending or receiving the GOAWAY frame.
 
-   Last Server Stream ID:  The last server-initiated Stream ID which was
-      accepted by the sender of the GOAWAY frame.  All higher-numbered,
-      server-initiated streams (that is, even-numbered streams) are
-      implicitly reset by sending or receiving the GOAWAY frame.
+   Last Server Stream ID:  The highest-numbered, server-initiated stream
+      on which the endpoint sending the GOAWAY frame either sent data,
+      or received and delivered data.  All higher-numbered, server-
+      initiated streams (that is, even-numbered streams) are implicitly
+      reset by sending or receiving the GOAWAY frame.
 
    Reason Phrase Length:  A 16-bit unsigned number specifying the length
       of the reason phrase.  This may be zero if the sender chooses to
@@ -1999,16 +2001,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Reason Phrase:  An optional, human-readable explanation for why the
       connection was closed.
 
-   An endpoint MUST set the value of the Last Client or Server Stream ID
-   to be at least as high as the highest-numbered stream on which it
-   either sent or received data.  A GOAWAY frame indicates that any
-   application layer actions on streams with higher numbers than those
-   indicated can be safely retried because no data was exchanged.
+   A GOAWAY frame indicates that any application layer actions on
+   streams with higher numbers than those indicated can be safely
+   retried because no data was exchanged.  An endpoint MUST set the
+   value of the Last Client or Server Stream ID to be at least as high
+   as the highest-numbered stream on which it either sent data or
+   received and delivered data to the application protocol that uses
+   QUIC.
 
-   In addition to initiating a graceful shutdown of a connection, GOAWAY
-   MAY be sent immediately prior to sending a CONNECTION_CLOSE frame
-   that is sent as a result of detecting a fatal error.  Higher-numbered
-   streams than those indicated in the GOAWAY frame can then be retried.
 
 
 
@@ -2017,6 +2017,17 @@ Iyengar & Thomson       Expires September 3, 2017              [Page 36]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   An endpoint MAY choose a larger stream identifier if it wishes to
+   allow for a number of streams to be created.  This is especially
+   valuable for peer-initiated streams where packets creating new
+   streams could be in transit; using a larger stream number allows
+   those streams to complete.
+
+   In addition to initiating a graceful shutdown of a connection, GOAWAY
+   MAY be sent immediately prior to sending a CONNECTION_CLOSE frame
+   that is sent as a result of detecting a fatal error.  Higher-numbered
+   streams than those indicated in the GOAWAY frame can then be retried.
 
    For peer-initiated streams, an endpoint might indicate a lower value
    for the highest stream number than the value that might be sent by a
@@ -2054,6 +2065,15 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    below this number, even if it receives signals that indicate a
    smaller limit might exist.
 
+
+
+
+
+Iyengar & Thomson       Expires September 3, 2017              [Page 37]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    Clients MUST ensure that the first packet in a connection, and any
    retransmissions of those octets, has a total size (including IP and
    UDP headers) of at least 1280 bytes.  This might require inclusion of
@@ -2063,16 +2083,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    network path supports an MTU of this size and helps mitigate
    amplification attacks caused by server responses toward an unverified
    client address.
-
-
-
-
-
-
-Iyengar & Thomson       Expires September 3, 2017              [Page 37]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    Servers MUST reject the first plaintext packet received from a client
    if it its total size is less than 1280 octets, to mitigate
@@ -2112,6 +2122,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    o  All application data sent in STREAM frames MUST be retransmitted,
       unless the endpoint has sent a RST_STREAM for that stream.  When
       an endpoint sends a RST_STREAM frame, data outstanding on that
+
+
+
+Iyengar & Thomson       Expires September 3, 2017              [Page 38]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
       stream SHOULD NOT be retransmitted, since subsequent data on this
       stream is expected to not be delivered by the receiver.
 
@@ -2121,14 +2139,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       Section 7.2.
 
    o  All other frames MUST be retransmitted.
-
-
-
-
-Iyengar & Thomson       Expires September 3, 2017              [Page 38]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    Upon detecting losses, a sender MUST take appropriate congestion
    control action.  The details of loss detection and congestion control
@@ -2167,16 +2177,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       no DF packets outstanding, and can therefore be identified as
       spurious.
 
-   o  Store additional information from the IP or UDP headers from DF
-      packets (for example, the IP ID or UDP checksum) to further
-      authenticate incoming Datagram Too Big messages.
-
-   o  Any reduction in PMTU due to a report contained in an ICMP packet
-      is provisional until QUIC's loss detection algorithm determines
-      that the packet is actually lost.
-
-
-
 
 
 
@@ -2185,6 +2185,14 @@ Iyengar & Thomson       Expires September 3, 2017              [Page 39]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   o  Store additional information from the IP or UDP headers from DF
+      packets (for example, the IP ID or UDP checksum) to further
+      authenticate incoming Datagram Too Big messages.
+
+   o  Any reduction in PMTU due to a report contained in an ICMP packet
+      is provisional until QUIC's loss detection algorithm determines
+      that the packet is actually lost.
 
 9.  Streams: QUIC's Data Structuring Abstraction
 
@@ -2220,14 +2228,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
-
-
-
-
-
-
-
-
 
 
 

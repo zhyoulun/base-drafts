@@ -354,12 +354,13 @@ Internet-Draft               HTTP over QUIC                   March 2017
    entire request if the response does not depend on any portion of the
    request that has not been sent and received.  When this is true, a
    server MAY request that the client abort transmission of a request
-   without error by triggering a QUIC REQUEST_RST after sending a
-   complete response and closing its stream.  Clients MUST NOT discard
-   complete responses as a result of receiving a REQUEST_RST, though
-   clients can always discard responses at their discretion for other
-   reasons.  Servers SHOULD NOT abort a response in progress as a result
-   of receiving a solicited RST_STREAM.
+   without error by triggering a QUIC DISINTEREST with error code
+   HTTP_EARLY_RESPONSE, sending a complete response, and cleanly closing
+   its streams.  Clients MUST NOT discard complete responses as a result
+   of receiving a DISINTEREST, though clients can always discard
+   responses at their discretion for other reasons.  Servers SHOULD NOT
+   abort a response in progress as a result of receiving a solicited
+   RST_STREAM.
 
 4.2.1.  Header Compression
 
@@ -385,7 +386,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    DISCUSS:  Keep HPACK with HOLB?  Redesign HPACK to be order-
       invariant?  How much do we need to retain compatibility with
       HTTP/2's HPACK?
-
 
 
 
@@ -515,7 +515,7 @@ Internet-Draft               HTTP over QUIC                   March 2017
    body (if any) sent via the corresponding data stream.
 
    If a promised push stream is not needed by the client, the client
-   SHOULD send a QUIC REQUEST_RST on the promised stream with an
+   SHOULD send a QUIC DISINTEREST on the promised stream with an
    appropriate error code (e.g.  HTTP_PUSH_REFUSED,
    HTTP_PUSH_ALREADY_IN_CACHE; see Section 6).  This asks the server not
    to transfer the data and indicates that it will be discarded upon
@@ -978,6 +978,9 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HTTP_MULTIPLE_SETTINGS (0x10):  More than one SETTINGS frame was
       received.
 
+   HTTP_EARLY_RESPONSE (0x11):  Server is able to generate a response to
+      the client request without selecting the complete request body.
+
 6.2.  Mapping HTTP/2 Error Codes
 
    The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
@@ -997,9 +1000,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    SETTINGS_TIMEOUT (0x4):  Not applicable, since no acknowledgement of
       SETTINGS is defined.
 
-   STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
-      management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
-      from the QUIC layer.
 
 
 
@@ -1009,6 +1009,10 @@ Bishop                  Expires September 8, 2017              [Page 18]
 
 Internet-Draft               HTTP over QUIC                   March 2017
 
+
+   STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
+      management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
+      from the QUIC layer.
 
    FRAME_SIZE_ERROR (0x6)  No single mapping.  See new error codes
       defined in Section 6.1.
@@ -1055,16 +1059,16 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    Protocol:  HTTP over QUIC
 
-   Identification Sequence:  0x68 0x71 ("hq")
-
-   Specification:  This document
-
 
 
 Bishop                  Expires September 8, 2017              [Page 19]
 
 Internet-Draft               HTTP over QUIC                   March 2017
 
+
+   Identification Sequence:  0x68 0x71 ("hq")
+
+   Specification:  This document
 
 8.2.  Registration of QUIC Version Hint Alt-Svc Parameter
 
@@ -1094,10 +1098,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
       QUIC is defined; required if the frame is supported over QUIC.
 
    Values for existing registrations are assigned by this document:
-
-
-
-
 
 
 

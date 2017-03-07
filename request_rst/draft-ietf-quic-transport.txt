@@ -128,7 +128,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
      7.4.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  33
      7.5.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  33
      7.6.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  34
-     7.7.  REQUEST_RST Frame . . . . . . . . . . . . . . . . . . . .  34
+     7.7.  DISINTEREST Frame . . . . . . . . . . . . . . . . . . . .  34
      7.8.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  35
      7.9.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  35
      7.10. CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  35
@@ -763,7 +763,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
           |                  |                  |              |
           | 0x07             | PING             | Section 7.9  |
           |                  |                  |              |
-          | 0x08             | REQUEST_RST      | Section 7.7  |
+          | 0x08             | DISINTEREST      | Section 7.7  |
           |                  |                  |              |
           | 0x40 - 0x7f      | ACK              | Section 7.2  |
           |                  |                  |              |
@@ -1891,12 +1891,12 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       byte offset of the end of data written on this stream by the
       RST_STREAM sender.
 
-7.7.  REQUEST_RST Frame
+7.7.  DISINTEREST Frame
 
-   An endpoint may use a REQUEST_RST frame (type=0x08) to request a peer
-   to abruptly terminate transmission on a stream.  The frame is as
-   follows:
-
+   An endpoint may use a DISINTEREST frame (type=0x08) to communicate
+   that incoming data is being discarded on receipt at application
+   request.  This signals a peer to abruptly terminate transmission on a
+   stream.  The frame is as follows:
 
 
 
@@ -1916,10 +1916,10 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    The fields are:
 
-   o  Error code: A 32-bit error code which indicates why the stream
-      should be closed.
+   o  Error code: A 32-bit error code which indicates why the data is
+      being discarded.
 
-   o  Stream ID: The 32-bit Stream ID of the stream being terminated.
+   o  Stream ID: The 32-bit Stream ID of the stream being ignored.
 
 7.8.  PADDING Frame
 
@@ -2360,7 +2360,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 9.1.3.  half-closed (local)
 
    A stream that is in the "half-closed (local)" state MUST NOT be used
-   for sending STREAM frames; WINDOW_UPDATE, RST_STREAM, and REQUEST_RST
+   for sending STREAM frames; WINDOW_UPDATE, RST_STREAM, and DISINTEREST
    MAY be sent in this state.
 
    A stream transitions from this state to "closed" when a STREAM frame
@@ -2452,7 +2452,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 9.2.  Solicited State Transitions
 
    If an endpoint is no longer interested in the data being received, it
-   MAY send a REQUEST_RST frame on a stream in the "open" or "half-
+   MAY send a DISINTEREST frame on a stream in the "open" or "half-
    closed (local)" state to request closure of the stream in the
    opposite direction.  This typically indicates that the receiving
    application is no longer reading from the stream and all future data
@@ -2466,15 +2466,15 @@ Iyengar & Thomson       Expires September 8, 2017              [Page 44]
 Internet-Draft           QUIC Transport Protocol              March 2017
 
 
-   STREAM frames received after sending REQUEST_RST are still counted
+   STREAM frames received after sending DISINTEREST are still counted
    toward the connection and stream flow-control windows.  Even though
    these frames will be discarded, because they are sent before their
-   sender receives the REQUEST_RST, the sender will consider the frames
+   sender receives the DISINTEREST, the sender will consider the frames
    to count against its flow-control windows.
 
-   Upon receipt of a REQUEST_RST frame, an endpoint SHOULD send a
+   Upon receipt of a DISINTEREST frame, an endpoint SHOULD send a
    RST_STREAM with an error code of QUIC_RECEIVED_RST.  If the
-   REQUEST_RST frame is received on a stream that is already in the
+   DISINTEREST frame is received on a stream that is already in the
    "half-closed (local)" or "closed" states, a RST_STREAM frame SHOULD
    still be sent and retransmission of previously-sent STREAM frames
    SHOULD be cancelled.
@@ -2733,7 +2733,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    receipt of a RST_STREAM an endpoint will choose to stop sending data
    in its own direction.  If the sender of a RST_STREAM wishes to
    explicitly state that no future data will be processed, that endpoint
-   MAY send a REQUEST_RST frame at the same time.
+   MAY send a DISINTEREST frame at the same time.
 
 
 
@@ -2826,7 +2826,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    QUIC_MISSING_PAYLOAD (0x80000030):  The packet contained no payload.
 
    QUIC_RECEIVED_RST (0x80000035):  Terminating stream because peer sent
-      a RST_STREAM or REQUEST_RST.
+      a RST_STREAM or DISINTEREST.
 
    QUIC_INVALID_STREAM_DATA (0x8000002E):  STREAM frame data is
       malformed.

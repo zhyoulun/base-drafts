@@ -1051,8 +1051,9 @@ Check the flags in the common header
 <p id="rfc.section.7.2.p.2">To limit ACK blocks to those that have not yet been received by the sender, the receiver SHOULD track which ACK frames have been acknowledged by its peer.  Once an ACK frame has been acknowledged, the packets it acknowledges SHOULD not be acknowledged again.  To handle cases where the receiver is only sending ACK frames, and hence will not receive acknowledgments for its packets, it MAY send a PING frame at most once per RTT to explicitly request acknowledgment.</p>
 <p id="rfc.section.7.2.p.3">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.</p>
 <p id="rfc.section.7.2.p.4">Unlike TCP SACKs, QUIC ACK blocks are cumulative and therefore irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it is assumed to be acknowledged.</p>
-<p id="rfc.section.7.2.p.5">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender MUST close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
-<p id="rfc.section.7.2.p.6">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>01NULLMM</samp>.  These bits are parsed as follows:</p>
+<p id="rfc.section.7.2.p.5">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each retransmittable packet recevied. A receiver MAY send timestamps for non-retransmittable packets.</p>
+<p id="rfc.section.7.2.p.6">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender MUST close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
+<p id="rfc.section.7.2.p.7">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>01NULLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
 
 <ul>
@@ -1062,7 +1063,7 @@ Check the flags in the common header
   <li>The two <samp>LL</samp> bits encode the length of the Largest Acknowledged field as 1, 2, 4, or 6 bytes long.</li>
   <li>The two <samp>MM</samp> bits encode the length of the ACK Block Length fields as 1, 2, 4, or 6 bytes long.</li>
 </ul>
-<p id="rfc.section.7.2.p.8">An ACK frame is shown below.</p>
+<p id="rfc.section.7.2.p.9">An ACK frame is shown below.</p>
 <div id="rfc.figure.9"/>
 <div id="ack-format"/>
 <pre>
@@ -1081,7 +1082,7 @@ Check the flags in the common header
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 9: ACK Frame Format</p>
-<p id="rfc.section.7.2.p.9">The fields in the ACK frame are as follows:</p>
+<p id="rfc.section.7.2.p.10">The fields in the ACK frame are as follows:</p>
 <p/>
 
 <dl>
@@ -1125,9 +1126,9 @@ Check the flags in the common header
   <dt>First ACK Block Length:</dt>
   <dd style="margin-left: 8">An unsigned packet number delta that indicates the number of contiguous additional packets being acknowledged starting at the Largest Acknowledged.</dd>
   <dt>Gap To Next Block (opt, repeated):</dt>
-  <dd style="margin-left: 8">An unsigned number specifying the number of contiguous missing packets from the end of the previous ACK block to the start of the next.</dd>
+  <dd style="margin-left: 8">An unsigned number specifying the number of contiguous missing packets from the end of the previous ACK block to the start of the next.  Repeated &#8220;Num Blocks&#8221; times.</dd>
   <dt>ACK Block Length (opt, repeated):</dt>
-  <dd style="margin-left: 8">An unsigned packet number delta that indicates the number of contiguous packets being acknowledged starting after the end of the previous gap.  Along with the previous field, this field is repeated &#8220;Num Blocks&#8221; times.</dd>
+  <dd style="margin-left: 8">An unsigned packet number delta that indicates the number of contiguous packets being acknowledged starting after the end of the previous gap.  Repeated &#8220;Num Blocks&#8221; times.</dd>
 </dl>
 <h3 id="rfc.section.7.2.2"><a href="#rfc.section.7.2.2">7.2.2.</a> <a href="#timestamp-section" id="timestamp-section">Timestamp Section</a></h3>
 <p id="rfc.section.7.2.2.p.1">The Timestamp Section contains between zero and 255 measurements of packet receive times relative to the beginning of the connection.</p>
@@ -1160,10 +1161,11 @@ Check the flags in the common header
   <dt>First Timestamp (opt):</dt>
   <dd style="margin-left: 8">An optional 32-bit unsigned value specifying the time delta in microseconds, from the beginning of the connection to the arrival of the packet indicated by Delta Largest Acknowledged.</dd>
   <dt>Delta Largest Acked 1..N (opt, repeated):</dt>
-  <dd style="margin-left: 8">(Same as above.)</dd>
+  <dd style="margin-left: 8">This field has the same semantics and format as &#8220;Delta Largest Acknowledged&#8221;.  Repeated &#8220;Num Timestamps - 1&#8221; times.</dd>
   <dt>Time Since Previous Timestamp 1..N(opt, repeated):</dt>
-  <dd style="margin-left: 8">An optional 16-bit unsigned value specifying time delta from the previous reported timestamp.  It is encoded in the same format as the ACK Delay.  Along with the previous field, this field is repeated &#8220;Num Timestamps&#8221; times.</dd>
+  <dd style="margin-left: 8">An optional 16-bit unsigned value specifying time delta from the previous reported timestamp.  It is encoded in the same format as the ACK Delay.  Repeated &#8220;Num Timestamps - 1&#8221; times.</dd>
 </dl>
+<p id="rfc.section.7.2.2.p.4">The timestamp section lists packet receipt timestamps ordered by timestamp.</p>
 <h4 id="rfc.section.7.2.2.1"><a href="#rfc.section.7.2.2.1">7.2.2.1.</a> <a href="#time-format" id="time-format">Time Format</a></h4>
 <p id="rfc.section.7.2.2.1.p.1">DISCUSS_AND_REPLACE: Perhaps make this format simpler.</p>
 <p id="rfc.section.7.2.2.1.p.2">The time format used in the ACK frame above is a 16-bit unsigned float with 11 explicit bits of mantissa and 5 bits of explicit exponent, specifying time in microseconds.  The bit format is loosely modeled after IEEE 754.  For example, 1 microsecond is represented as 0x1, which has an exponent of zero, presented in the 5 high order bits, and mantissa of 1, presented in the 11 low order bits.  When the explicit exponent is greater than zero, an implicit high-order 12th bit of 1 is assumed in the mantissa.  For example, a floating value of 0x800 has an explicit exponent of 1, as well as an explicit mantissa of 0, but then has an effective mantissa of 4096 (12th bit is assumed to be 1).  Additionally, the actual exponent is one-less than the explicit exponent, and the value represents 4096 microseconds.  Any values larger than the representable range are clamped to 0xFFFF.</p>

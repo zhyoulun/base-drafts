@@ -101,11 +101,11 @@ Table of Contents
    6.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  16
      6.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  17
      6.2.  Cryptographic and Transport Handshake . . . . . . . . . .  18
-     6.3.  Transport Parameters  . . . . . . . . . . . . . . . . . .  18
+     6.3.  Transport Parameters  . . . . . . . . . . . . . . . . . .  19
        6.3.1.  Transport Parameter Definitions . . . . . . . . . . .  20
-       6.3.2.  Values of Transport Parameters for 0-RTT  . . . . . .  20
+       6.3.2.  Values of Transport Parameters for 0-RTT  . . . . . .  21
        6.3.3.  New Transport Parameters  . . . . . . . . . . . . . .  21
-       6.3.4.  Version Negotiation Validation  . . . . . . . . . . .  21
+       6.3.4.  Version Negotiation Validation  . . . . . . . . . . .  22
 
 
 
@@ -115,15 +115,15 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
 
      6.4.  Proof of Source Address Ownership . . . . . . . . . . . .  23
-       6.4.1.  Client Address Validation Procedure . . . . . . . . .  23
+       6.4.1.  Client Address Validation Procedure . . . . . . . . .  24
        6.4.2.  Address Validation on Session Resumption  . . . . . .  24
        6.4.3.  Address Validation Token Integrity  . . . . . . . . .  25
      6.5.  Connection Migration  . . . . . . . . . . . . . . . . . .  25
      6.6.  Connection Termination  . . . . . . . . . . . . . . . . .  26
    7.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  27
      7.1.  STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  27
-     7.2.  ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  28
-       7.2.1.  ACK Block Section . . . . . . . . . . . . . . . . . .  30
+     7.2.  ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  29
+       7.2.1.  ACK Block Section . . . . . . . . . . . . . . . . . .  31
        7.2.2.  Timestamp Section . . . . . . . . . . . . . . . . . .  31
      7.3.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  33
      7.4.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  33
@@ -994,14 +994,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       that the client can receive packets that are addressed with the
       transport address that is claimed by the client (see Section 6.4)
 
-   Details of how TLS is integrated with QUIC is provided in more detail
-   in [QUIC-TLS].
+   The initial cryptographic handshake message MUST be sent in a single
+   packet.  Any second attempt that is triggered by address validation
+   MUST also be sent within a single packet.  This avoids having to
+   reassemble a message from multiple packets.  Reassembling messages
+   requires that a server maintain state prior to establishing a
+   connection, exposing the server to a denial of service risk.
 
-6.3.  Transport Parameters
 
-   During connection establishment, both endpoints make authenticated
-   declarations of their transport parameters.  These declarations are
-   made unilaterally by each endpoint.  Endpoints are required to comply
 
 
 
@@ -1010,6 +1010,18 @@ Iyengar & Thomson       Expires September 9, 2017              [Page 18]
 Internet-Draft           QUIC Transport Protocol              March 2017
 
 
+   The first client packet of the cryptographic handshake protocol MUST
+   fit within a 1280 octet QUIC packet.  This includes overheads that
+   reduce the space available to the cryptographic handshake protocol.
+
+   Details of how TLS is integrated with QUIC is provided in more detail
+   in [QUIC-TLS].
+
+6.3.  Transport Parameters
+
+   During connection establishment, both endpoints make authenticated
+   declarations of their transport parameters.  These declarations are
+   made unilaterally by each endpoint.  Endpoints are required to comply
    with the restrictions implied by these parameters; the description of
    each parameter includes rules for its handling.
 
@@ -1047,6 +1059,13 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
                 Figure 7: Definition of TransportParameters
 
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 19]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    The "extension_data" field of the quic_transport_parameters extension
    defined in [QUIC-TLS] contains a TransportParameters value.  TLS
    encoding rules are therefore used to encode the transport parameters.
@@ -1058,13 +1077,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    In particular, version negotiation MUST be validated (see
    Section 6.3.4) before the connection establishment is considered
    properly complete.
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 19]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    Definitions for each of the defined transport parameters are included
    in Section 6.3.1.
@@ -1103,6 +1115,13 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       length.  Omitting the parameter indicates that the endpoint relies
       on the connection ID being present in every packet.
 
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 20]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
 6.3.2.  Values of Transport Parameters for 0-RTT
 
    Transport parameters from the server SHOULD be remembered by the
@@ -1114,14 +1133,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    If assumed values change as a result of completing the handshake, the
    client is expected to respect the new values.  This introduces some
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 20]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    potential problems, particularly with respect to transport parameters
    that establish limits:
 
@@ -1160,6 +1171,13 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    New transport parameters can be registered according to the rules in
    Section 13.1.
 
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 21]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
 6.3.4.  Version Negotiation Validation
 
    The transport parameters include three fields that encode version
@@ -1169,15 +1187,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    The cryptographic handshake provides integrity protection for the
    negotiated version as part of the transport parameters (see
-
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 21]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    Section 6.3).  As a result, modification of version negotiation
    packets by an attacker can be detected.
 
@@ -1216,6 +1225,15 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    version negotiation packet (Section 5.5) in supported_versions.  This
    value is set even if it did not send a version negotiation packet.
 
+
+
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 22]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    The client can validate that the negotiated_version is included in
    the supported_versions list and - if version negotiation was
    performed - that it would have selected the negotiated version.  A
@@ -1226,13 +1244,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    QUIC_VERSION_NEGOTIATION_MISMATCH error code if version negotiation
    occurred but it would have selected a different version based on the
    value of the supported_versions list.
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 22]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
 6.4.  Proof of Source Address Ownership
 
@@ -1271,6 +1282,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    Source address validation is therefore performed during the
    establishment of a connection.  TLS provides the tools that support
+
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 23]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    the feature, but basic validation is performed by the core transport
    protocol.
 
@@ -1281,14 +1300,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    As long as the token cannot be easily guessed (see Section 6.4.3), if
    the client is able to return that token, it proves to the server that
    it received the token.
-
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 23]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    During the processing of the cryptographic handshake messages from a
    client, TLS will request that QUIC make a decision about whether to
@@ -1327,6 +1338,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    potentially sends a significant amount of data to a client in
    response to 0-RTT data.
 
+
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 24]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    A different type of token is needed when resuming.  Unlike the token
    that is created during a handshake, there might be some time between
    when the token is created and when the token is subsequently used.
@@ -1338,14 +1357,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    This token can be provided to the cryptographic handshake immediately
    after establishing a connection.  QUIC might also generate an updated
    token if significant time passes or the client address changes for
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 24]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    any reason (see Section 6.5).  The cryptographic handshake is
    responsible for providing the client with the token.  In TLS the
    token is included in the ticket that is used for resumption and
@@ -1382,17 +1393,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    to the client's IP and/or port, such as those caused by client or
    server migrating to a new network.  QUIC also provides automatic
    cryptographic verification of a client which has changed its IP
-   address because the client continues to use the same session key for
-   encrypting and decrypting packets.
-
-   DISCUSS: Simultaneous migration.  Is this reasonable?
-
-   TODO: Perhaps move mitigation techniques from Security Considerations
-   here.
-
-
-
-
 
 
 
@@ -1401,6 +1401,14 @@ Iyengar & Thomson       Expires September 9, 2017              [Page 25]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   address because the client continues to use the same session key for
+   encrypting and decrypting packets.
+
+   DISCUSS: Simultaneous migration.  Is this reasonable?
+
+   TODO: Perhaps move mitigation techniques from Security Considerations
+   here.
 
 6.6.  Connection Termination
 
@@ -1443,20 +1451,16 @@ Internet-Draft           QUIC Transport Protocol              March 2017
        return.  (TODO: articulate rules around when a public reset
        should be sent.)
 
-   TODO: Connections that are terminated are added to a TIME_WAIT list
-   at the server, so as to absorb any straggler packets in the network.
-   Discuss TIME_WAIT list.
-
-
-
-
-
 
 
 Iyengar & Thomson       Expires September 9, 2017              [Page 26]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   TODO: Connections that are terminated are added to a TIME_WAIT list
+   at the server, so as to absorb any straggler packets in the network.
+   Discuss TIME_WAIT list.
 
 7.  Frame Types and Formats
 
@@ -1493,6 +1497,23 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    A STREAM frame is shown below.
 
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 27]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1506,13 +1527,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                        Figure 8: STREAM Frame Format
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 27]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    The STREAM frame contains the following fields:
 
@@ -1547,6 +1561,15 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    advised to bundle as few streams as necessary in outgoing packets
    without losing transmission efficiency to underfilled packets.
 
+
+
+
+
+Iyengar & Thomson       Expires September 9, 2017              [Page 28]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
 7.2.  ACK Frame
 
    Receivers send ACK frames to inform senders which packets they have
@@ -1561,14 +1584,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    handle cases where the receiver is only sending ACK frames, and hence
    will not receive acknowledgments for its packets, it MAY send a PING
    frame at most once per RTT to explicitly request acknowledgment.
-
-
-
-
-Iyengar & Thomson       Expires September 9, 2017              [Page 28]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
    To limit receiver state or the size of ACK frames, a receiver MAY
    limit the number of ACK blocks it sends.  A receiver can do this even
@@ -1604,27 +1619,17 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    o  The two "LL" bits encode the length of the Largest Acknowledged
       field as 1, 2, 4, or 6 bytes long.
 
-   o  The two "MM" bits encode the length of the ACK Block Length fields
-      as 1, 2, 4, or 6 bytes long.
-
-   An ACK frame is shown below.
-
-
-
-
-
-
-
-
-
-
-
 
 
 Iyengar & Thomson       Expires September 9, 2017              [Page 29]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   o  The two "MM" bits encode the length of the ACK Block Length fields
+      as 1, 2, 4, or 6 bytes long.
+
+   An ACK frame is shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1665,13 +1670,8 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Timestamp Section:  Contains zero or more timestamps reporting
       transit delay of received packets.  See Section 7.2.2.
 
-7.2.1.  ACK Block Section
 
-   The ACK Block Section contains between one and 256 blocks of packet
-   numbers which have been successfully received.  If the Num Blocks
-   field is absent, only the First ACK Block length is present in this
-   section.  Otherwise, the Num Blocks field indicates how many
-   additional blocks follow the First ACK Block Length field.
+
 
 
 
@@ -1681,6 +1681,14 @@ Iyengar & Thomson       Expires September 9, 2017              [Page 30]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+7.2.1.  ACK Block Section
+
+   The ACK Block Section contains between one and 256 blocks of packet
+   numbers which have been successfully received.  If the Num Blocks
+   field is absent, only the First ACK Block length is present in this
+   section.  Otherwise, the Num Blocks field indicates how many
+   additional blocks follow the First ACK Block Length field.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1717,14 +1725,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    The Timestamp Section contains between zero and 255 measurements of
    packet receive times relative to the beginning of the connection.
-
-
-
-
-
-
-
-
 
 
 

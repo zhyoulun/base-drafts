@@ -319,6 +319,7 @@ address {
 <link href="#rfc.section.7.2" rel="Chapter" title="7.2 ACK Frame"/>
 <link href="#rfc.section.7.2.1" rel="Chapter" title="7.2.1 ACK Block Section"/>
 <link href="#rfc.section.7.2.2" rel="Chapter" title="7.2.2 Timestamp Section"/>
+<link href="#rfc.section.7.2.3" rel="Chapter" title="7.2.3 ACK Frames and Packet Protection"/>
 <link href="#rfc.section.7.3" rel="Chapter" title="7.3 WINDOW_UPDATE Frame"/>
 <link href="#rfc.section.7.4" rel="Chapter" title="7.4 BLOCKED Frame"/>
 <link href="#rfc.section.7.5" rel="Chapter" title="7.5 RST_STREAM Frame"/>
@@ -478,6 +479,7 @@ address {
 <li>7.2.   <a href="#rfc.section.7.2">ACK Frame</a></li>
 <ul><li>7.2.1.   <a href="#rfc.section.7.2.1">ACK Block Section</a></li>
 <li>7.2.2.   <a href="#rfc.section.7.2.2">Timestamp Section</a></li>
+<li>7.2.3.   <a href="#rfc.section.7.2.3">ACK Frames and Packet Protection</a></li>
 </ul><li>7.3.   <a href="#rfc.section.7.3">WINDOW_UPDATE Frame</a></li>
 <li>7.4.   <a href="#rfc.section.7.4">BLOCKED Frame</a></li>
 <li>7.5.   <a href="#rfc.section.7.5">RST_STREAM Frame</a></li>
@@ -1170,6 +1172,14 @@ Check the flags in the common header
 <h4 id="rfc.section.7.2.2.1"><a href="#rfc.section.7.2.2.1">7.2.2.1.</a> <a href="#time-format" id="time-format">Time Format</a></h4>
 <p id="rfc.section.7.2.2.1.p.1">DISCUSS_AND_REPLACE: Perhaps make this format simpler.</p>
 <p id="rfc.section.7.2.2.1.p.2">The time format used in the ACK frame above is a 16-bit unsigned float with 11 explicit bits of mantissa and 5 bits of explicit exponent, specifying time in microseconds.  The bit format is loosely modeled after IEEE 754.  For example, 1 microsecond is represented as 0x1, which has an exponent of zero, presented in the 5 high order bits, and mantissa of 1, presented in the 11 low order bits.  When the explicit exponent is greater than zero, an implicit high-order 12th bit of 1 is assumed in the mantissa.  For example, a floating value of 0x800 has an explicit exponent of 1, as well as an explicit mantissa of 0, but then has an effective mantissa of 4096 (12th bit is assumed to be 1).  Additionally, the actual exponent is one-less than the explicit exponent, and the value represents 4096 microseconds.  Any values larger than the representable range are clamped to 0xFFFF.</p>
+<h3 id="rfc.section.7.2.3"><a href="#rfc.section.7.2.3">7.2.3.</a> <a href="#ack-frames-and-packet-protection" id="ack-frames-and-packet-protection">ACK Frames and Packet Protection</a></h3>
+<p id="rfc.section.7.2.3.p.1">ACK frames that acknowledge protected packets MUST be carried in a packet that has an equivalent or greater level of packet protection.</p>
+<p id="rfc.section.7.2.3.p.2">Packets that are protected with 1-RTT keys MUST be acknowledged in packets that are also protected with 1-RTT keys.</p>
+<p id="rfc.section.7.2.3.p.3">A packet that is not protected and claims to acknowledge a packet number that was sent with packet protection is not valid.  An unprotected packet that carries acknowledgments for protected packets MUST be discarded in its entirety.</p>
+<p id="rfc.section.7.2.3.p.4">Packets that a client sends with 0-RTT packet protection MUST be acknowledged by the server in packets protected by 1-RTT keys.  This can mean that the client is unable to use these acknowledgments if the server cryptographic handshake messages are delayed or lost.  Note that the same limitation applies to other data sent by the server protected by the 1-RTT keys.</p>
+<p id="rfc.section.7.2.3.p.5">Unprotected packets, such as those that carry the initial cryptographic handshake messages, MAY be acknowledged in unprotected packets.  Unprotected packets are vulnerable to falsification or modification.  Unprotected packets can be acknowledged along with protected packets in a protected packet.</p>
+<p id="rfc.section.7.2.3.p.6">An endpoint SHOULD acknowledge packets containing cryptographic handshake messages in the next unprotected packet that it sends, unless it is able to acknowledge those packets in later packets protected by 1-RTT keys.  Those later packets might be protected by 1-RTT keys.  At the completion of the cryptographic handshake, both peers send unprotected packets containing cryptographic handshake messages followed by packets protected by 1-RTT keys.  An endpoint SHOULD acknowledge the unprotected packets that complete the cryptographic handshake in a protected packet, because its peer is guaranteed to have access to 1-RTT packet protection keys.</p>
+<p id="rfc.section.7.2.3.p.7">For instance, a server acknowledges a TLS ClientHello in the packet that carries the TLS ServerHello; similarly, a client can acknowledge a TLS HelloRetryRequest in the packet containing a second TLS ClientHello.  The complete set of server handshake messages (TLS ServerHello through to Finished) might be acknowledged by a client in protected packets, because it is certain that the server is able to decipher the packet.</p>
 <h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3.</a> <a href="#frame-window-update" id="frame-window-update">WINDOW_UPDATE Frame</a></h2>
 <p id="rfc.section.7.3.p.1">The WINDOW_UPDATE frame (type=0x04) informs the peer of an increase in an endpoint&#8217;s flow control receive window. The Stream ID can be zero, indicating this WINDOW_UPDATE applies to the connection level flow control window, or non-zero, indicating that the specified stream should increase its flow control window. The frame is as follows:</p>
 <pre>

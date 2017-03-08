@@ -5,8 +5,8 @@
 QUIC                                                     M. Thomson, Ed.
 Internet-Draft                                                   Mozilla
 Intended status: Standards Track                          S. Turner, Ed.
-Expires: September 6, 2017                                         sn3rd
-                                                           March 5, 2017
+Expires: September 9, 2017                                         sn3rd
+                                                           March 8, 2017
 
 
           Using Transport Layer Security (TLS) to Secure QUIC
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on September 6, 2017.
+   This Internet-Draft will expire on September 9, 2017.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 1]
+Thomson & Turner        Expires September 9, 2017               [Page 1]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -84,56 +84,57 @@ Table of Contents
        4.2.4.  Secret Export . . . . . . . . . . . . . . . . . . . .  12
        4.2.5.  TLS Interface Summary . . . . . . . . . . . . . . . .  12
      4.3.  TLS Version . . . . . . . . . . . . . . . . . . . . . . .  13
-     4.4.  Peer Authentication . . . . . . . . . . . . . . . . . . .  13
+     4.4.  ClientHello Size  . . . . . . . . . . . . . . . . . . . .  13
+     4.5.  Peer Authentication . . . . . . . . . . . . . . . . . . .  14
    5.  QUIC Packet Protection  . . . . . . . . . . . . . . . . . . .  14
-     5.1.  Installing New Keys . . . . . . . . . . . . . . . . . . .  14
-     5.2.  QUIC Key Expansion  . . . . . . . . . . . . . . . . . . .  14
+     5.1.  Installing New Keys . . . . . . . . . . . . . . . . . . .  15
+     5.2.  QUIC Key Expansion  . . . . . . . . . . . . . . . . . . .  15
        5.2.1.  0-RTT Secret  . . . . . . . . . . . . . . . . . . . .  15
-       5.2.2.  1-RTT Secrets . . . . . . . . . . . . . . . . . . . .  15
-       5.2.3.  Packet Protection Key and IV  . . . . . . . . . . . .  16
-     5.3.  QUIC AEAD Usage . . . . . . . . . . . . . . . . . . . . .  17
+       5.2.2.  1-RTT Secrets . . . . . . . . . . . . . . . . . . . .  16
+       5.2.3.  Packet Protection Key and IV  . . . . . . . . . . . .  17
+     5.3.  QUIC AEAD Usage . . . . . . . . . . . . . . . . . . . . .  18
      5.4.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  18
    6.  Key Phases  . . . . . . . . . . . . . . . . . . . . . . . . .  19
-     6.1.  Packet Protection for the TLS Handshake . . . . . . . . .  19
+     6.1.  Packet Protection for the TLS Handshake . . . . . . . . .  20
        6.1.1.  Initial Key Transitions . . . . . . . . . . . . . . .  20
        6.1.2.  Retransmission and Acknowledgment of Unprotected
                Packets . . . . . . . . . . . . . . . . . . . . . . .  21
      6.2.  Key Update  . . . . . . . . . . . . . . . . . . . . . . .  22
-   7.  Client Address Validation . . . . . . . . . . . . . . . . . .  23
-     7.1.  HelloRetryRequest Address Validation  . . . . . . . . . .  23
-     7.2.  NewSessionTicket Address Validation . . . . . . . . . . .  24
+   7.  Client Address Validation . . . . . . . . . . . . . . . . . .  24
+     7.1.  HelloRetryRequest Address Validation  . . . . . . . . . .  24
+     7.2.  NewSessionTicket Address Validation . . . . . . . . . . .  25
      7.3.  Address Validation Token Integrity  . . . . . . . . . . .  25
    8.  Pre-handshake QUIC Messages . . . . . . . . . . . . . . . . .  25
-     8.1.  Unprotected Packets Prior to Handshake Completion . . . .  26
-       8.1.1.  STREAM Frames . . . . . . . . . . . . . . . . . . . .  26
+     8.1.  Unprotected Packets Prior to Handshake Completion . . . .  27
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 2]
+Thomson & Turner        Expires September 9, 2017               [Page 2]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
 
-       8.1.2.  ACK Frames  . . . . . . . . . . . . . . . . . . . . .  26
-       8.1.3.  WINDOW_UPDATE Frames  . . . . . . . . . . . . . . . .  27
-       8.1.4.  Denial of Service with Unprotected Packets  . . . . .  27
-     8.2.  Use of 0-RTT Keys . . . . . . . . . . . . . . . . . . . .  28
-     8.3.  Receiving Out-of-Order Protected Frames . . . . . . . . .  28
-   9.  QUIC-Specific Additions to the TLS Handshake  . . . . . . . .  29
-     9.1.  Protocol and Version Negotiation  . . . . . . . . . . . .  29
+       8.1.1.  STREAM Frames . . . . . . . . . . . . . . . . . . . .  27
+       8.1.2.  ACK Frames  . . . . . . . . . . . . . . . . . . . . .  27
+       8.1.3.  WINDOW_UPDATE Frames  . . . . . . . . . . . . . . . .  28
+       8.1.4.  Denial of Service with Unprotected Packets  . . . . .  28
+     8.2.  Use of 0-RTT Keys . . . . . . . . . . . . . . . . . . . .  29
+     8.3.  Receiving Out-of-Order Protected Frames . . . . . . . . .  29
+   9.  QUIC-Specific Additions to the TLS Handshake  . . . . . . . .  30
+     9.1.  Protocol and Version Negotiation  . . . . . . . . . . . .  30
      9.2.  QUIC Transport Parameters Extension . . . . . . . . . . .  30
-     9.3.  Priming 0-RTT . . . . . . . . . . . . . . . . . . . . . .  30
+     9.3.  Priming 0-RTT . . . . . . . . . . . . . . . . . . . . . .  31
    10. Security Considerations . . . . . . . . . . . . . . . . . . .  31
      10.1.  Packet Reflection Attack Mitigation  . . . . . . . . . .  31
-     10.2.  Peer Denial of Service . . . . . . . . . . . . . . . . .  31
+     10.2.  Peer Denial of Service . . . . . . . . . . . . . . . . .  32
    11. Error codes . . . . . . . . . . . . . . . . . . . . . . . . .  32
-   12. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  33
-   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  33
+   12. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  34
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  34
      13.1.  Normative References . . . . . . . . . . . . . . . . . .  34
-     13.2.  Informative References . . . . . . . . . . . . . . . . .  34
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  35
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  35
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  35
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  35
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  36
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  36
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  36
      C.1.  Since draft-ietf-quic-tls-00: . . . . . . . . . . . . . .  36
      C.2.  Since draft-thomson-quic-tls-01:  . . . . . . . . . . . .  36
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  36
@@ -164,8 +165,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-
-Thomson & Turner        Expires September 6, 2017               [Page 3]
+Thomson & Turner        Expires September 9, 2017               [Page 3]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -221,7 +221,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 4]
+Thomson & Turner        Expires September 9, 2017               [Page 4]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -277,7 +277,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 5]
+Thomson & Turner        Expires September 9, 2017               [Page 5]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -333,7 +333,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 6]
+Thomson & Turner        Expires September 9, 2017               [Page 6]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -389,7 +389,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 7]
+Thomson & Turner        Expires September 9, 2017               [Page 7]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -445,7 +445,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 8]
+Thomson & Turner        Expires September 9, 2017               [Page 8]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -501,7 +501,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017               [Page 9]
+Thomson & Turner        Expires September 9, 2017               [Page 9]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -557,7 +557,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017              [Page 10]
+Thomson & Turner        Expires September 9, 2017              [Page 10]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -613,7 +613,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017              [Page 11]
+Thomson & Turner        Expires September 9, 2017              [Page 11]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -669,7 +669,7 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 
 
-Thomson & Turner        Expires September 6, 2017              [Page 12]
+Thomson & Turner        Expires September 9, 2017              [Page 12]
 
 Internet-Draft                QUIC over TLS                   March 2017
 
@@ -713,7 +713,38 @@ Internet-Draft                QUIC over TLS                   March 2017
    another older version of TLS.  An endpoint MUST terminate the
    connection if a version of TLS older than 1.3 is negotiated.
 
-4.4.  Peer Authentication
+4.4.  ClientHello Size
+
+   QUIC requires that the initial handshake packet from a client fit
+   within a single packet of at least 1280 octets.  With framing and
+   packet overheads this value could be reduced.
+
+   A TLS ClientHello can fit within this limit with ample space
+   remaining.  However, there are several variables that could cause
+   this limit to be exceeded.  Implementations are reminded that large
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 13]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
+   session tickets or HelloRetryRequest cookies, multiple or large key
+   shares, and long lists of supported ciphers, signature algorithms,
+   versions, QUIC transport parameters, and other negotiable parameters
+   and extensions could cause this message to grow.
+
+   For servers, the size of the session tickets and HelloRetryRequest
+   cookie extension can have an effect on a client's ability to connect.
+   Choosing a small value increases the probability that these values
+   can be successfully used by a client.
+
+   A TLS implementation does not need to enforce this size constraint.
+   QUIC padding can be used to reach this size, meaning that a TLS
+   server is unlikely to receive a large ClientHello message.
+
+4.5.  Peer Authentication
 
    The requirements for authentication depend on the application
    protocol that is in use.  TLS provides server authentication and
@@ -721,15 +752,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    A client MUST authenticate the identity of the server.  This
    typically involves verification that the identity of the server is
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 13]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    included in a certificate and that the certificate is issued by a
    trusted entity (see for example [RFC2818]).
 
@@ -754,6 +776,16 @@ Internet-Draft                QUIC over TLS                   March 2017
    redundancy is limited to only a few TLS records, and is maintained
    for the sake of simplicity.
 
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 14]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
 5.1.  Installing New Keys
 
    As TLS reports the availability of keying material, the packet
@@ -777,15 +809,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    QUIC uses a system of packet protection secrets, keys and IVs that
    are modelled on the system used in TLS [I-D.ietf-tls-tls13].  The
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 14]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    secrets that QUIC uses as the basis of its key schedule are obtained
    using TLS exporters (see Section 7.3.3 of [I-D.ietf-tls-tls13]).
 
@@ -811,6 +834,14 @@ Internet-Draft                QUIC over TLS                   March 2017
           = TLS-Exporter("EXPORTER-QUIC 0-RTT Secret"
                          "", Hash.length)
 
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 15]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
 5.2.2.  1-RTT Secrets
 
    1-RTT keys are used by both client and server after the TLS handshake
@@ -834,13 +865,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    These secrets are used to derive the initial client and server packet
    protection keys.
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 15]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
    After a key update (see Section 6.2), these secrets are updated using
    the HKDF-Expand-Label function defined in Section 7.1 of
@@ -866,6 +890,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    formatted info parameter.  The info parameter that includes the
    output length (in this case, the size of the PRF hash output) encoded
    on two octets in network byte order, the length of the prefixed Label
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 16]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    as a single octet, the value of the Label prefixed with "TLS 1.3, ",
    and a zero octet to indicate an empty HashValue.  For example, the
    client packet protection secret uses an info parameter of:
@@ -888,15 +920,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    AEAD function selected by TLS.  The key length is the AEAD key size.
    As defined in Section 5.3 of [I-D.ietf-tls-tls13], the IV length is
    the larger of 8 or N_MIN (see Section 4 of [RFC5116]).
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 16]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
       client_0rtt_key = HKDF-Expand-Label(client_0rtt_secret,
                                           "key", "", key_length)
@@ -923,6 +946,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    The QUIC record protection initially starts without keying material.
    When the TLS state machine reports that the ClientHello has been
    sent, the 0-RTT keys can be generated and installed for writing.
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 17]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    When the TLS state machine reports completion of the handshake, the
    1-RTT keys can be generated and installed for writing.
 
@@ -946,14 +977,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    The nonce, N, for the AEAD is formed by combining either the packet
    protection IV (either client_pp_iv_n or server_pp_iv_n) with packet
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 17]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    numbers.  The 64 bits of the reconstructed QUIC packet number in
    network byte order is left-padded with zeros to the size of the IV.
    The exclusive OR of the padded packet number and the IV forms the
@@ -980,6 +1003,13 @@ Internet-Draft                QUIC over TLS                   March 2017
    additional packets under the old key (causing new packets to be
    discarded).
 
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 18]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    QUIC does not assume a reliable transport and is required to handle
    attacks where packets are dropped in other ways.  QUIC is therefore
    not affected by this form of truncation.
@@ -997,18 +1027,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    TLS maintains a separate sequence number that is used for record
    protection on the connection that is hosted on stream 1.  This
    sequence number is not visible to QUIC.
-
-
-
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 18]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
 6.  Key Phases
 
@@ -1036,6 +1054,18 @@ Internet-Draft                QUIC over TLS                   March 2017
    need to ensure that TLS handshake messages are sent with the correct
    packet protection.
 
+
+
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 19]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
 6.1.  Packet Protection for the TLS Handshake
 
    The initial exchange of packets are sent without protection.  These
@@ -1058,14 +1088,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    Like the client, a server MUST send retransmissions of its
    unprotected handshake messages or acknowledgments for unprotected
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 19]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    handshake messages sent by the client in unprotected packets
    (KEY_PHASE=0).
 
@@ -1092,6 +1114,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    Marking 0-RTT data with the both KEY_PHASE and VERSION bits ensures
    that the server is able to identify these packets as 0-RTT data in
    case the packet containing the TLS ClientHello is lost or delayed.
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 20]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    Including the version also ensures that the packet format is known to
    the server in this case.
 
@@ -1113,15 +1143,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    The server transitions to using 1-RTT keys after sending its first
    flight of TLS handshake messages.  From this point, the server
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 20]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    protects all packets with 1-RTT keys.  Future packets are therefore
    protected with 1-RTT keys and marked with a KEY_PHASE of 1.
 
@@ -1147,6 +1168,16 @@ Internet-Draft                QUIC over TLS                   March 2017
       The server needs this message in order to determine the 0-RTT
       keys.
 
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 21]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    o  A server MUST NOT retransmit any of its TLS handshake messages
       with 1-RTT keys.  The client needs these messages in order to
       determine the 1-RTT keys.
@@ -1168,15 +1199,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    clearly distinguished from unprotected packets.  Loss or reordering
    might cause unprotected packets to arrive once 1-RTT keys are in use,
    unprotected packets are easily distinguished from 1-RTT packets.
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 21]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
    Once 1-RTT keys are available to an endpoint, it no longer needs the
    TLS handshake messages that are carried in unprotected packets.
@@ -1204,6 +1226,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    when 0-RTT is attempted the value of the KEY_PHASE bit will be
    different on packets sent by either peer.
 
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 22]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    A receiving endpoint detects an update when the KEY_PHASE bit doesn't
    match what it is expecting.  It creates a new secret (see
    Section 5.2) and the corresponding read key and IV.  If the packet
@@ -1225,14 +1255,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    that are reordered around the transition between keys.  Packets with
    higher packet numbers always use the updated keys and MUST NOT be
    decrypted with old keys.
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 22]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
    Keys and their corresponding secrets SHOULD be discarded when an
    endpoint has received all packets with sequence numbers lower than
@@ -1260,6 +1282,14 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    As shown in Figure 3 and Figure 5, there is never a situation where
    there are more than two different sets of keying material that might
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 23]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    be received by a peer.  Once both sending and receiving keys have
    been updated,
 
@@ -1282,14 +1312,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    When QUIC requests address validation during the processing of the
    first ClientHello, the token it provides is included in the cookie
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 23]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    extension of a HelloRetryRequest.  As long as the cookie cannot be
    successfully guessed by a client, the server can be assured that the
    client received the HelloRetryRequest if it includes the value in a
@@ -1316,6 +1338,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    If TLS needs to send a HelloRetryRequest for other reasons, it needs
    to ensure that it can correctly identify the reason that the
    HelloRetryRequest was generated.  During the processing of a second
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 24]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    ClientHello, TLS does not need to consult the transport protocol
    regarding address validation if address validation was not requested
    originally.  In such cases, the cookie extension could either be
@@ -1338,13 +1368,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    transport.  The presence of a cookie indicates that this is a second
    ClientHello - the token from the session ticket will have been
    provided to the transport when it appeared in the first ClientHello.
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 24]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
    A server can send a NewSessionTicket message at any time.  This
    allows it to update the state - and the address validation token -
@@ -1371,6 +1394,14 @@ Internet-Draft                QUIC over TLS                   March 2017
    Implementations MUST NOT exchange data on any stream other than
    stream 1 without packet protection.  QUIC requires the use of several
    types of frame for managing loss detection and recovery during this
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 25]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    phase.  In addition, it might be useful to use the data acquired
    during the exchange of unauthenticated messages for congestion
    control.
@@ -1394,14 +1425,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    o  use them, but reset any state that is established once the
       handshake completes
 
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 25]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    o  use them and authenticate them afterwards; failing the handshake
       if they can't be authenticated
 
@@ -1422,6 +1445,18 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    o  Protected packets can either be discarded or saved and later used
       (see Section 8.3).
+
+
+
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 26]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
 
 8.1.  Unprotected Packets Prior to Handshake Completion
 
@@ -1450,14 +1485,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    functioning of the protocol, but these frames might be spoofed or
    altered.
 
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 26]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    Endpoints MUST NOT use an unprotected "ACK" frame to acknowledge data
    that was protected by 0-RTT or 1-RTT keys.  An endpoint MUST ignore
    an unprotected "ACK" frame if it claims to acknowledge data that was
@@ -1477,6 +1504,15 @@ Internet-Draft                QUIC over TLS                   March 2017
    insufficient information from 1-RTT-protected "ACK" frames.  Once
    sufficient information has been obtained from protected messages,
    information obtained from less reliable sources can be discarded.
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 27]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
 
 8.1.3.  WINDOW_UPDATE Frames
 
@@ -1506,14 +1542,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    clear, an attacker is able to force implementations to rely on
    retransmission for packets that are lost or shadowed.  Thus, an
    attacker that intends to deny service to an endpoint has to drop or
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 27]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    shadow protected packets in order to ensure that their victim
    continues to accept unprotected packets.  The ability to shadow
    packets means that an attacker does not need to be on path.
@@ -1533,6 +1561,15 @@ Internet-Draft                QUIC over TLS                   March 2017
    To avoid receiving TLS packets that contain no useful data, a TLS
    implementation MUST reject empty TLS handshake records and any record
    that is not permitted by the TLS state machine.  Any TLS application
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 28]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    data or alerts that is received prior to the end of the handshake
    MUST be treated as a fatal error.
 
@@ -1562,14 +1599,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    whereas a server will be able to decrypt 1-RTT packets from the
    client.
 
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 28]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    Packets protected with 1-RTT keys MAY be stored and later decrypted
    and used once the handshake is complete.  A server MUST NOT use 1-RTT
    protected packets before verifying either the client Finished message
@@ -1586,6 +1615,16 @@ Internet-Draft                QUIC over TLS                   March 2017
    ensuring the integrity of the TLS handshake.  A server MUST NOT use
    protected packets from the client prior to verifying the client
    Finished message if its response depends on client authentication.
+
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 29]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
 
 9.  QUIC-Specific Additions to the TLS Handshake
 
@@ -1619,13 +1658,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    MUST abort a connection if the server picks an incompatible
    combination of QUIC version and ALPN identifier.
 
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 29]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
 9.2.  QUIC Transport Parameters Extension
 
    QUIC transport parameters are carried in a TLS extension.  Different
@@ -1641,6 +1673,15 @@ Internet-Draft                QUIC over TLS                   March 2017
    The "extension_data" field of the quic_transport_parameters extension
    contains a value that is defined by the version of QUIC that is in
    use.  The quic_transport_parameters extension carries a
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 30]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    TransportParameters when the version of QUIC defined in
    [QUIC-TRANSPORT] is used.
 
@@ -1671,17 +1712,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    connection, or allow an increase to the amount of data that it sends
    toward the client without source validation.
 
-
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 30]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
 10.  Security Considerations
 
    There are likely to be some real clangers here eventually, but the
@@ -1700,11 +1730,20 @@ Internet-Draft                QUIC over TLS                   March 2017
    Certificate caching [RFC7924] can reduce the size of the server's
    handshake messages significantly.
 
-   A client SHOULD also pad [RFC7685] its ClientHello to at least 1024
-   octets.  A server is less likely to generate a packet reflection
-   attack if the data it sends is a small multiple of the data it
-   receives.  A server SHOULD use a HelloRetryRequest if the size of the
-   handshake messages it sends is likely to exceed the size of the
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 31]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
+   QUIC requires that the packet containing a ClientHello be padded to
+   the size of the maximum transmission unit (MTU).  A server is less
+   likely to generate a packet reflection attack if the data it sends is
+   a small multiple of this size.  A server SHOULD use a
+   HelloRetryRequest if the size of the handshake messages it sends is
+   likely to significantly exceed the size of the packet containing the
    ClientHello.
 
 10.2.  Peer Denial of Service
@@ -1730,14 +1769,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    include any allowance for padding; padded TLS application data
    records can be used to mask the length of QUIC frames.
 
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 31]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    While there are legitimate uses for some redundant packets,
    implementations SHOULD track redundant packets and treat excessive
    volumes of any non-productive packets as indicative of an attack.
@@ -1755,6 +1786,13 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    TLS_TOO_MANY_ENTRIES (0xC000001E):  Handshake message contained too
       many entries.
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 32]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
 
    TLS_INVALID_VALUE_LENGTH (0xC000001F):  Handshake message contained
       an invalid value length.
@@ -1787,13 +1825,6 @@ Internet-Draft                QUIC over TLS                   March 2017
    TLS_INTERNAL_ERROR (0xC0000026):  An internal error occured in
       handshake processing.
 
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 32]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
    TLS_VERSION_NOT_SUPPORTED (0xC0000027):  A handshake handshake
       message specified an unsupported version.
 
@@ -1811,6 +1842,13 @@ Internet-Draft                QUIC over TLS                   March 2017
 
    TLS_DUPLICATE_TAG (0xC000002B):  A handshake message was received
       with a duplicate tag.
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 33]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
 
    TLS_ENCRYPTION_LEVEL_INCORRECT (0xC000002C):  A handshake message was
       received with the wrong encryption level (i.e. it should have been
@@ -1838,18 +1876,6 @@ Internet-Draft                QUIC over TLS                   March 2017
 
 13.  References
 
-
-
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 33]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
-
 13.1.  Normative References
 
    [I-D.ietf-tls-tls13]
@@ -1870,6 +1896,16 @@ Internet-Draft                QUIC over TLS                   March 2017
               Encryption", RFC 5116, DOI 10.17487/RFC5116, January 2008,
               <http://www.rfc-editor.org/info/rfc5116>.
 
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 34]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    [RFC5869]  Krawczyk, H. and P. Eronen, "HMAC-based Extract-and-Expand
               Key Derivation Function (HKDF)", RFC 5869,
               DOI 10.17487/RFC5869, May 2010,
@@ -1885,26 +1921,12 @@ Internet-Draft                QUIC over TLS                   March 2017
               Negotiation Extension", RFC 7301, DOI 10.17487/RFC7301,
               July 2014, <http://www.rfc-editor.org/info/rfc7301>.
 
-   [RFC7685]  Langley, A., "A Transport Layer Security (TLS) ClientHello
-              Padding Extension", RFC 7685, DOI 10.17487/RFC7685,
-              October 2015, <http://www.rfc-editor.org/info/rfc7685>.
-
 13.2.  Informative References
 
    [AEBounds]
               Luykx, A. and K. Paterson, "Limits on Authenticated
               Encryption Use in TLS", March 2016,
               <http://www.isg.rhul.ac.uk/~kp/TLS-AEbounds.pdf>.
-
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 34]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
    [QUIC-HTTP]
               Bishop, M., Ed., "Hypertext Transfer Protocol (HTTP) over
@@ -1933,6 +1955,13 @@ Internet-Draft                QUIC over TLS                   March 2017
               DOI 10.17487/RFC7540, May 2015,
               <http://www.rfc-editor.org/info/rfc7540>.
 
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 35]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    [RFC7924]  Santesson, S. and H. Tschofenig, "Transport Layer Security
               (TLS) Cached Information Extension", RFC 7924,
               DOI 10.17487/RFC7924, July 2016,
@@ -1952,15 +1981,6 @@ Appendix C.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
       publication of a final version of this document.
-
-
-
-
-
-Thomson & Turner        Expires September 6, 2017              [Page 35]
-
-Internet-Draft                QUIC over TLS                   March 2017
-
 
 C.1.  Since draft-ietf-quic-tls-00:
 
@@ -1990,6 +2010,14 @@ Authors' Addresses
    Email: martin.thomson@gmail.com
 
 
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 36]
+
+Internet-Draft                QUIC over TLS                   March 2017
+
+
    Sean Turner (editor)
    sn3rd
 
@@ -2013,4 +2041,32 @@ Authors' Addresses
 
 
 
-Thomson & Turner        Expires September 6, 2017              [Page 36]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thomson & Turner        Expires September 9, 2017              [Page 37]

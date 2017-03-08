@@ -294,7 +294,8 @@ address {
 <link href="#rfc.section.3.6" rel="Chapter" title="3.6 On Packet Acknowledgment"/>
 <link href="#rfc.section.3.7" rel="Chapter" title="3.7 Setting the Loss Detection Alarm"/>
 <link href="#rfc.section.3.7.1" rel="Chapter" title="3.7.1 Handshake Packets"/>
-<link href="#rfc.section.3.7.2" rel="Chapter" title="3.7.2 Pseudocode"/>
+<link href="#rfc.section.3.7.2" rel="Chapter" title="3.7.2 Tail Loss Probe and Retransmission Timeout"/>
+<link href="#rfc.section.3.7.3" rel="Chapter" title="3.7.3 Pseudocode"/>
 <link href="#rfc.section.3.8" rel="Chapter" title="3.8 On Alarm Firing"/>
 <link href="#rfc.section.3.9" rel="Chapter" title="3.9 Detecting Lost Packets"/>
 <link href="#rfc.section.3.9.1" rel="Chapter" title="3.9.1 Handshake Packets"/>
@@ -316,7 +317,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-3-5" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-3-8" />
   <meta name="dct.abstract" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
   <meta name="description" content="QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds on decades of transport and security experience, and implements mechanisms that make it attractive as a modern general-purpose transport.  QUIC implements the spirit of known TCP loss detection mechanisms, described in RFCs, various Internet-drafts, and also those prevalent in the Linux TCP implementation.  This document describes QUIC loss detection and congestion control, and attributes the TCP equivalent in RFCs, Internet-drafts, academic papers, and TCP implementations." />
 
@@ -340,8 +341,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: September 6, 2017</td>
-  <td class="right">March 5, 2017</td>
+  <td class="left">Expires: September 9, 2017</td>
+  <td class="right">March 8, 2017</td>
 </tr>
 
     	
@@ -366,7 +367,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on September 6, 2017.</p>
+<p>This Internet-Draft will expire on September 9, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -395,7 +396,8 @@ address {
 <li>3.6.   <a href="#rfc.section.3.6">On Packet Acknowledgment</a></li>
 <li>3.7.   <a href="#rfc.section.3.7">Setting the Loss Detection Alarm</a></li>
 <ul><li>3.7.1.   <a href="#rfc.section.3.7.1">Handshake Packets</a></li>
-<li>3.7.2.   <a href="#rfc.section.3.7.2">Pseudocode</a></li>
+<li>3.7.2.   <a href="#rfc.section.3.7.2">Tail Loss Probe and Retransmission Timeout</a></li>
+<li>3.7.3.   <a href="#rfc.section.3.7.3">Pseudocode</a></li>
 </ul><li>3.8.   <a href="#rfc.section.3.8">On Alarm Firing</a></li>
 <li>3.9.   <a href="#rfc.section.3.9">Detecting Lost Packets</a></li>
 <ul><li>3.9.1.   <a href="#rfc.section.3.9.1">Handshake Packets</a></li>
@@ -490,7 +492,7 @@ address {
   <dt>use_time_loss:</dt>
   <dd style="margin-left: 8">When true, loss detection operates solely based on reordering threshold in time, rather than in packet number gaps.</dd>
   <dt>sent_packets:</dt>
-  <dd style="margin-left: 8">An association of packet numbers to information about them.</dd>
+  <dd style="margin-left: 8">An association of packet numbers to information about them, including a time field indicating the time a packet was sent and a bytes field indicating the packet&#8217;s size.</dd>
 </dl>
 <h2 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#initialization" id="initialization">Initialization</a></h2>
 <p id="rfc.section.3.3.p.1">At the beginning of the connection, initialize the loss detection variables as follows:</p>
@@ -517,7 +519,6 @@ address {
 <p id="rfc.section.3.4.p.3">Pseudocode for OnPacketSent follows:</p>
 <pre>
  OnPacketSent(packet_number, is_retransmittable, sent_bytes):
-   # TODO: Clarify the data in sent_packets.
    sent_packets[packet_number].time = now
    if is_retransmittable:
      sent_packets[packet_number].bytes = sent_bytes
@@ -538,7 +539,8 @@ address {
      for acked_packet in DetermineNewlyAckedPackets():
        OnPacketAcked(acked_packet)
 
-     DetectLostPackets(ack.largest_acked_packet)
+     lost_packets = DetectLostPackets(ack.largest_acked_packet)
+     MaybeRetransmit(lost_packets)
      SetLossDetectionAlarm()
 
 
@@ -572,9 +574,10 @@ address {
 <p id="rfc.section.3.7.1.p.3">Handshake frames may be cancelled by handshake state transitions.  In particular, all non-protected frames SHOULD be no longer be transmitted once packet protection is available.</p>
 <p id="rfc.section.3.7.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
 <p id="rfc.section.3.7.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
-<p id="rfc.section.3.7.1.p.6">(Add sections for early retransmit and TLP/RTO here)</p>
-<h3 id="rfc.section.3.7.2"><a href="#rfc.section.3.7.2">3.7.2.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a></h3>
-<p id="rfc.section.3.7.2.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
+<h3 id="rfc.section.3.7.2"><a href="#rfc.section.3.7.2">3.7.2.</a> <a href="#tail-loss-probe-and-retransmission-timeout" id="tail-loss-probe-and-retransmission-timeout">Tail Loss Probe and Retransmission Timeout</a></h3>
+<p id="rfc.section.3.7.2.p.1">Tail loss probes and retransmission timeouts<a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
+<h3 id="rfc.section.3.7.3"><a href="#rfc.section.3.7.3">3.7.3.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a></h3>
+<p id="rfc.section.3.7.3.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
 <pre>
  SetLossDetectionAlarm():
     if (retransmittable packets are not outstanding):
@@ -589,7 +592,6 @@ address {
         alarm_duration = 2 * smoothed_rtt
       alarm_duration = max(alarm_duration, kMinTLPTimeout)
       alarm_duration = alarm_duration &lt;&lt; handshake_count
-      handshake_count++;
     else if (largest sent packet is acked):
       // Early retransmit {{RFC5827}}
       // with an alarm to reduce spurious retransmits.
@@ -601,7 +603,6 @@ address {
       else:
         alarm_duration = kMinTLPTimeout
       alarm_duration = max(alarm_duration, 2 * smoothed_rtt)
-      tlp_count++
     else:
       // RTO alarm.
       if (rto_count = 0):
@@ -609,17 +610,35 @@ address {
         alarm_duration = max(alarm_duration, kMinRTOTimeout)
       else:
         alarm_duration = loss_detection_alarm.get_delay() &lt;&lt; 1
-      rto_count++
 
     loss_detection_alarm.set(now + alarm_duration)
 </pre>
 <h2 id="rfc.section.3.8"><a href="#rfc.section.3.8">3.8.</a> <a href="#on-alarm-firing" id="on-alarm-firing">On Alarm Firing</a></h2>
-<p id="rfc.section.3.8.p.1">QUIC uses one loss recovery alarm, which when set, can be in one of several modes.  When the alarm fires, the mode determines the action to be performed.  OnAlarm returns a list of packet numbers that are detected as lost.</p>
-<p id="rfc.section.3.8.p.2">Pseudocode for OnAlarm follows:</p>
+<p id="rfc.section.3.8.p.1">QUIC uses one loss recovery alarm, which when set, can be in one of several modes.  When the alarm fires, the mode determines the action to be performed.</p>
+<p id="rfc.section.3.8.p.2">Pseudocode for OnLossDetectionAlarm follows:</p>
 <pre>
-   OnAlarm(acked_packet):
-     lost_packets = DetectLostPackets(acked_packet)
-     MaybeRetransmit(lost_packets)
+   OnLossDetectionAlarm():
+     if (handshake packets are outstanding):
+       // Handshake retransmission alarm.
+       RetransmitAllHandshakePackets();
+       handshake_count++;
+     // TODO: Clarify early retransmit and time loss.
+     else if ():
+       // Early retransmit or Time Loss Detection
+       lost_packets = DetectLostPackets(acked_packet)
+       MaybeRetransmit(lost_packets)
+     else if (tlp_count &lt; kMaxTLPs):
+       // Tail Loss Probe alarm.
+       if (HasNewDataToSend()):
+         SendOnePacketOfNewData()
+       else:
+         RetransmitOldestPacket()
+       tlp_count++
+     else:
+       // RTO alarm.
+       RetransmitOldestPacket()
+       rto_count++
+
      SetLossDetectionAlarm()
 </pre>
 <h2 id="rfc.section.3.9"><a href="#rfc.section.3.9">3.9.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h2>
@@ -642,7 +661,7 @@ address {
      return lost_packets
 </pre>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a></h1>
-<p id="rfc.section.4.p.1">(describe NewReno-style congestion control for QUIC.) (describe appropriate byte counting.) (define recovery based on packet numbers.) (describe min_rtt based hystart.) (describe how QUIC&#8217;s F-RTO delays reducing CWND until an ack is received.)</p>
+<p id="rfc.section.4.p.1">(describe NewReno-style congestion control <a href="#RFC6582">[RFC6582]</a> for QUIC.) (describe appropriate byte counting.) (define recovery based on packet numbers.) (describe min_rtt based hystart.) (describe how QUIC&#8217;s F-RTO <a href="#RFC5682">[RFC5682]</a> delays reducing CWND.) (describe PRR <a href="#RFC6937">[RFC6937]</a>)</p>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a></h1>
 <p id="rfc.section.5.p.1">This document has no IANA actions.  Yet.</p>
 <h1 id="rfc.references"><a href="#rfc.references">6.</a> References</h1>
@@ -669,32 +688,15 @@ address {
     </tr>
     <tr>
       <td class="reference">
-        <b id="RFC5827">[RFC5827]</b>
-      </td>
-      <td class="top"><a>Allman, M.</a>, <a>Avrachenkov, K.</a>, <a>Ayesta, U.</a>, <a>Blanton, J.</a> and <a>P. Hurtig</a>, "<a href="http://tools.ietf.org/html/rfc5827">Early Retransmit for TCP and Stream Control Transmission Protocol (SCTP)</a>", RFC 5827, DOI 10.17487/RFC5827, May 2010.</td>
-    </tr>
-  </tbody>
-</table>
-<h2 id="rfc.references.2"><a href="#rfc.references.2">6.2.</a> Informative References</h2>
-<table>
-  <tbody>
-    <tr>
-      <td class="reference">
-        <b id="I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</b>
-      </td>
-      <td class="top"><a>Dukkipati, N.</a>, <a>Cardwell, N.</a>, <a>Cheng, Y.</a> and <a>M. Mathis</a>, "<a href="http://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01">Tail Loss Probe (TLP): An Algorithm for Fast Recovery of Tail Losses</a>", Internet-Draft draft-dukkipati-tcpm-tcp-loss-probe-01, February 2013.</td>
-    </tr>
-    <tr>
-      <td class="reference">
-        <b id="RFC3782">[RFC3782]</b>
-      </td>
-      <td class="top"><a>Floyd, S.</a>, <a>Henderson, T.</a> and <a>A. Gurtov</a>, "<a href="http://tools.ietf.org/html/rfc3782">The NewReno Modification to TCP's Fast Recovery Algorithm</a>", RFC 3782, DOI 10.17487/RFC3782, April 2004.</td>
-    </tr>
-    <tr>
-      <td class="reference">
         <b id="RFC5682">[RFC5682]</b>
       </td>
       <td class="top"><a>Sarolahti, P.</a>, <a>Kojo, M.</a>, <a>Yamamoto, K.</a> and <a>M. Hata</a>, "<a href="http://tools.ietf.org/html/rfc5682">Forward RTO-Recovery (F-RTO): An Algorithm for Detecting Spurious Retransmission Timeouts with TCP</a>", RFC 5682, DOI 10.17487/RFC5682, September 2009.</td>
+    </tr>
+    <tr>
+      <td class="reference">
+        <b id="RFC5827">[RFC5827]</b>
+      </td>
+      <td class="top"><a>Allman, M.</a>, <a>Avrachenkov, K.</a>, <a>Ayesta, U.</a>, <a>Blanton, J.</a> and <a>P. Hurtig</a>, "<a href="http://tools.ietf.org/html/rfc5827">Early Retransmit for TCP and Stream Control Transmission Protocol (SCTP)</a>", RFC 5827, DOI 10.17487/RFC5827, May 2010.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -713,6 +715,17 @@ address {
         <b id="RFC6937">[RFC6937]</b>
       </td>
       <td class="top"><a>Mathis, M.</a>, <a>Dukkipati, N.</a> and <a>Y. Cheng</a>, "<a href="http://tools.ietf.org/html/rfc6937">Proportional Rate Reduction for TCP</a>", RFC 6937, DOI 10.17487/RFC6937, May 2013.</td>
+    </tr>
+  </tbody>
+</table>
+<h2 id="rfc.references.2"><a href="#rfc.references.2">6.2.</a> Informative References</h2>
+<table>
+  <tbody>
+    <tr>
+      <td class="reference">
+        <b id="I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</b>
+      </td>
+      <td class="top"><a>Dukkipati, N.</a>, <a>Cardwell, N.</a>, <a>Cheng, Y.</a> and <a>M. Mathis</a>, "<a href="http://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01">Tail Loss Probe (TLP): An Algorithm for Fast Recovery of Tail Losses</a>", Internet-Draft draft-dukkipati-tcpm-tcp-loss-probe-01, February 2013.</td>
     </tr>
   </tbody>
 </table>

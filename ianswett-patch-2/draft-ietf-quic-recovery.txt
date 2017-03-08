@@ -5,7 +5,7 @@
 QUIC                                                     J. Iyengar, Ed.
 Internet-Draft                                             I. Swett, Ed.
 Intended status: Standards Track                                  Google
-Expires: September 8, 2017                                 March 7, 2017
+Expires: September 9, 2017                                 March 8, 2017
 
 
                QUIC Loss Detection and Congestion Control
@@ -48,12 +48,12 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on September 8, 2017.
+   This Internet-Draft will expire on September 9, 2017.
 
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 1]
+Iyengar & Swett         Expires September 9, 2017               [Page 1]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -92,29 +92,30 @@ Table of Contents
      3.6.  On Packet Acknowledgment  . . . . . . . . . . . . . . . .   8
      3.7.  Setting the Loss Detection Alarm  . . . . . . . . . . . .   9
        3.7.1.  Handshake Packets . . . . . . . . . . . . . . . . . .   9
-       3.7.2.  Pseudocode  . . . . . . . . . . . . . . . . . . . . .   9
+       3.7.2.  Tail Loss Probe and Retransmission Timeout  . . . . .   9
+       3.7.3.  Pseudocode  . . . . . . . . . . . . . . . . . . . . .   9
      3.8.  On Alarm Firing . . . . . . . . . . . . . . . . . . . . .  10
      3.9.  Detecting Lost Packets  . . . . . . . . . . . . . . . . .  11
        3.9.1.  Handshake Packets . . . . . . . . . . . . . . . . . .  11
        3.9.2.  Pseudocode  . . . . . . . . . . . . . . . . . . . . .  11
-   4.  Congestion Control  . . . . . . . . . . . . . . . . . . . . .  11
+   4.  Congestion Control  . . . . . . . . . . . . . . . . . . . . .  12
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .  12
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .  12
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  13
    Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  13
    Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  13
      B.1.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  13
-     B.2.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  13
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 2]
+Iyengar & Swett         Expires September 9, 2017               [Page 2]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  13
+     B.2.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  13
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  14
 
 1.  Introduction
 
@@ -160,15 +161,17 @@ Internet-Draft             QUIC Loss Detection                March 2017
       The most common are STREAM frames, which typically contain
       application data.
 
-   o  Crypto handshake data is also sent as STREAM data, and uses the
-      reliability machinery of QUIC underneath.
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 3]
+
+Iyengar & Swett         Expires September 9, 2017               [Page 3]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   o  Crypto handshake data is also sent as STREAM data, and uses the
+      reliability machinery of QUIC underneath.
 
    o  ACK frames contain acknowledgment information.  QUIC uses a SACK-
       based scheme, where acks express up to 256 ranges.  The ACK frame
@@ -218,10 +221,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-
-
-
-Iyengar & Swett         Expires September 8, 2017               [Page 4]
+Iyengar & Swett         Expires September 9, 2017               [Page 4]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -277,7 +277,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 5]
+Iyengar & Swett         Expires September 9, 2017               [Page 5]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -321,7 +321,8 @@ Internet-Draft             QUIC Loss Detection                March 2017
       reordering threshold in time, rather than in packet number gaps.
 
    sent_packets:  An association of packet numbers to information about
-      them.
+      them, including a time field indicating the time a packet was sent
+      and a bytes field indicating the packet's size.
 
 3.3.  Initialization
 
@@ -332,8 +333,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-
-Iyengar & Swett         Expires September 8, 2017               [Page 6]
+Iyengar & Swett         Expires September 9, 2017               [Page 6]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -368,7 +368,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
    Pseudocode for OnPacketSent follows:
 
     OnPacketSent(packet_number, is_retransmittable, sent_bytes):
-      # TODO: Clarify the data in sent_packets.
       sent_packets[packet_number].time = now
       if is_retransmittable:
         sent_packets[packet_number].bytes = sent_bytes
@@ -389,7 +388,8 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 7]
+
+Iyengar & Swett         Expires September 9, 2017               [Page 7]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -445,7 +445,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-Iyengar & Swett         Expires September 8, 2017               [Page 8]
+Iyengar & Swett         Expires September 9, 2017               [Page 8]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -484,9 +484,14 @@ Internet-Draft             QUIC Loss Detection                March 2017
    once per per handshake packet that uses an unsupported QUIC version,
    and MAY be sent in response to 0RTT packets.
 
-   (Add sections for early retransmit and TLP/RTO here)
+3.7.2.  Tail Loss Probe and Retransmission Timeout
 
-3.7.2.  Pseudocode
+   Tail loss probes and retransmission timeouts[RFC6298] are an alarm
+   based mechanism to recover from cases when there are outstanding
+   retransmittable packets, but an acknowledgement has not been received
+   in a timely manner.
+
+3.7.3.  Pseudocode
 
    Pseudocode for SetLossDetectionAlarm follows:
 
@@ -496,12 +501,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-
-
-
-
-
-Iyengar & Swett         Expires September 8, 2017               [Page 9]
+Iyengar & Swett         Expires September 9, 2017               [Page 9]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
@@ -519,7 +519,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
            alarm_duration = 2 * smoothed_rtt
          alarm_duration = max(alarm_duration, kMinTLPTimeout)
          alarm_duration = alarm_duration << handshake_count
-         handshake_count++;
        else if (largest sent packet is acked):
          // Early retransmit {{RFC5827}}
          // with an alarm to reduce spurious retransmits.
@@ -531,7 +530,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
          else:
            alarm_duration = kMinTLPTimeout
          alarm_duration = max(alarm_duration, 2 * smoothed_rtt)
-         tlp_count++
        else:
          // RTO alarm.
          if (rto_count = 0):
@@ -539,7 +537,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
            alarm_duration = max(alarm_duration, kMinRTOTimeout)
          else:
            alarm_duration = loss_detection_alarm.get_delay() << 1
-         rto_count++
 
        loss_detection_alarm.set(now + alarm_duration)
 
@@ -547,24 +544,46 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
    QUIC uses one loss recovery alarm, which when set, can be in one of
    several modes.  When the alarm fires, the mode determines the action
-   to be performed.  OnAlarm returns a list of packet numbers that are
-   detected as lost.
+   to be performed.
 
-   Pseudocode for OnAlarm follows:
-
+   Pseudocode for OnLossDetectionAlarm follows:
 
 
 
 
 
-Iyengar & Swett         Expires September 8, 2017              [Page 10]
+
+
+
+
+
+Iyengar & Swett         Expires September 9, 2017              [Page 10]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
-      OnAlarm(acked_packet):
-        lost_packets = DetectLostPackets(acked_packet)
-        MaybeRetransmit(lost_packets)
+      OnLossDetectionAlarm():
+        if (handshake packets are outstanding):
+          // Handshake retransmission alarm.
+          RetransmitAllHandshakePackets();
+          handshake_count++;
+        // TODO: Clarify early retransmit and time loss.
+        else if ():
+          // Early retransmit or Time Loss Detection
+          lost_packets = DetectLostPackets(acked_packet)
+          MaybeRetransmit(lost_packets)
+        else if (tlp_count < kMaxTLPs):
+          // Tail Loss Probe alarm.
+          if (HasNewDataToSend()):
+            SendOnePacketOfNewData()
+          else:
+            RetransmitOldestPacket()
+          tlp_count++
+        else:
+          // RTO alarm.
+          RetransmitOldestPacket()
+          rto_count++
+
         SetLossDetectionAlarm()
 
 3.9.  Detecting Lost Packets
@@ -588,6 +607,17 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
    Pseudocode for DetectLostPackets follows:
 
+
+
+
+
+
+
+Iyengar & Swett         Expires September 9, 2017              [Page 11]
+
+Internet-Draft             QUIC Loss Detection                March 2017
+
+
       DetectLostPackets(acked):
         lost_packets = {}
         foreach (unacked less than acked):
@@ -601,22 +631,11 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 4.  Congestion Control
 
-   (describe NewReno-style congestion control for QUIC.) (describe
-   appropriate byte counting.) (define recovery based on packet
-   numbers.) (describe min_rtt based hystart.) (describe how QUIC's
-   F-RTO delays reducing CWND until an ack is received.)
-
-
-
-
-
-
-
-
-Iyengar & Swett         Expires September 8, 2017              [Page 11]
-
-Internet-Draft             QUIC Loss Detection                March 2017
-
+   (describe NewReno-style congestion control [RFC6582] for QUIC.)
+   (describe appropriate byte counting.) (define recovery based on
+   packet numbers.) (describe min_rtt based hystart.) (describe how
+   QUIC's F-RTO [RFC5682] delays reducing CWND.) (describe PRR
+   [RFC6937])
 
 5.  IANA Considerations
 
@@ -639,25 +658,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
 
-   [RFC5827]  Allman, M., Avrachenkov, K., Ayesta, U., Blanton, J., and
-              P. Hurtig, "Early Retransmit for TCP and Stream Control
-              Transmission Protocol (SCTP)", RFC 5827,
-              DOI 10.17487/RFC5827, May 2010,
-              <http://www.rfc-editor.org/info/rfc5827>.
-
-6.2.  Informative References
-
-   [I-D.dukkipati-tcpm-tcp-loss-probe]
-              Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
-              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
-              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
-              in progress), February 2013.
-
-   [RFC3782]  Floyd, S., Henderson, T., and A. Gurtov, "The NewReno
-              Modification to TCP's Fast Recovery Algorithm", RFC 3782,
-              DOI 10.17487/RFC3782, April 2004,
-              <http://www.rfc-editor.org/info/rfc3782>.
-
    [RFC5682]  Sarolahti, P., Kojo, M., Yamamoto, K., and M. Hata,
               "Forward RTO-Recovery (F-RTO): An Algorithm for Detecting
               Spurious Retransmission Timeouts with TCP", RFC 5682,
@@ -669,10 +669,16 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-Iyengar & Swett         Expires September 8, 2017              [Page 12]
+Iyengar & Swett         Expires September 9, 2017              [Page 12]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   [RFC5827]  Allman, M., Avrachenkov, K., Ayesta, U., Blanton, J., and
+              P. Hurtig, "Early Retransmit for TCP and Stream Control
+              Transmission Protocol (SCTP)", RFC 5827,
+              DOI 10.17487/RFC5827, May 2010,
+              <http://www.rfc-editor.org/info/rfc5827>.
 
    [RFC6298]  Paxson, V., Allman, M., Chu, J., and M. Sargent,
               "Computing TCP's Retransmission Timer", RFC 6298,
@@ -687,6 +693,14 @@ Internet-Draft             QUIC Loss Detection                March 2017
    [RFC6937]  Mathis, M., Dukkipati, N., and Y. Cheng, "Proportional
               Rate Reduction for TCP", RFC 6937, DOI 10.17487/RFC6937,
               May 2013, <http://www.rfc-editor.org/info/rfc6937>.
+
+6.2.  Informative References
+
+   [I-D.dukkipati-tcpm-tcp-loss-probe]
+              Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
+              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
+              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
+              in progress), February 2013.
 
 Appendix A.  Acknowledgments
 
@@ -707,6 +721,15 @@ B.2.  Since draft-iyengar-quic-loss-recovery-01:
 
    o  Added table of contents.
 
+
+
+
+
+Iyengar & Swett         Expires September 9, 2017              [Page 13]
+
+Internet-Draft             QUIC Loss Detection                March 2017
+
+
 Authors' Addresses
 
    Jana Iyengar (editor)
@@ -725,4 +748,37 @@ Authors' Addresses
 
 
 
-Iyengar & Swett         Expires September 8, 2017              [Page 13]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Swett         Expires September 9, 2017              [Page 14]

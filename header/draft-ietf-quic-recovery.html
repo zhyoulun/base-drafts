@@ -295,7 +295,8 @@ address {
 <link href="#rfc.section.3.7" rel="Chapter" title="3.7 Setting the Loss Detection Alarm"/>
 <link href="#rfc.section.3.7.1" rel="Chapter" title="3.7.1 Handshake Packets"/>
 <link href="#rfc.section.3.7.2" rel="Chapter" title="3.7.2 Tail Loss Probe and Retransmission Timeout"/>
-<link href="#rfc.section.3.7.3" rel="Chapter" title="3.7.3 Pseudocode"/>
+<link href="#rfc.section.3.7.3" rel="Chapter" title="3.7.3 Early Retransmit"/>
+<link href="#rfc.section.3.7.4" rel="Chapter" title="3.7.4 Pseudocode"/>
 <link href="#rfc.section.3.8" rel="Chapter" title="3.8 On Alarm Firing"/>
 <link href="#rfc.section.3.9" rel="Chapter" title="3.9 Detecting Lost Packets"/>
 <link href="#rfc.section.3.9.1" rel="Chapter" title="3.9.1 Handshake Packets"/>
@@ -397,7 +398,8 @@ address {
 <li>3.7.   <a href="#rfc.section.3.7">Setting the Loss Detection Alarm</a></li>
 <ul><li>3.7.1.   <a href="#rfc.section.3.7.1">Handshake Packets</a></li>
 <li>3.7.2.   <a href="#rfc.section.3.7.2">Tail Loss Probe and Retransmission Timeout</a></li>
-<li>3.7.3.   <a href="#rfc.section.3.7.3">Pseudocode</a></li>
+<li>3.7.3.   <a href="#rfc.section.3.7.3">Early Retransmit</a></li>
+<li>3.7.4.   <a href="#rfc.section.3.7.4">Pseudocode</a></li>
 </ul><li>3.8.   <a href="#rfc.section.3.8">On Alarm Firing</a></li>
 <li>3.9.   <a href="#rfc.section.3.9">Detecting Lost Packets</a></li>
 <ul><li>3.9.1.   <a href="#rfc.section.3.9.1">Handshake Packets</a></li>
@@ -575,9 +577,11 @@ address {
 <p id="rfc.section.3.7.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
 <p id="rfc.section.3.7.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
 <h3 id="rfc.section.3.7.2"><a href="#rfc.section.3.7.2">3.7.2.</a> <a href="#tail-loss-probe-and-retransmission-timeout" id="tail-loss-probe-and-retransmission-timeout">Tail Loss Probe and Retransmission Timeout</a></h3>
-<p id="rfc.section.3.7.2.p.1">Tail loss probes and retransmission timeouts<a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
-<h3 id="rfc.section.3.7.3"><a href="#rfc.section.3.7.3">3.7.3.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a></h3>
-<p id="rfc.section.3.7.3.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
+<p id="rfc.section.3.7.2.p.1">Tail loss probes <a href="#I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</a> and retransmission timeouts<a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
+<h3 id="rfc.section.3.7.3"><a href="#rfc.section.3.7.3">3.7.3.</a> <a href="#early-retransmit" id="early-retransmit">Early Retransmit</a></h3>
+<p id="rfc.section.3.7.3.p.1">Early retransmit <a href="#RFC5827">[RFC5827]</a> is implemented with a 1/4 RTT timer. It is part of QUIC&#8217;s time based loss detection, but is always enabled, even when only packet reordering loss detection is enabled.</p>
+<h3 id="rfc.section.3.7.4"><a href="#rfc.section.3.7.4">3.7.4.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a></h3>
+<p id="rfc.section.3.7.4.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
 <pre>
  SetLossDetectionAlarm():
     if (retransmittable packets are not outstanding):
@@ -593,18 +597,18 @@ address {
       alarm_duration = max(alarm_duration, kMinTLPTimeout)
       alarm_duration = alarm_duration &lt;&lt; handshake_count
     else if (largest sent packet is acked):
-      // Early retransmit {{RFC5827}}
+      // Early retransmit
       // with an alarm to reduce spurious retransmits.
       alarm_duration = 0.25 * smoothed_rtt
     else if (tlp_count &lt; kMaxTLPs):
-      // Tail Loss Probe alarm.
+      // Tail Loss Probe
       if (retransmittable_packets_outstanding = 1):
         alarm_duration = 1.5 * smoothed_rtt + kDelayedAckTimeout
       else:
         alarm_duration = kMinTLPTimeout
       alarm_duration = max(alarm_duration, 2 * smoothed_rtt)
     else:
-      // RTO alarm.
+      // RTO alarm
       if (rto_count = 0):
         alarm_duration = smoothed_rtt + 4 * rttvar
         alarm_duration = max(alarm_duration, kMinRTOTimeout)
@@ -670,12 +674,6 @@ address {
   <tbody>
     <tr>
       <td class="reference">
-        <b id="QUIC-TLS">[QUIC-TLS]</b>
-      </td>
-      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a>Using Transport Layer Security (TLS) to Secure QUIC</a>"</td>
-    </tr>
-    <tr>
-      <td class="reference">
         <b id="QUIC-TRANSPORT">[QUIC-TRANSPORT]</b>
       </td>
       <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a>QUIC: A UDP-Based Multiplexed and Secure Transport</a>"</td>
@@ -685,6 +683,17 @@ address {
         <b id="RFC2119">[RFC2119]</b>
       </td>
       <td class="top"><a>Bradner, S.</a>, "<a href="http://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a>", BCP 14, RFC 2119, DOI 10.17487/RFC2119, March 1997.</td>
+    </tr>
+  </tbody>
+</table>
+<h2 id="rfc.references.2"><a href="#rfc.references.2">6.2.</a> Informative References</h2>
+<table>
+  <tbody>
+    <tr>
+      <td class="reference">
+        <b id="I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</b>
+      </td>
+      <td class="top"><a>Dukkipati, N.</a>, <a>Cardwell, N.</a>, <a>Cheng, Y.</a> and <a>M. Mathis</a>, "<a href="http://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01">Tail Loss Probe (TLP): An Algorithm for Fast Recovery of Tail Losses</a>", Internet-Draft draft-dukkipati-tcpm-tcp-loss-probe-01, February 2013.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -715,17 +724,6 @@ address {
         <b id="RFC6937">[RFC6937]</b>
       </td>
       <td class="top"><a>Mathis, M.</a>, <a>Dukkipati, N.</a> and <a>Y. Cheng</a>, "<a href="http://tools.ietf.org/html/rfc6937">Proportional Rate Reduction for TCP</a>", RFC 6937, DOI 10.17487/RFC6937, May 2013.</td>
-    </tr>
-  </tbody>
-</table>
-<h2 id="rfc.references.2"><a href="#rfc.references.2">6.2.</a> Informative References</h2>
-<table>
-  <tbody>
-    <tr>
-      <td class="reference">
-        <b id="I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</b>
-      </td>
-      <td class="top"><a>Dukkipati, N.</a>, <a>Cardwell, N.</a>, <a>Cheng, Y.</a> and <a>M. Mathis</a>, "<a href="http://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01">Tail Loss Probe (TLP): An Algorithm for Fast Recovery of Tail Losses</a>", Internet-Draft draft-dukkipati-tcpm-tcp-loss-probe-01, February 2013.</td>
     </tr>
   </tbody>
 </table>

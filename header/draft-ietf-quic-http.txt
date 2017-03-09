@@ -87,10 +87,10 @@ Table of Contents
        4.2.1.  Header Compression  . . . . . . . . . . . . . . . . .   7
        4.2.2.  The CONNECT Method  . . . . . . . . . . . . . . . . .   8
      4.3.  Stream Priorities . . . . . . . . . . . . . . . . . . . .   9
-     4.4.  Flow Control  . . . . . . . . . . . . . . . . . . . . . .   9
-     4.5.  Server Push . . . . . . . . . . . . . . . . . . . . . . .   9
+     4.4.  Flow Control  . . . . . . . . . . . . . . . . . . . . . .  10
+     4.5.  Server Push . . . . . . . . . . . . . . . . . . . . . . .  10
    5.  HTTP Framing Layer  . . . . . . . . . . . . . . . . . . . . .  10
-     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  10
+     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  11
      5.2.  Frame Definitions . . . . . . . . . . . . . . . . . . . .  11
        5.2.1.  DATA  . . . . . . . . . . . . . . . . . . . . . . . .  11
        5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .  11
@@ -98,7 +98,7 @@ Table of Contents
        5.2.4.  RST_STREAM  . . . . . . . . . . . . . . . . . . . . .  13
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  13
        5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  16
-       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  16
+       5.2.7.  PING  . . . . . . . . . . . . . . . . . . . . . . . .  17
        5.2.8.  GOAWAY frame  . . . . . . . . . . . . . . . . . . . .  17
        5.2.9.  WINDOW_UPDATE frame . . . . . . . . . . . . . . . . .  17
        5.2.10. CONTINUATION frame  . . . . . . . . . . . . . . . . .  17
@@ -114,8 +114,8 @@ Bishop                 Expires September 10, 2017               [Page 2]
 Internet-Draft               HTTP over QUIC                   March 2017
 
 
-   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  19
-     8.1.  Registration of HTTP/QUIC Identification String . . . . .  19
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  20
+     8.1.  Registration of HTTP/QUIC Identification String . . . . .  20
      8.2.  Registration of QUIC Version Hint Alt-Svc Parameter . . .  20
      8.3.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  20
    9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  21
@@ -260,7 +260,11 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    QUIC reserves Stream 1 for crypto operations (the handshake, crypto
    config updates).  Stream 3 is reserved for sending and receiving HTTP
-   control frames, and is analogous to HTTP/2's Stream 0.
+   control frames, and is analogous to HTTP/2's Stream 0.  This
+   connection control stream is considered critical to the HTTP
+   connection.  If the connection control stream is closed for any
+   reason, this MUST be treated as a connection error of type
+   QUIC_CLOSED_CRITICAL_STREAM.
 
    When HTTP headers and data are sent over QUIC, the QUIC layer handles
    most of the stream management.  An HTTP request/response consumes a
@@ -270,10 +274,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    second least-significant bit differentiating the two streams in a
    request.
 
-   The lower-numbered stream is called the message control stream and
-   carries frames related to the request/response, including HEADERS.
-   The higher-numbered stream is the data stream and carries the
-   request/response body with no additional framing.  Note that a
 
 
 
@@ -282,8 +282,28 @@ Bishop                 Expires September 10, 2017               [Page 5]
 Internet-Draft               HTTP over QUIC                   March 2017
 
 
+   The lower-numbered stream is called the message control stream and
+   carries frames related to the request/response, including HEADERS.
+   The higher-numbered stream is the data stream and carries the
+   request/response body with no additional framing.  Note that a
    request or response without a body will cause this stream to be half-
    closed in the corresponding direction without transferring data.
+
+   Because the message control stream contains HPACK data which
+   manipulates connection-level state, the message control stream MUST
+   NOT be closed with a stream-level error.  If an implementation
+   chooses to reject a request with a QUIC error code, it MUST trigger a
+   QUIC RST_STREAM on the data stream only.  An implementation MAY close
+   (FIN) a message control stream without completing a full HTTP message
+   if the data stream has been abruptly closed.  Data on message control
+   streams MUST be fully consumed, or the connection terminated.
+
+   All message control streams are considered critical to the HTTP
+   connection.  If a message control stream is terminated abruptly for
+   any reason, this MUST be treated as a connection error of type
+   HTTP_RST_CONTROL_STREAM.  When a message control stream terminates
+   cleanly, if the last frame on the stream was truncated, this MUST be
+   treated as a connection error (see HTTP_MALFORMED_* in Section 6.1).
 
    Pairs of streams must be utilized sequentially, with no gaps.  The
    data stream is opened at the same time as the message control stream
@@ -309,6 +329,15 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    An HTTP message (request or response) consists of:
 
+
+
+
+
+Bishop                 Expires September 10, 2017               [Page 6]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    1.  one header block (see Section 5.2.2) on the control stream
        containing the message headers (see [RFC7230], Section 3.2),
 
@@ -329,14 +358,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    data stream MUST still be half-closed without transferring any data.
    The "chunked" transfer encoding defined in Section 4.1 of [RFC7230]
    MUST NOT be used.
-
-
-
-
-Bishop                 Expires September 10, 2017               [Page 6]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
    Trailing header fields are carried in an additional header block on
    the message control stream.  Such a header block is a sequence of
@@ -365,6 +386,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HTTP/QUIC uses HPACK header compression as described in [RFC7541].
    HPACK was designed for HTTP/2 with the assumption of in- order
    delivery such as that provided by TCP.  A sequence of encoded header
+
+
+
+Bishop                 Expires September 10, 2017               [Page 7]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    blocks must arrive (and be decoded) at an endpoint in the same order
    in which they were encoded.  This ensures that the dynamic state at
    the two endpoints remains in sync.
@@ -384,15 +413,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    DISCUSS:  Keep HPACK with HOLB?  Redesign HPACK to be order-
       invariant?  How much do we need to retain compatibility with
       HTTP/2's HPACK?
-
-
-
-
-
-Bishop                 Expires September 10, 2017               [Page 7]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
 4.2.2.  The CONNECT Method
 
@@ -421,6 +441,15 @@ Internet-Draft               HTTP over QUIC                   March 2017
    sent on the TCP connection.  Any QUIC STREAM frame sent by the client
    is transmitted by the proxy to the TCP server; data received from the
    TCP server is written to the data stream by the proxy.  Note that the
+
+
+
+
+Bishop                 Expires September 10, 2017               [Page 8]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    size and number of TCP segments is not guaranteed to map predictably
    to the size and number of QUIC STREAM frames.
 
@@ -439,16 +468,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HTTP_CONNECT_ERROR (Section 6.1).  Correspondingly, a proxy MUST send
    a TCP segment with the RST bit set if it detects an error with the
    stream or the QUIC connection.
-
-
-
-
-
-
-Bishop                 Expires September 10, 2017               [Page 8]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
 4.3.  Stream Priorities
 
@@ -478,6 +497,15 @@ Internet-Draft               HTTP over QUIC                   March 2017
    For consistency's sake, all PRIORITY frames MUST refer to the message
    control stream of the dependent request, not the data stream.
 
+
+
+
+
+Bishop                 Expires September 10, 2017               [Page 9]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
 4.4.  Flow Control
 
    QUIC provides stream and connection level flow control, similar in
@@ -498,14 +526,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    be pushed, as well as request header fields attributed to the
    request.  The PUSH_PROMISE frame is sent on the control stream of the
    associated (client-initiated) request, while the Promised Stream ID
-
-
-
-Bishop                 Expires September 10, 2017               [Page 9]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
-
    field specifies the Stream ID of the control stream for the server-
    initiated request.
 
@@ -534,6 +554,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
    As a result, some frame types are not required when using QUIC.
    Where an HTTP/2-defined frame is no longer used, the frame ID is
    reserved in order to maximize portability between HTTP/2 and HTTP/
+
+
+
+Bishop                 Expires September 10, 2017              [Page 10]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    QUIC implementations.  However, equivalent frames between the two
    mappings are not necessarily identical.
 
@@ -553,14 +581,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                      Figure 1: HTTP/QUIC frame format
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 10]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
 5.2.  Frame Definitions
 
@@ -583,6 +603,20 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    A HEADERS frame with any other flags set MUST be treated as a
    connection error of type HTTP_MALFORMED_HEADERS.
+
+
+
+
+
+
+
+
+
+
+Bishop                 Expires September 10, 2017              [Page 11]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -609,15 +643,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HEADERS frames without EHB set, followed by a HEADERS frame with EHB
    set.
 
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 11]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
-
    On receipt, header blocks (HEADERS, PUSH_PROMISE) MUST be processed
    by the HPACK decoder in sequence.  If a block is missing, all
    subsequent HPACK frames MUST be held until it arrives, or the
@@ -640,6 +665,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    E (0x01):  Indicates that the stream dependency is exclusive (see
       [RFC7540] Section 5.3).
+
+
+
+
+Bishop                 Expires September 10, 2017              [Page 12]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -666,14 +699,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
       the stream (see [RFC7540] Section 5.3).  Add one to the value to
       obtain a weight between 1 and 256.
 
-
-
-
-Bishop                 Expires September 10, 2017              [Page 12]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
-
    A PRIORITY frame MUST have a payload length of nine octets.  A
    PRIORITY frame of any other length MUST be treated as a connection
    error of type HTTP_MALFORMED_PRIORITY.
@@ -697,6 +722,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
    uses SETTINGS to advertise a set of supported values.  The recipient
    can then choose which entries from this list are also acceptable and
    proceed with the value it has chosen.  (This choice could be
+
+
+
+Bishop                 Expires September 10, 2017              [Page 13]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    announced in a field of an extension frame, or in its own value in
    SETTINGS.)
 
@@ -713,22 +746,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    The payload of a SETTINGS frame consists of zero or more parameters,
    each consisting of an unsigned 16-bit setting identifier and a
    length-prefixed binary value.
-
-
-
-
-
-
-
-
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 13]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -760,6 +777,15 @@ Internet-Draft               HTTP over QUIC                   March 2017
    endpoint receives a second SETTINGS frame, the endpoint MUST respond
    with a connection error of type HTTP_MULTIPLE_SETTINGS.
 
+
+
+
+
+Bishop                 Expires September 10, 2017              [Page 14]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    The SETTINGS frame affects connection state.  A badly formed or
    incomplete SETTINGS frame MUST be treated as a connection error
    (Section 5.4.1) of type HTTP_MALFORMED_SETTINGS.
@@ -777,14 +803,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    Some transport-level options that HTTP/2 specifies via the SETTINGS
    frame are superseded by QUIC transport parameters in HTTP/QUIC.
    Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 14]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
    SETTINGS_HEADER_TABLE_SIZE:  An integer with a maximum value of 2^32
       - 1.
@@ -816,6 +834,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
    frame.  Clients SHOULD cache at least the following settings about
    servers:
 
+
+
+
+Bishop                 Expires September 10, 2017              [Page 15]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    o  SETTINGS_HEADER_TABLE_SIZE
 
    o  SETTINGS_MAX_HEADER_LIST_SIZE
@@ -834,14 +860,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    If the connection is closed because these or other constraints were
    violated during the 0-RTT flight (e.g. with
-
-
-
-Bishop                 Expires September 10, 2017              [Page 15]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
-
    HTTP_HPACK_DECOMPRESSION_FAILED), clients MAY establish a new
    connection and retry any 0-RTT requests using the settings sent by
    the server on the closed connection.  (This assumes that only
@@ -871,24 +889,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
       which the response headers will be sent.  (The response body
       stream is implied by the headers stream, as defined in Section 4.)
 
-   HPACK Sequence:  A sixteen-bit counter, equivalent to the Sequence
-      field in HEADERS
-
-   Payload:  HPACK-compressed request headers for the promised response.
-
-   TODOs:
-
-   o  QUIC stream space may be enlarged; would need to redefine Promised
-      Stream field in this case.
-
-   o  No CONTINUATION - HEADERS have EHB; do we need it here?
-
-5.2.7.  PING
-
-   PING frames do not exist, since QUIC provides equivalent
-   functionality.  Frame type 0x6 is reserved.
-
-
 
 
 
@@ -897,6 +897,16 @@ Bishop                 Expires September 10, 2017              [Page 16]
 
 Internet-Draft               HTTP over QUIC                   March 2017
 
+
+   HPACK Sequence:  A sixteen-bit counter, equivalent to the Sequence
+      field in HEADERS
+
+   Payload:  HPACK-compressed request headers for the promised response.
+
+5.2.7.  PING
+
+   PING frames do not exist, since QUIC provides equivalent
+   functionality.  Frame type 0x6 is reserved.
 
 5.2.8.  GOAWAY frame
 
@@ -937,6 +947,13 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HTTP_REQUEST_CANCELLED (0x04):  The client no longer needs the
       requested data.
 
+
+
+Bishop                 Expires September 10, 2017              [Page 17]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    HTTP_HPACK_DECOMPRESSION_FAILED (0x05):  HPACK failed to decompress a
       frame and cannot continue.
 
@@ -945,14 +962,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    HTTP_EXCESSIVE_LOAD (0x07):  The endpoint detected that its peer is
       exhibiting a behavior that might be generating excessive load.
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 17]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
    HTTP_VERSION_FALLBACK (0x08):  The requested operation cannot be
       served over HTTP/QUIC.  The peer should retry over HTTP/2.
@@ -978,6 +987,9 @@ Internet-Draft               HTTP over QUIC                   March 2017
    HTTP_MULTIPLE_SETTINGS (0x10):  More than one SETTINGS frame was
       received.
 
+   HTTP_RST_CONTROL_STREAM (0x11):  A message control stream closed
+      abruptly.
+
 6.2.  Mapping HTTP/2 Error Codes
 
    The HTTP/2 error codes defined in Section 7 of [RFC7540] map to QUIC
@@ -990,6 +1002,14 @@ Internet-Draft               HTTP over QUIC                   March 2017
 
    INTERNAL_ERROR (0x2)  HTTP_INTERNAL_ERROR in Section 6.1.
 
+
+
+
+Bishop                 Expires September 10, 2017              [Page 18]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
    FLOW_CONTROL_ERROR (0x3):  Not applicable, since QUIC handles flow
       control.  Would provoke a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA
       from the QUIC layer.
@@ -1000,15 +1020,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
       management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
       from the QUIC layer.
-
-
-
-
-
-Bishop                 Expires September 10, 2017              [Page 18]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
    FRAME_SIZE_ERROR (0x6)  No single mapping.  See new error codes
       defined in Section 6.1.
@@ -1043,6 +1054,18 @@ Internet-Draft               HTTP over QUIC                   March 2017
    frame parser MUST ensure that the length of the frame exactly matches
    the length of the settings it contains.
 
+
+
+
+
+
+
+
+Bishop                 Expires September 10, 2017              [Page 19]
+
+Internet-Draft               HTTP over QUIC                   March 2017
+
+
 8.  IANA Considerations
 
 8.1.  Registration of HTTP/QUIC Identification String
@@ -1058,13 +1081,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
    Identification Sequence:  0x68 0x71 ("hq")
 
    Specification:  This document
-
-
-
-Bishop                 Expires September 10, 2017              [Page 19]
-
-Internet-Draft               HTTP over QUIC                   March 2017
-
 
 8.2.  Registration of QUIC Version Hint Alt-Svc Parameter
 
@@ -1094,22 +1110,6 @@ Internet-Draft               HTTP over QUIC                   March 2017
       QUIC is defined; required if the frame is supported over QUIC.
 
    Values for existing registrations are assigned by this document:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

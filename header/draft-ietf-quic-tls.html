@@ -291,7 +291,8 @@ address {
 <link href="#rfc.section.4.2.4" rel="Chapter" title="4.2.4 Secret Export"/>
 <link href="#rfc.section.4.2.5" rel="Chapter" title="4.2.5 TLS Interface Summary"/>
 <link href="#rfc.section.4.3" rel="Chapter" title="4.3 TLS Version"/>
-<link href="#rfc.section.4.4" rel="Chapter" title="4.4 Peer Authentication"/>
+<link href="#rfc.section.4.4" rel="Chapter" title="4.4 ClientHello Size"/>
+<link href="#rfc.section.4.5" rel="Chapter" title="4.5 Peer Authentication"/>
 <link href="#rfc.section.5" rel="Chapter" title="5 QUIC Packet Protection"/>
 <link href="#rfc.section.5.1" rel="Chapter" title="5.1 Installing New Keys"/>
 <link href="#rfc.section.5.2" rel="Chapter" title="5.2 QUIC Key Expansion"/>
@@ -422,7 +423,8 @@ address {
 <li>4.2.4.   <a href="#rfc.section.4.2.4">Secret Export</a></li>
 <li>4.2.5.   <a href="#rfc.section.4.2.5">TLS Interface Summary</a></li>
 </ul><li>4.3.   <a href="#rfc.section.4.3">TLS Version</a></li>
-<li>4.4.   <a href="#rfc.section.4.4">Peer Authentication</a></li>
+<li>4.4.   <a href="#rfc.section.4.4">ClientHello Size</a></li>
+<li>4.5.   <a href="#rfc.section.4.5">Peer Authentication</a></li>
 </ul><li>5.   <a href="#rfc.section.5">QUIC Packet Protection</a></li>
 <ul><li>5.1.   <a href="#rfc.section.5.1">Installing New Keys</a></li>
 <li>5.2.   <a href="#rfc.section.5.2">QUIC Key Expansion</a></li>
@@ -675,11 +677,16 @@ Get Handshake
 <p id="rfc.section.4.3.p.1">This document describes how TLS 1.3 <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a> is used with QUIC.</p>
 <p id="rfc.section.4.3.p.2">In practice, the TLS handshake will negotiate a version of TLS to use.  This could result in a newer version of TLS than 1.3 being negotiated if both endpoints support that version.  This is acceptable provided that the features of TLS 1.3 that are used by QUIC are supported by the newer version.</p>
 <p id="rfc.section.4.3.p.3">A badly configured TLS implementation could negotiate TLS 1.2 or another older version of TLS.  An endpoint MUST terminate the connection if a version of TLS older than 1.3 is negotiated.</p>
-<h2 id="rfc.section.4.4"><a href="#rfc.section.4.4">4.4.</a> <a href="#peer-authentication" id="peer-authentication">Peer Authentication</a></h2>
-<p id="rfc.section.4.4.p.1">The requirements for authentication depend on the application protocol that is in use.  TLS provides server authentication and permits the server to request client authentication.</p>
-<p id="rfc.section.4.4.p.2">A client MUST authenticate the identity of the server.  This typically involves verification that the identity of the server is included in a certificate and that the certificate is issued by a trusted entity (see for example <a href="#RFC2818">[RFC2818]</a>).</p>
-<p id="rfc.section.4.4.p.3">A server MAY request that the client authenticate during the handshake. A server MAY refuse a connection if the client is unable to authenticate when requested.  The requirements for client authentication vary based on application protocol and deployment.</p>
-<p id="rfc.section.4.4.p.4">A server MUST NOT use post-handshake client authentication (see Section 4.6.2 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>).</p>
+<h2 id="rfc.section.4.4"><a href="#rfc.section.4.4">4.4.</a> <a href="#clienthello-size" id="clienthello-size">ClientHello Size</a></h2>
+<p id="rfc.section.4.4.p.1">QUIC requires that the initial handshake packet from a client fit within a single packet of at least 1280 octets.  With framing and packet overheads this value could be reduced.</p>
+<p id="rfc.section.4.4.p.2">A TLS ClientHello can fit within this limit with ample space remaining.  However, there are several variables that could cause this limit to be exceeded.  Implementations are reminded that large session tickets or HelloRetryRequest cookies, multiple or large key shares, and long lists of supported ciphers, signature algorithms, versions, QUIC transport parameters, and other negotiable parameters and extensions could cause this message to grow.</p>
+<p id="rfc.section.4.4.p.3">For servers, the size of the session tickets and HelloRetryRequest cookie extension can have an effect on a client&#8217;s ability to connect.  Choosing a small value increases the probability that these values can be successfully used by a client.</p>
+<p id="rfc.section.4.4.p.4">A TLS implementation does not need to enforce this size constraint.  QUIC padding can be used to reach this size, meaning that a TLS server is unlikely to receive a large ClientHello message.</p>
+<h2 id="rfc.section.4.5"><a href="#rfc.section.4.5">4.5.</a> <a href="#peer-authentication" id="peer-authentication">Peer Authentication</a></h2>
+<p id="rfc.section.4.5.p.1">The requirements for authentication depend on the application protocol that is in use.  TLS provides server authentication and permits the server to request client authentication.</p>
+<p id="rfc.section.4.5.p.2">A client MUST authenticate the identity of the server.  This typically involves verification that the identity of the server is included in a certificate and that the certificate is issued by a trusted entity (see for example <a href="#RFC2818">[RFC2818]</a>).</p>
+<p id="rfc.section.4.5.p.3">A server MAY request that the client authenticate during the handshake. A server MAY refuse a connection if the client is unable to authenticate when requested.  The requirements for client authentication vary based on application protocol and deployment.</p>
+<p id="rfc.section.4.5.p.4">A server MUST NOT use post-handshake client authentication (see Section 4.6.2 of <a href="#I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</a>).</p>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#packet-protection" id="packet-protection">QUIC Packet Protection</a></h1>
 <p id="rfc.section.5.p.1">QUIC packet protection provides authenticated encryption of packets.  This provides confidentiality and integrity protection for the content of packets (see <a href="#aead">Section 5.3</a>).  Packet protection uses keys that are exported from the TLS connection (see <a href="#key-expansion">Section 5.2</a>).</p>
 <p id="rfc.section.5.p.2">Different keys are used for QUIC packet protection and TLS record protection.  Having separate QUIC and TLS record protection means that TLS records can be protected by two different keys.  This redundancy is limited to only a few TLS records, and is maintained for the sake of simplicity.</p>
@@ -938,7 +945,7 @@ Get Handshake
 <h2 id="rfc.section.10.1"><a href="#rfc.section.10.1">10.1.</a> <a href="#reflection" id="reflection">Packet Reflection Attack Mitigation</a></h2>
 <p id="rfc.section.10.1.p.1">A small ClientHello that results in a large block of handshake messages from a server can be used in packet reflection attacks to amplify the traffic generated by an attacker.</p>
 <p id="rfc.section.10.1.p.2">Certificate caching <a href="#RFC7924">[RFC7924]</a> can reduce the size of the server&#8217;s handshake messages significantly.</p>
-<p id="rfc.section.10.1.p.3">A client SHOULD also pad <a href="#RFC7685">[RFC7685]</a> its ClientHello to at least 1024 octets.  A server is less likely to generate a packet reflection attack if the data it sends is a small multiple of the data it receives.  A server SHOULD use a HelloRetryRequest if the size of the handshake messages it sends is likely to exceed the size of the ClientHello.</p>
+<p id="rfc.section.10.1.p.3">QUIC requires that the packet containing a ClientHello be padded to the size of the maximum transmission unit (MTU).  A server is less likely to generate a packet reflection attack if the data it sends is a small multiple of this size.  A server SHOULD use a HelloRetryRequest if the size of the handshake messages it sends is likely to significantly exceed the size of the packet containing the ClientHello.</p>
 <h2 id="rfc.section.10.2"><a href="#rfc.section.10.2">10.2.</a> <a href="#useless" id="useless">Peer Denial of Service</a></h2>
 <p id="rfc.section.10.2.p.1">QUIC, TLS and HTTP/2 all contain a messages that have legitimate uses in some contexts, but that can be abused to cause a peer to expend processing resources without having any observable impact on the state of the connection.  If processing is disproportionately large in comparison to the observable effects on bandwidth or state, then this could allow a malicious peer to exhaust processing capacity without consequence.</p>
 <p id="rfc.section.10.2.p.2">QUIC prohibits the sending of empty <samp>STREAM</samp> frames unless they are marked with the FIN bit.  This prevents <samp>STREAM</samp> frames from being sent that only waste effort.</p>
@@ -1047,12 +1054,6 @@ Get Handshake
         <b id="RFC7301">[RFC7301]</b>
       </td>
       <td class="top"><a>Friedl, S.</a>, <a>Popov, A.</a>, <a>Langley, A.</a> and <a>E. Stephan</a>, "<a href="http://tools.ietf.org/html/rfc7301">Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension</a>", RFC 7301, DOI 10.17487/RFC7301, July 2014.</td>
-    </tr>
-    <tr>
-      <td class="reference">
-        <b id="RFC7685">[RFC7685]</b>
-      </td>
-      <td class="top"><a>Langley, A.</a>, "<a href="http://tools.ietf.org/html/rfc7685">A Transport Layer Security (TLS) ClientHello Padding Extension</a>", RFC 7685, DOI 10.17487/RFC7685, October 2015.</td>
     </tr>
   </tbody>
 </table>

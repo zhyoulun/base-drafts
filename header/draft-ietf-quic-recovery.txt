@@ -93,7 +93,8 @@ Table of Contents
      3.7.  Setting the Loss Detection Alarm  . . . . . . . . . . . .   9
        3.7.1.  Handshake Packets . . . . . . . . . . . . . . . . . .   9
        3.7.2.  Tail Loss Probe and Retransmission Timeout  . . . . .   9
-       3.7.3.  Pseudocode  . . . . . . . . . . . . . . . . . . . . .   9
+       3.7.3.  Early Retransmit  . . . . . . . . . . . . . . . . . .   9
+       3.7.4.  Pseudocode  . . . . . . . . . . . . . . . . . . . . .  10
      3.8.  On Alarm Firing . . . . . . . . . . . . . . . . . . . . .  10
      3.9.  Detecting Lost Packets  . . . . . . . . . . . . . . . . .  11
        3.9.1.  Handshake Packets . . . . . . . . . . . . . . . . . .  11
@@ -102,10 +103,9 @@ Table of Contents
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .  12
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .  13
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  12
    Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  13
    Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  13
-     B.1.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  13
 
 
 
@@ -114,6 +114,7 @@ Iyengar & Swett        Expires September 10, 2017               [Page 2]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
+     B.1.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  13
      B.2.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  13
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  14
 
@@ -160,7 +161,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
    o  Retransmittable frames are frames requiring reliable delivery.
       The most common are STREAM frames, which typically contain
       application data.
-
 
 
 
@@ -486,17 +486,17 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 3.7.2.  Tail Loss Probe and Retransmission Timeout
 
-   Tail loss probes and retransmission timeouts[RFC6298] are an alarm
-   based mechanism to recover from cases when there are outstanding
-   retransmittable packets, but an acknowledgement has not been received
-   in a timely manner.
+   Tail loss probes [I-D.dukkipati-tcpm-tcp-loss-probe] and
+   retransmission timeouts[RFC6298] are an alarm based mechanism to
+   recover from cases when there are outstanding retransmittable
+   packets, but an acknowledgement has not been received in a timely
+   manner.
 
-3.7.3.  Pseudocode
+3.7.3.  Early Retransmit
 
-   Pseudocode for SetLossDetectionAlarm follows:
-
-
-
+   Early retransmit [RFC5827] is implemented with a 1/4 RTT timer.  It
+   is part of QUIC's time based loss detection, but is always enabled,
+   even when only packet reordering loss detection is enabled.
 
 
 
@@ -505,6 +505,10 @@ Iyengar & Swett        Expires September 10, 2017               [Page 9]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+3.7.4.  Pseudocode
+
+   Pseudocode for SetLossDetectionAlarm follows:
 
     SetLossDetectionAlarm():
        if (retransmittable packets are not outstanding):
@@ -520,18 +524,18 @@ Internet-Draft             QUIC Loss Detection                March 2017
          alarm_duration = max(alarm_duration, kMinTLPTimeout)
          alarm_duration = alarm_duration << handshake_count
        else if (largest sent packet is acked):
-         // Early retransmit {{RFC5827}}
+         // Early retransmit
          // with an alarm to reduce spurious retransmits.
          alarm_duration = 0.25 * smoothed_rtt
        else if (tlp_count < kMaxTLPs):
-         // Tail Loss Probe alarm.
+         // Tail Loss Probe
          if (retransmittable_packets_outstanding = 1):
            alarm_duration = 1.5 * smoothed_rtt + kDelayedAckTimeout
          else:
            alarm_duration = kMinTLPTimeout
          alarm_duration = max(alarm_duration, 2 * smoothed_rtt)
        else:
-         // RTO alarm.
+         // RTO alarm
          if (rto_count = 0):
            alarm_duration = smoothed_rtt + 4 * rttvar
            alarm_duration = max(alarm_duration, kMinRTOTimeout)
@@ -547,10 +551,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
    to be performed.
 
    Pseudocode for OnLossDetectionAlarm follows:
-
-
-
-
 
 
 
@@ -645,10 +645,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 6.1.  Normative References
 
-   [QUIC-TLS]
-              Thomson, M., Ed. and S. Turner, Ed., "Using Transport
-              Layer Security (TLS) to Secure QUIC".
-
    [QUIC-TRANSPORT]
               Iyengar, J., Ed. and M. Thomson, Ed., "QUIC: A UDP-Based
               Multiplexed and Secure Transport".
@@ -658,11 +654,15 @@ Internet-Draft             QUIC Loss Detection                March 2017
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
 
-   [RFC5682]  Sarolahti, P., Kojo, M., Yamamoto, K., and M. Hata,
-              "Forward RTO-Recovery (F-RTO): An Algorithm for Detecting
-              Spurious Retransmission Timeouts with TCP", RFC 5682,
-              DOI 10.17487/RFC5682, September 2009,
-              <http://www.rfc-editor.org/info/rfc5682>.
+6.2.  Informative References
+
+   [I-D.dukkipati-tcpm-tcp-loss-probe]
+              Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
+              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
+              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
+              in progress), February 2013.
+
+
 
 
 
@@ -673,6 +673,12 @@ Iyengar & Swett        Expires September 10, 2017              [Page 12]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   [RFC5682]  Sarolahti, P., Kojo, M., Yamamoto, K., and M. Hata,
+              "Forward RTO-Recovery (F-RTO): An Algorithm for Detecting
+              Spurious Retransmission Timeouts with TCP", RFC 5682,
+              DOI 10.17487/RFC5682, September 2009,
+              <http://www.rfc-editor.org/info/rfc5682>.
 
    [RFC5827]  Allman, M., Avrachenkov, K., Ayesta, U., Blanton, J., and
               P. Hurtig, "Early Retransmit for TCP and Stream Control
@@ -694,14 +700,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
               Rate Reduction for TCP", RFC 6937, DOI 10.17487/RFC6937,
               May 2013, <http://www.rfc-editor.org/info/rfc6937>.
 
-6.2.  Informative References
-
-   [I-D.dukkipati-tcpm-tcp-loss-probe]
-              Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
-              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
-              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
-              in progress), February 2013.
-
 Appendix A.  Acknowledgments
 
 Appendix B.  Change Log
@@ -720,6 +718,8 @@ B.2.  Since draft-iyengar-quic-loss-recovery-01:
    o  Updated authors/editors list.
 
    o  Added table of contents.
+
+
 
 
 

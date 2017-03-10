@@ -130,7 +130,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
        8.2.2.  Timestamp Section . . . . . . . . . . . . . . . . . .  35
        8.2.3.  ACK Frames and Packet Protection  . . . . . . . . . .  37
      8.3.  WINDOW_UPDATE Frame . . . . . . . . . . . . . . . . . . .  38
-     8.4.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  38
+     8.4.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  39
      8.5.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  39
      8.6.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  40
      8.7.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  40
@@ -138,7 +138,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
      8.9.  GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  41
    9.  Packetization and Reliability . . . . . . . . . . . . . . . .  42
      9.1.  Special Considerations for PMTU Discovery . . . . . . . .  44
-   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  44
+   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  45
      10.1.  Life of a Stream . . . . . . . . . . . . . . . . . . . .  45
        10.1.1.  idle . . . . . . . . . . . . . . . . . . . . . . . .  47
        10.1.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  47
@@ -1296,16 +1296,18 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    TransportParameters:
 
    stream_fc_offset (0x0000):  The initial stream level flow control
-      offset parameter is encoded as an unsigned 32-bit integer.  The
-      sender of this parameter indicates that the flow control offset
-      for all stream data sent toward it is this value.
+      offset parameter is encoded as an unsigned 32-bit integer in units
+      of octets.  The sender of this parameter indicates that the flow
+      control offset for all stream data sent toward it is this value.
 
    connection_fc_offset (0x0001):  The connection level flow control
       offset parameter contains the initial connection flow control
-      window encoded as an unsigned 32-bit integer.  The sender of this
+      window encoded as an unsigned 32-bit integer in units of 1024
+      octets.  That is, the value here is multiplied by 1024 to
+      determine the actual flow control offset.  The sender of this
       parameter sets the byte offset for connection level flow control
       to this value.  This is equivalent to sending a WINDOW_UPDATE
-      (Section 8.3) for stream 0 immediately after completing the
+      (Section 8.3) for the connection immediately after completing the
       handshake.
 
    concurrent_streams (0x0002):  The maximum number of concurrent
@@ -1335,8 +1337,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    If assumed values change as a result of completing the handshake, the
    client is expected to respect the new values.  This introduces some
-   potential problems, particularly with respect to transport parameters
-   that establish limits:
 
 
 
@@ -1345,6 +1345,9 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 24]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   potential problems, particularly with respect to transport parameters
+   that establish limits:
 
    o  A client might exceed a newly declared connection or stream flow
       control limit with 0-RTT data.  If this occurs, the client ceases
@@ -1361,10 +1364,10 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    A server MAY close a connection if remembered or assumed 0-RTT
    transport parameters cannot be supported, using an error code that is
    appropriate to the specific condition.  For example, a
-   QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA might be used to indicate that
-   exceeding flow control limits caused the error.  A client that has a
-   connection closed due to an error condition SHOULD NOT attempt 0-RTT
-   when attempting to create a new connection.
+   QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA might be used to indicate
+   that exceeding flow control limits caused the error.  A client that
+   has a connection closed due to an error condition SHOULD NOT attempt
+   0-RTT when attempting to create a new connection.
 
 7.3.3.  New Transport Parameters
 
@@ -1390,10 +1393,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    The cryptographic handshake provides integrity protection for the
    negotiated version as part of the transport parameters (see
-   Section 7.3).  As a result, modification of version negotiation
-   packets by an attacker can be detected.
 
-   The client includes two fields in the transport parameters:
 
 
 
@@ -1401,6 +1401,11 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 25]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   Section 7.3).  As a result, modification of version negotiation
+   packets by an attacker can be detected.
+
+   The client includes two fields in the transport parameters:
 
    o  The negotiated_version is the version that was finally selected
       for use.  This MUST be identical to the value that is on the
@@ -1445,11 +1450,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    QUIC_VERSION_NEGOTIATION_MISMATCH error code if version negotiation
    occurred but it would have selected a different version based on the
    value of the supported_versions list.
-
-
-
-
-
 
 
 
@@ -2089,11 +2089,10 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 8.3.  WINDOW_UPDATE Frame
 
    The WINDOW_UPDATE frame (type=0x04) informs the peer of an increase
-   in an endpoint's flow control receive window.  The Stream ID can be
-   zero, indicating this WINDOW_UPDATE applies to the connection level
-   flow control window, or non-zero, indicating that the specified
-   stream should increase its flow control window.  The frame is as
-   follows:
+   in an endpoint's flow control receive window for either a single
+   stream, or the entire connection as a whole.
+
+   The frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2101,7 +2100,7 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                                                               |
-   +                        Byte Offset (64)                       +
+   +                    Flow Control Offset (64)                   +
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
@@ -2110,18 +2109,19 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Stream ID:  ID of the stream whose flow control windows is being
       updated, or 0 to specify the connection-level flow control window.
 
-   Byte offset:  A 64-bit unsigned integer indicating the absolute byte
-      offset of data which can be sent on the given stream.  In the case
-      of connection-level flow control, the cumulative offset which can
-      be sent on all streams that contribute to connection-level flow
-      control.
+   Flow Control Offset:  A 64-bit unsigned integer indicating the flow
+      control offset for the given stream (for a stream ID other than 0)
+      or the entire connection.
 
-8.4.  BLOCKED Frame
+   The flow control offset is expressed in units of octets for
+   individual streams (for stream identifiers other than 0).
 
-   A sender sends a BLOCKED frame (type=0x05) when it is ready to send
-   data (and has data to send), but is currently flow control blocked.
-   BLOCKED frames are purely informational frames, but extremely useful
-   for debugging purposes.  A receiver of a BLOCKED frame should simply
+   The connection-level flow control offset is expressed in units of
+   1024 octets (for a stream identifier of 0).  That is, the connection-
+   level flow control offset is determined by multiplying the encoded
+   value by 1024.
+
+
 
 
 
@@ -2130,6 +2130,29 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 38]
 Internet-Draft           QUIC Transport Protocol              March 2017
 
 
+   An endpoint accounts for the maximum offset of data that is sent or
+   received on a stream.  Loss or reordering can mean that the maximum
+   offset is greater than the total size of data received on a stream.
+   Similarly, receiving STREAM frames might not increase the maximum
+   offset on a stream.  A STREAM frame with a FIN bit set or RST_STREAM
+   causes the final offset for a stream to be fixed.
+
+   The maximum data offset on a stream MUST NOT exceed the stream flow
+   control offset advertised by the receiver.  The sum of the maximum
+   data offsets of all streams (including closed streams) MUST NOT
+   exceed the connection flow control offset advertised by the receiver.
+   An endpoint MUST terminate a connection with a
+   QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more
+   data than the largest flow control offset that it has sent, unless
+   this is a result of a change in the initial offsets (see
+   Section 7.3.2).
+
+8.4.  BLOCKED Frame
+
+   A sender sends a BLOCKED frame (type=0x05) when it is ready to send
+   data (and has data to send), but is currently flow control blocked.
+   BLOCKED frames are purely informational frames, but extremely useful
+   for debugging purposes.  A receiver of a BLOCKED frame should simply
    discard it (after possibly printing a helpful log message).  The
    frame is as follows:
 
@@ -2150,6 +2173,18 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    An endpoint may use a RST_STREAM frame (type=0x01) to abruptly
    terminate a stream.  The frame is as follows:
+
+
+
+
+
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 39]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2173,18 +2208,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Final offset:  A 64-bit unsigned integer indicating the absolute byte
       offset of the end of data written on this stream by the RST_STREAM
       sender.
-
-
-
-
-
-
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 39]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
 
 8.6.  PADDING Frame
 
@@ -2211,6 +2234,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
    peer that the connection is being closed.  If there are open streams
    that haven't been explicitly closed, they are implicitly closed when
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 40]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
+
    the connection is closed.  (Ideally, a GOAWAY frame would be sent
    with enough time that all streams are torn down.)  The frame is as
    follows:
@@ -2235,13 +2266,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    Reason Phrase:  An optional human-readable explanation for why the
       connection was closed.
 
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 40]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
 8.9.  GOAWAY Frame
 
    An endpoint uses a GOAWAY frame (type=0x03) to initiate a graceful
@@ -2265,6 +2289,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
       data, or received and delivered data.  All higher-numbered,
       client-initiated streams (that is, odd-numbered streams) are
       implicitly reset by sending or receiving the GOAWAY frame.
+
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 41]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
 
    Largest Server Stream ID:  The highest-numbered, server-initiated
       stream on which the endpoint sending the GOAWAY frame either sent
@@ -2291,13 +2323,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    that is sent as a result of detecting a fatal error.  Higher-numbered
    streams than those indicated in the GOAWAY frame can then be retried.
 
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 41]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
 9.  Packetization and Reliability
 
    The Path Maximum Transmission Unit (PTMU) is the maximum size of the
@@ -2321,6 +2346,13 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    maintain an estimate for each combination of local and remote IP
    addresses (as each pairing could have a different maximum MTU in the
    path).
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 42]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
 
    QUIC depends on the network path supporting a MTU of at least 1280
    octets.  This is the IPv6 minimum and therefore also supported by
@@ -2346,14 +2378,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    and remote IP addresses has fallen below 1280 octets, it MUST
    immediately cease sending QUIC packets between those IP addresses.
    This may result in abrupt termination of the connection if all pairs
-
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 42]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    are affected.  In this case, an endpoint SHOULD send a Public Reset
    packet to indicate the failure.  The application SHOULD attempt to
    use TLS over TCP instead.
@@ -2377,6 +2401,14 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    depends on the type of the frame.  Some frames are simply
    retransmitted, some have their contents moved to new frames, and
    others are never retransmitted.
+
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 43]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
 
    When a packet is detected as lost, the sender re-sends any frames as
    necessary:
@@ -2402,14 +2434,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    processed.  For STREAM frames, this means the data has been queued
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
-
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 43]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    frames have occurred.  Once the packet has been fully processed, a
    receiver acknowledges receipt by sending one or more ACK frames
    containing the packet number of the received packet.
@@ -2432,6 +2456,15 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    However, as QUIC operates over UDP, in IPv4 the echoed information
    could consist only of the IP and UDP headers, which usually has
    insufficient entropy to mitigate off-path attacks.
+
+
+
+
+
+Iyengar & Thomson      Expires September 11, 2017              [Page 44]
+
+Internet-Draft           QUIC Transport Protocol              March 2017
+
 
    As a result, endpoints that implement PMTUD in IPv4 SHOULD take steps
    to mitigate this risk.  For instance, an application could:
@@ -2458,14 +2491,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    concurrently send data interleaved with other streams, and can be
    cancelled.
 
-
-
-
-Iyengar & Thomson      Expires September 11, 2017              [Page 44]
-
-Internet-Draft           QUIC Transport Protocol              March 2017
-
-
    Data that is received on a stream is delivered in order within that
    stream, but there is no particular delivery order across streams.
    Transmit ordering among streams is left to the implementation.
@@ -2489,31 +2514,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    lifecycle of a QUIC stream therefore closely follows that of an
    HTTP/2 stream [RFC7540], with some differences to accommodate the
    possibility of out-of-order delivery due to the use of multiple
-   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
-   following figure and described below.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2521,6 +2521,9 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 45]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
+   following figure and described below.
 
                                +--------+
                                |        |
@@ -2566,9 +2569,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    state transitions, the FIN flag is processed as a separate event to
    the frame that bears it; a STREAM frame with the FIN flag set can
    cause two state transitions.  When the FIN flag is sent on an empty
-   STREAM frame, the offset in the STREAM frame MUST be one greater than
-   the last data byte sent on this stream.
-
 
 
 
@@ -2577,6 +2577,9 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 46]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   STREAM frame, the offset in the STREAM frame MUST be one greater than
+   the last data byte sent on this stream.
 
    The recipient of a frame which changes stream state will have a
    delayed view of the state of a stream while the frame is in transit.
@@ -2623,9 +2626,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    closed" states.  An endpoint sending an FIN flag causes the stream
    state to become "half-closed (local)".  An endpoint receiving a FIN
    flag causes the stream state to become "half-closed (remote)" once
-   all preceding data has arrived.  The receiving endpoint MUST NOT
-   consider the stream state to have changed until all data has arrived.
-
 
 
 
@@ -2633,6 +2633,9 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 47]
 
 Internet-Draft           QUIC Transport Protocol              March 2017
 
+
+   all preceding data has arrived.  The receiving endpoint MUST NOT
+   consider the stream state to have changed until all data has arrived.
 
    Either endpoint can send a RST_STREAM frame from this state, causing
    it to transition immediately to "closed".
@@ -2678,9 +2681,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
 
    The "closed" state is the terminal state.
 
-   An endpoint will learn the final offset of the data it receives on a
-   stream when it enters the "half-closed (remote)" or "closed" state.
-   The final offset is carried explicitly in the RST_STREAM frame;
 
 
 
@@ -2690,6 +2690,9 @@ Iyengar & Thomson      Expires September 11, 2017              [Page 48]
 Internet-Draft           QUIC Transport Protocol              March 2017
 
 
+   An endpoint will learn the final offset of the data it receives on a
+   stream when it enters the "half-closed (remote)" or "closed" state.
+   The final offset is carried explicitly in the RST_STREAM frame;
    otherwise, the final offset is the offset of the end of the data
    carried in STREAM frame marked with a FIN flag.
 
@@ -2733,9 +2736,6 @@ Internet-Draft           QUIC Transport Protocol              March 2017
    error (Section 12).  Frames of unknown types are ignored.
 
    (TODO: QUIC_STREAM_NO_ERROR is a special case.  Write it up.)
-
-
-
 
 
 

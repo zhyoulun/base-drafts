@@ -1097,9 +1097,9 @@ address {
 
 <dl>
   <dt>stream_fc_offset (0x0000):</dt>
-  <dd style="margin-left: 8">The initial stream level flow control offset parameter is encoded as an unsigned 32-bit integer.  The sender of this parameter indicates that the flow control offset for all stream data sent toward it is this value.</dd>
+  <dd style="margin-left: 8">The initial stream level flow control offset parameter is encoded as an unsigned 32-bit integer in units of octets.  The sender of this parameter indicates that the flow control offset for all stream data sent toward it is this value.</dd>
   <dt>connection_fc_offset (0x0001):</dt>
-  <dd style="margin-left: 8">The connection level flow control offset parameter contains the initial connection flow control window encoded as an unsigned 32-bit integer.  The sender of this parameter sets the byte offset for connection level flow control to this value.  This is equivalent to sending a WINDOW_UPDATE (<a href="#frame-window-update">Section 8.3</a>) for stream 0 immediately after completing the handshake.</dd>
+  <dd style="margin-left: 8">The connection level flow control offset parameter contains the initial connection flow control window encoded as an unsigned 32-bit integer in units of 1024 octets.  That is, the value here is multiplied by 1024 to determine the actual flow control offset.  The sender of this parameter sets the byte offset for connection level flow control to this value.  This is equivalent to sending a WINDOW_UPDATE (<a href="#frame-window-update">Section 8.3</a>) for the connection immediately after completing the handshake.</dd>
   <dt>concurrent_streams (0x0002):</dt>
   <dd style="margin-left: 8">The maximum number of concurrent streams parameter is encoded as an unsigned 32-bit integer.</dd>
   <dt>idle_timeout (0x0003):</dt>
@@ -1112,7 +1112,7 @@ address {
   <dt>truncate_connection_id (0x0004):</dt>
   <dd style="margin-left: 8">The truncated connection identifier parameter indicates that packets sent to the peer can omit the connection ID.  This can be used by an endpoint where the 5-tuple is sufficient to identify a connection.  This parameter is zero length.  Omitting the parameter indicates that the endpoint relies on the connection ID being present in every packet.</dd>
 </dl>
-<h3 id="rfc.section.7.3.2"><a href="#rfc.section.7.3.2">7.3.2.</a> <a href="#values-of-transport-parameters-for-0-rtt" id="values-of-transport-parameters-for-0-rtt">Values of Transport Parameters for 0-RTT</a></h3>
+<h3 id="rfc.section.7.3.2"><a href="#rfc.section.7.3.2">7.3.2.</a> <a href="#zerortt-parameters" id="zerortt-parameters">Values of Transport Parameters for 0-RTT</a></h3>
 <p id="rfc.section.7.3.2.p.1">Transport parameters from the server SHOULD be remembered by the client for use with 0-RTT data.  A client that doesn&#8217;t remember values from a previous connection can instead assume the following values: stream_fc_offset (65535), connection_fc_offset (65535), concurrent_streams (10), idle_timeout (600), truncate_connection_id (absent).</p>
 <p id="rfc.section.7.3.2.p.2">If assumed values change as a result of completing the handshake, the client is expected to respect the new values.  This introduces some potential problems, particularly with respect to transport parameters that establish limits:</p>
 <p/>
@@ -1121,7 +1121,7 @@ address {
   <li>A client might exceed a newly declared connection or stream flow control limit with 0-RTT data.  If this occurs, the client ceases transmission as though the flow control limit was reached.  Once WINDOW_UPDATE frames indicating an increase to the affected flow control offsets is received, the client can recommence sending.</li>
   <li>Similarly, a client might exceed the concurrent stream limit declared by the server.  A client MUST reset any streams that exceed this limit.  A server SHOULD reset any streams it cannot handle with a code that allows the client to retry any application action bound to those streams.</li>
 </ul>
-<p id="rfc.section.7.3.2.p.4">A server MAY close a connection if remembered or assumed 0-RTT transport parameters cannot be supported, using an error code that is appropriate to the specific condition.  For example, a QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA might be used to indicate that exceeding flow control limits caused the error.  A client that has a connection closed due to an error condition SHOULD NOT attempt 0-RTT when attempting to create a new connection.</p>
+<p id="rfc.section.7.3.2.p.4">A server MAY close a connection if remembered or assumed 0-RTT transport parameters cannot be supported, using an error code that is appropriate to the specific condition.  For example, a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA might be used to indicate that exceeding flow control limits caused the error.  A client that has a connection closed due to an error condition SHOULD NOT attempt 0-RTT when attempting to create a new connection.</p>
 <h3 id="rfc.section.7.3.3"><a href="#rfc.section.7.3.3">7.3.3.</a> <a href="#new-transport-parameters" id="new-transport-parameters">New Transport Parameters</a></h3>
 <p id="rfc.section.7.3.3.p.1">New transport parameters can be used to negotiate new protocol behavior.  An endpoint MUST ignore transport parameters that it does not support.  Absence of a transport parameter therefore disables any optional protocol feature that is negotiated using the parameter.</p>
 <p id="rfc.section.7.3.3.p.2">The definition of a transport parameter SHOULD include a default value that a client can use when establishing a new connection.  If no default is specified, the value can be assumed to be absent when attempting 0-RTT.</p>
@@ -1354,7 +1354,8 @@ address {
 <p id="rfc.section.8.2.3.p.6">An endpoint SHOULD acknowledge packets containing cryptographic handshake messages in the next unprotected packet that it sends, unless it is able to acknowledge those packets in later packets protected by 1-RTT keys.  At the completion of the cryptographic handshake, both peers send unprotected packets containing cryptographic handshake messages followed by packets protected by 1-RTT keys. An endpoint SHOULD acknowledge the unprotected packets that complete the cryptographic handshake in a protected packet, because its peer is guaranteed to have access to 1-RTT packet protection keys.</p>
 <p id="rfc.section.8.2.3.p.7">For instance, a server acknowledges a TLS ClientHello in the packet that carries the TLS ServerHello; similarly, a client can acknowledge a TLS HelloRetryRequest in the packet containing a second TLS ClientHello.  The complete set of server handshake messages (TLS ServerHello through to Finished) might be acknowledged by a client in protected packets, because it is certain that the server is able to decipher the packet.</p>
 <h2 id="rfc.section.8.3"><a href="#rfc.section.8.3">8.3.</a> <a href="#frame-window-update" id="frame-window-update">WINDOW_UPDATE Frame</a></h2>
-<p id="rfc.section.8.3.p.1">The WINDOW_UPDATE frame (type=0x04) informs the peer of an increase in an endpoint&#8217;s flow control receive window. The Stream ID can be zero, indicating this WINDOW_UPDATE applies to the connection level flow control window, or non-zero, indicating that the specified stream should increase its flow control window. The frame is as follows:</p>
+<p id="rfc.section.8.3.p.1">The WINDOW_UPDATE frame (type=0x04) informs the peer of an increase in an endpoint&#8217;s flow control receive window for either a single stream, or the entire connection as a whole.</p>
+<p id="rfc.section.8.3.p.2">The frame is as follows:</p>
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1362,19 +1363,23 @@ address {
 |                        Stream ID (32)                         |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                                                               |
-+                        Byte Offset (64)                       +
++                    Flow Control Offset (64)                   +
 |                                                               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p id="rfc.section.8.3.p.2">The fields in the WINDOW_UPDATE frame are as follows:</p>
+<p id="rfc.section.8.3.p.3">The fields in the WINDOW_UPDATE frame are as follows:</p>
 <p/>
 
 <dl>
   <dt>Stream ID:</dt>
   <dd style="margin-left: 8">ID of the stream whose flow control windows is being updated, or 0 to specify the connection-level flow control window.</dd>
-  <dt>Byte offset:</dt>
-  <dd style="margin-left: 8">A 64-bit unsigned integer indicating the absolute byte offset of data which can be sent on the given stream.  In the case of connection-level flow control, the cumulative offset which can be sent on all streams that contribute to connection-level flow control.</dd>
+  <dt>Flow Control Offset:</dt>
+  <dd style="margin-left: 8">A 64-bit unsigned integer indicating the flow control offset for the given stream (for a stream ID other than 0) or the entire connection.</dd>
 </dl>
+<p id="rfc.section.8.3.p.5">The flow control offset is expressed in units of octets for individual streams (for stream identifiers other than 0).</p>
+<p id="rfc.section.8.3.p.6">The connection-level flow control offset is expressed in units of 1024 octets (for a stream identifier of 0).  That is, the connection-level flow control offset is determined by multiplying the encoded value by 1024.</p>
+<p id="rfc.section.8.3.p.7">An endpoint accounts for the maximum offset of data that is sent or received on a stream.  Loss or reordering can mean that the maximum offset is greater than the total size of data received on a stream.  Similarly, receiving STREAM frames might not increase the maximum offset on a stream.  A STREAM frame with a FIN bit set or RST_STREAM causes the final offset for a stream to be fixed.</p>
+<p id="rfc.section.8.3.p.8">The maximum data offset on a stream MUST NOT exceed the stream flow control offset advertised by the receiver.  The sum of the maximum data offsets of all streams (including closed streams) MUST NOT exceed the connection flow control offset advertised by the receiver.  An endpoint MUST terminate a connection with a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more data than the largest flow control offset that it has sent, unless this is a result of a change in the initial offsets (see <a href="#zerortt-parameters">Section 7.3.2</a>).</p>
 <h2 id="rfc.section.8.4"><a href="#rfc.section.8.4">8.4.</a> <a href="#frame-blocked" id="frame-blocked">BLOCKED Frame</a></h2>
 <p id="rfc.section.8.4.p.1">A sender sends a BLOCKED frame (type=0x05) when it is ready to send data (and has data to send), but is currently flow control blocked. BLOCKED frames are purely informational frames, but extremely useful for debugging purposes. A receiver of a BLOCKED frame should simply discard it (after possibly printing a helpful log message). The frame is as follows:</p>
 <pre>

@@ -302,6 +302,7 @@ address {
 <link href="#rfc.section.5.2.3" rel="Chapter" title="5.2.3 Packet Protection Key and IV"/>
 <link href="#rfc.section.5.3" rel="Chapter" title="5.3 QUIC AEAD Usage"/>
 <link href="#rfc.section.5.4" rel="Chapter" title="5.4 Packet Numbers"/>
+<link href="#rfc.section.5.5" rel="Chapter" title="5.5 Receiving Protected Packets"/>
 <link href="#rfc.section.6" rel="Chapter" title="6 Key Phases"/>
 <link href="#rfc.section.6.1" rel="Chapter" title="6.1 Packet Protection for the TLS Handshake"/>
 <link href="#rfc.section.6.1.1" rel="Chapter" title="6.1.1 Initial Key Transitions"/>
@@ -435,6 +436,7 @@ address {
 <li>5.2.3.   <a href="#rfc.section.5.2.3">Packet Protection Key and IV</a></li>
 </ul><li>5.3.   <a href="#rfc.section.5.3">QUIC AEAD Usage</a></li>
 <li>5.4.   <a href="#rfc.section.5.4">Packet Numbers</a></li>
+<li>5.5.   <a href="#rfc.section.5.5">Receiving Protected Packets</a></li>
 </ul><li>6.   <a href="#rfc.section.6">Key Phases</a></li>
 <ul><li>6.1.   <a href="#rfc.section.6.1">Packet Protection for the TLS Handshake</a></li>
 <ul><li>6.1.1.   <a href="#rfc.section.6.1.1">Initial Key Transitions</a></li>
@@ -774,9 +776,12 @@ Get Handshake
 <h2 id="rfc.section.5.4"><a href="#rfc.section.5.4">5.4.</a> <a href="#packet-number" id="packet-number">Packet Numbers</a></h2>
 <p id="rfc.section.5.4.p.1">QUIC has a single, contiguous packet number space.  In comparison, TLS restarts its sequence number each time that record protection keys are changed.  The sequence number restart in TLS ensures that a compromise of the current traffic keys does not allow an attacker to truncate the data that is sent after a key update by sending additional packets under the old key (causing new packets to be discarded).</p>
 <p id="rfc.section.5.4.p.2">QUIC does not assume a reliable transport and is required to handle attacks where packets are dropped in other ways.  QUIC is therefore not affected by this form of truncation.</p>
-<p id="rfc.section.5.4.p.3">The packet number is not reset and it is not permitted to go higher than its maximum value of 2^64-1.  This establishes a hard limit on the number of packets that can be sent.</p>
+<p id="rfc.section.5.4.p.3">The QUIC packet number is not reset and it is not permitted to go higher than its maximum value of 2^64-1.  This establishes a hard limit on the number of packets that can be sent.</p>
 <p id="rfc.section.5.4.p.4">Some AEAD functions have limits for how many packets can be encrypted under the same key and IV (see for example <a href="#AEBounds">[AEBounds]</a>).  This might be lower than the packet number limit.  An endpoint MUST initiate a key update (<a href="#key-update">Section 6.2</a>) prior to exceeding any limit set for the AEAD that is in use.</p>
 <p id="rfc.section.5.4.p.5">TLS maintains a separate sequence number that is used for record protection on the connection that is hosted on stream 1.  This sequence number is not visible to QUIC.</p>
+<h2 id="rfc.section.5.5"><a href="#rfc.section.5.5">5.5.</a> <a href="#receiving-protected-packets" id="receiving-protected-packets">Receiving Protected Packets</a></h2>
+<p id="rfc.section.5.5.p.1">Once an endpoint successfully receives a packet with a given packet number, it MUST discard all packets with higher packet numbers if they cannot be successfully unprotected with either the same key, or - if there is a key update - the next packet protection key (see <a href="#key-update">Section 6.2</a>).  Similarly, a packet that appears to trigger a key update, but cannot be unprotected successfully MUST be discarded.</p>
+<p id="rfc.section.5.5.p.2">Failure to unprotect a packet does not necessarily indicate the existence of a protocol error in a peer or an attack.  The truncated packet number encoding used in QUIC can cause packet numbers to be decoded incorrectly if they are delayed significantly.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#key-phases" id="key-phases">Key Phases</a></h1>
 <p id="rfc.section.6.p.1">As TLS reports the availability of 0-RTT and 1-RTT keys, new keying material can be exported from TLS and used for QUIC packet protection.  At each transition during the handshake a new secret is exported from TLS and packet protection keys are derived from that secret.</p>
 <p id="rfc.section.6.p.2">Every time that a new set of keys is used for protecting outbound packets, the KEY_PHASE bit in the public flags is toggled.  The exception is the transition from 0-RTT keys to 1-RTT keys, where the presence of the version field and its associated bit is used (see <a href="#first-keys">Section 6.1.1</a>).</p>
@@ -829,6 +834,7 @@ Get Handshake
 <p class="figure">Figure 5: Key Update</p>
 <p id="rfc.section.6.2.p.8">As shown in <a href="#quic-tls-handshake">Figure 3</a> and <a href="#ex-key-update">Figure 5</a>, there is never a situation where there are more than two different sets of keying material that might be received by a peer.  Once both sending and receiving keys have been updated,</p>
 <p id="rfc.section.6.2.p.9">A server cannot initiate a key update until it has received the client&#8217;s Finished message.  Otherwise, packets protected by the updated keys could be confused for retransmissions of handshake messages.  A client cannot initiate a key update until all of its handshake messages have been acknowledged by the server.</p>
+<p id="rfc.section.6.2.p.10">A packet that triggers a key update could arrive after successfully processing a packet with a higher packet number.  This is only possible if there is a key compromise and an attack, or if the peer is incorrectly reverting to use of old keys.  Because the latter cannot be differentiated from an attack, an endpoint MUST immediately terminate the connection if it detects this condition.</p>
 <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a> <a href="#client-address-validation" id="client-address-validation">Client Address Validation</a></h1>
 <p id="rfc.section.7.p.1">Two tools are provided by TLS to enable validation of client source addresses at a server: the cookie in the HelloRetryRequest message, and the ticket in the NewSessionTicket message.</p>
 <h2 id="rfc.section.7.1"><a href="#rfc.section.7.1">7.1.</a> <a href="#helloretryrequest-address-validation" id="helloretryrequest-address-validation">HelloRetryRequest Address Validation</a></h2>

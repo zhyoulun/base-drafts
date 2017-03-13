@@ -305,8 +305,9 @@ address {
 <link href="#rfc.references.2" rel="Chapter" title="6.2 Informative References"/>
 <link href="#rfc.appendix.A" rel="Chapter" title="A Acknowledgments"/>
 <link href="#rfc.appendix.B" rel="Chapter" title="B Change Log"/>
-<link href="#rfc.appendix.B.1" rel="Chapter" title="B.1 Since draft-ietf-quic-recovery-00:"/>
-<link href="#rfc.appendix.B.2" rel="Chapter" title="B.2 Since draft-iyengar-quic-loss-recovery-01:"/>
+<link href="#rfc.appendix.B.1" rel="Chapter" title="B.1 Since draft-ietf-quic-recovery-01"/>
+<link href="#rfc.appendix.B.2" rel="Chapter" title="B.2 Since draft-ietf-quic-recovery-00:"/>
+<link href="#rfc.appendix.B.3" rel="Chapter" title="B.3 Since draft-iyengar-quic-loss-recovery-01:"/>
 <link href="#rfc.authors" rel="Chapter"/>
 
 
@@ -405,8 +406,9 @@ address {
 <li>6.2.   <a href="#rfc.references.2">Informative References</a></li>
 </ul><li>Appendix A.   <a href="#rfc.appendix.A">Acknowledgments</a></li>
 <li>Appendix B.   <a href="#rfc.appendix.B">Change Log</a></li>
-<ul><li>B.1.   <a href="#rfc.appendix.B.1">Since draft-ietf-quic-recovery-00:</a></li>
-<li>B.2.   <a href="#rfc.appendix.B.2">Since draft-iyengar-quic-loss-recovery-01:</a></li>
+<ul><li>B.1.   <a href="#rfc.appendix.B.1">Since draft-ietf-quic-recovery-01</a></li>
+<li>B.2.   <a href="#rfc.appendix.B.2">Since draft-ietf-quic-recovery-00:</a></li>
+<li>B.3.   <a href="#rfc.appendix.B.3">Since draft-iyengar-quic-loss-recovery-01:</a></li>
 </ul><li><a href="#rfc.authors">Authors' Addresses</a></li>
 
 
@@ -462,7 +464,7 @@ address {
   <dd style="margin-left: 8">Maximum number of tail loss probes before an RTO fires.</dd>
   <dt>kReorderingThreshold (default 3):</dt>
   <dd style="margin-left: 8">Maximum reordering in packet number space before FACK style loss detection considers a packet lost.</dd>
-  <dt>kTimeReorderingThreshold (default 1/8):</dt>
+  <dt>kTimeReorderingFraction (default 1/8):</dt>
   <dd style="margin-left: 8">Maximum reordering in time sapce before time based loss detection considers a packet lost.  In fraction of an RTT.</dd>
   <dt>kMinTLPTimeout (default 10ms):</dt>
   <dd style="margin-left: 8">Minimum time in the future a tail loss probe alarm may be set for.</dd>
@@ -480,8 +482,6 @@ address {
 <dl>
   <dt>loss_detection_alarm:</dt>
   <dd style="margin-left: 8">Multi-modal alarm used for loss detection.</dd>
-  <dt>alarm_mode:</dt>
-  <dd style="margin-left: 8">QUIC maintains a single loss detection alarm, which switches between various modes.  This mode is used to determine the duration of the alarm.</dd>
   <dt>handshake_count:</dt>
   <dd style="margin-left: 8">The number of times the handshake packets have been retransmitted without receiving an ack.</dd>
   <dt>tlp_count:</dt>
@@ -496,10 +496,12 @@ address {
   <dd style="margin-left: 8">The initial RTT used before any RTT measurements have been made.</dd>
   <dt>reordering_threshold:</dt>
   <dd style="margin-left: 8">The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</dd>
-  <dt>use_time_loss:</dt>
-  <dd style="margin-left: 8">When true, loss detection operates solely based on reordering threshold in time, rather than in packet number gaps.</dd>
+  <dt>time_reordering_fraction:</dt>
+  <dd style="margin-left: 8">The reordering window as a fraction of max(smoothed_rtt, latest_rtt).</dd>
+  <dt>loss_time:</dt>
+  <dd style="margin-left: 8">The time at which the next packet will be considered lost based on early transmit or exceeding the reordering window in time.</dd>
   <dt>sent_packets:</dt>
-  <dd style="margin-left: 8">An association of packet numbers to information about them, including a time field indicating the time a packet was sent and a bytes field indicating the packet&#8217;s size.</dd>
+  <dd style="margin-left: 8">An association of packet numbers to information about them, including a number field indicating the packet number, a time field indicating the time a packet was sent, and a bytes field indicating the packet&#8217;s size.  sent_packets is ordered by packet number, and packets remain in sent_packets until acknowledged or lost.</dd>
 </dl>
 <h3 id="rfc.section.3.3.1"><a href="#rfc.section.3.3.1">3.3.1.</a> <a href="#initialization" id="initialization">Initialization</a></h3>
 <p id="rfc.section.3.3.1.p.1">At the beginning of the connection, initialize the loss detection variables as follows:</p>
@@ -508,8 +510,13 @@ address {
    handshake_count = 0
    tlp_count = 0
    rto_count = 0
-   reordering_threshold = kReorderingThreshold
-   use_time_loss = false
+   if (UsingTimeLossDetection())
+     reordering_threshold = infinite
+     time_reordering_fraction = kTimeReorderingFraction
+   else:
+     reordering_threshold = kReorderingThreshold
+     time_reordering_fraction = infinite
+   loss_time = 0
    smoothed_rtt = 0
    rttvar = 0
    initial_rtt = kDefaultInitialRtt
@@ -526,6 +533,7 @@ address {
 <p id="rfc.section.3.3.2.p.3">Pseudocode for OnPacketSent follows:</p>
 <pre>
  OnPacketSent(packet_number, is_retransmittable, sent_bytes):
+   sent_packets[packet_number].packet_number = packet_number
    sent_packets[packet_number].time = now
    if is_retransmittable:
      sent_packets[packet_number].bytes = sent_bytes
@@ -543,8 +551,8 @@ address {
          rtt_sample -= ack.delay
        UpdateRtt(rtt_sample)
      // Find all newly acked packets.
-     for acked_packet in DetermineNewlyAckedPackets():
-       OnPacketAcked(acked_packet)
+     for acked_packet_number in DetermineNewlyAckedPackets():
+       OnPacketAcked(acked_packet_number)
 
      DetectLostPackets(ack.largest_acked_packet)
      SetLossDetectionAlarm()
@@ -564,13 +572,11 @@ address {
 <p id="rfc.section.3.3.4.p.2">OnPacketAcked takes one parameter, acked_packet, which is the packet number of the newly acked packet, and returns a list of packet numbers that are detected as lost.</p>
 <p id="rfc.section.3.3.4.p.3">Pseudocode for OnPacketAcked follows:</p>
 <pre>
-   OnPacketAcked(acked_packet):
+   OnPacketAcked(acked_packet_number):
      handshake_count = 0
      tlp_count = 0
      rto_count = 0
-     # TODO: Don't remove packets immediately, since they can be
-     # used for detecting spurous retransmits.
-     sent_packets.remove(acked_packet)
+     sent_packets.remove(acked_packet_number)
 </pre>
 <h3 id="rfc.section.3.3.5"><a href="#rfc.section.3.3.5">3.3.5.</a> <a href="#setting-the-loss-detection-alarm" id="setting-the-loss-detection-alarm">Setting the Loss Detection Alarm</a></h3>
 <p id="rfc.section.3.3.5.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
@@ -600,10 +606,9 @@ address {
         alarm_duration = 2 * smoothed_rtt
       alarm_duration = max(alarm_duration, kMinTLPTimeout)
       alarm_duration = alarm_duration &lt;&lt; handshake_count
-    else if (largest sent packet is acked):
-      // Early retransmit
-      // with an alarm to reduce spurious retransmits.
-      alarm_duration = 0.25 * smoothed_rtt
+    else if (loss_time != 0):
+      // Early retransmit timer or time loss detection.
+      alarm_duration = loss_time - now
     else if (tlp_count &lt; kMaxTLPs):
       // Tail Loss Probe
       if (retransmittable_packets_outstanding = 1):
@@ -631,9 +636,9 @@ address {
        RetransmitAllHandshakePackets();
        handshake_count++;
      // TODO: Clarify early retransmit and time loss.
-     else if ():
+     else if (loss_time != 0):
        // Early retransmit or Time Loss Detection
-       DetectLostPackets(acked_packet)
+       DetectLostPackets(largest_acked_packet)
      else if (tlp_count &lt; kMaxTLPs):
        // Tail Loss Probe.
        if (HasNewDataToSend()):
@@ -649,26 +654,38 @@ address {
      SetLossDetectionAlarm()
 </pre>
 <h3 id="rfc.section.3.3.7"><a href="#rfc.section.3.3.7">3.3.7.</a> <a href="#detecting-lost-packets" id="detecting-lost-packets">Detecting Lost Packets</a></h3>
-<p id="rfc.section.3.3.7.p.1">Packets in QUIC are only considered lost once a larger packet number is acknowledged.  DetectLostPackets is called every time there is a new largest packet or if the loss detection alarm fires the previous largest acked packet is supplied.</p>
+<p id="rfc.section.3.3.7.p.1">Packets in QUIC are only considered lost once a larger packet number is acknowledged.  DetectLostPackets is called every time an ack is received.  If the loss detection alarm fires and the loss_time is set, the previous largest acked packet is supplied.</p>
 <h4 id="rfc.section.3.3.7.1"><a href="#rfc.section.3.3.7.1">3.3.7.1.</a> <a href="#handshake-packets-1" id="handshake-packets-1">Handshake Packets</a></h4>
 <p id="rfc.section.3.3.7.1.p.1">The receiver MUST ignore unprotected packets that ack protected packets.  The receiver MUST trust protected acks for unprotected packets, however.  Aside from this, loss detection for handshake packets when an ack is processed is identical to other packets.</p>
 <h4 id="rfc.section.3.3.7.2"><a href="#rfc.section.3.3.7.2">3.3.7.2.</a> <a href="#pseudocode-1" id="pseudocode-1">Pseudocode</a></h4>
 <p id="rfc.section.3.3.7.2.p.1">DetectLostPackets takes one parameter, acked, which is the largest acked packet.</p>
 <p id="rfc.section.3.3.7.2.p.2">Pseudocode for DetectLostPackets follows:</p>
 <pre>
-   DetectLostPackets(acked):
+   DetectLostPackets(largest_acked):
+     loss_time = 0
      lost_packets = {}
-     foreach (unacked less than acked):
-       time_delta = acked.time_sent - unacked.time_sent
-       packet_delta = acked.packet_number - unacked.packet_number
-       if (time_delta &gt; kTimeReorderThreshold * smoothed_rtt):
+     delay_until_lost = infinite;
+     if (time_reordering_fraction != infinite):
+       delay_until_lost =
+         (1 + time_reordering_fraction) * max(latest_rtt, smoothed_rtt)
+     else if (largest_acked.packet_number == largest_sent_packet):
+       // Early retransmit alarm.
+       delay_until_lost = 9/8 * max(latest_rtt, smoothed_rtt)
+     foreach (unacked less than largest_acked.packet_number):
+       time_since_sent = now() - unacked.time_sent
+       packet_delta = largest_acked.packet_number - unacked.packet_number
+       if (time_since_sent &gt; delay_until_lost):
          lost_packets.insert(unacked)
        else if (packet_delta &gt; reordering_threshold)
          lost_packets.insert(unacked)
+       else if (loss_time == 0 &amp;&amp; delay_until_lost != infinite):
+         loss_time = delay_until_lost - time_since_sent
 
-     // Inform the congestion controller of lost packets.
+     // Inform the congestion controller of lost packets and
+     // lets it decide whether to retransmit immediately.
      OnPacketsLost(lost_packets)
-     MaybeRetransmit(lost_packets)
+     foreach (packet in lost_packets)
+       sent_packets.remove(packet.packet_number)
 </pre>
 <h2 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#discussion" id="discussion">Discussion</a></h2>
 <p id="rfc.section.3.4.p.1">TODO: Discuss why constants are chosen as they are.</p>
@@ -742,13 +759,22 @@ address {
 <ul class="empty">
   <li><strong>RFC Editor&#8217;s Note:</strong>  Please remove this section prior to publication of a final version of this document.</li>
 </ul>
-<h2 id="rfc.appendix.B.1"><a href="#rfc.appendix.B.1">B.1.</a> <a href="#since-draft-ietf-quic-recovery-00" id="since-draft-ietf-quic-recovery-00">Since draft-ietf-quic-recovery-00:</a></h2>
+<h2 id="rfc.appendix.B.1"><a href="#rfc.appendix.B.1">B.1.</a> <a href="#since-draft-ietf-quic-recovery-01" id="since-draft-ietf-quic-recovery-01">Since draft-ietf-quic-recovery-01</a></h2>
+<p/>
+
+<ul>
+  <li>Changes initial default RTT to 100ms</li>
+  <li>Added time-based loss detection and fixes early retransmit</li>
+  <li>Clarified loss recovery for handshake packets</li>
+  <li>Fixed references and made TCP references informative</li>
+</ul>
+<h2 id="rfc.appendix.B.2"><a href="#rfc.appendix.B.2">B.2.</a> <a href="#since-draft-ietf-quic-recovery-00" id="since-draft-ietf-quic-recovery-00">Since draft-ietf-quic-recovery-00:</a></h2>
 <p/>
 
 <ul>
   <li>Improved description of constants and ACK behavior</li>
 </ul>
-<h2 id="rfc.appendix.B.2"><a href="#rfc.appendix.B.2">B.2.</a> <a href="#since-draft-iyengar-quic-loss-recovery-01" id="since-draft-iyengar-quic-loss-recovery-01">Since draft-iyengar-quic-loss-recovery-01:</a></h2>
+<h2 id="rfc.appendix.B.3"><a href="#rfc.appendix.B.3">B.3.</a> <a href="#since-draft-iyengar-quic-loss-recovery-01" id="since-draft-iyengar-quic-loss-recovery-01">Since draft-iyengar-quic-loss-recovery-01:</a></h2>
 <p/>
 
 <ul>

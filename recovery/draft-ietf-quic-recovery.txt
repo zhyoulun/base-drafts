@@ -80,15 +80,15 @@ Table of Contents
      3.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .   5
      3.2.  Algorithm Details . . . . . . . . . . . . . . . . . . . .   6
        3.2.1.  Constants of interest . . . . . . . . . . . . . . . .   6
-     3.3.  Variables of interest . . . . . . . . . . . . . . . . . .   6
-       3.3.1.  Initialization  . . . . . . . . . . . . . . . . . . .   7
-       3.3.2.  On Sending a Packet . . . . . . . . . . . . . . . . .   8
-       3.3.3.  On Ack Receipt  . . . . . . . . . . . . . . . . . . .   8
-       3.3.4.  On Packet Acknowledgment  . . . . . . . . . . . . . .   9
-       3.3.5.  Setting the Loss Detection Alarm  . . . . . . . . . .   9
-       3.3.6.  On Alarm Firing . . . . . . . . . . . . . . . . . . .  11
-       3.3.7.  Detecting Lost Packets  . . . . . . . . . . . . . . .  12
-     3.4.  Discussion  . . . . . . . . . . . . . . . . . . . . . . .  13
+       3.2.2.  Variables of interest . . . . . . . . . . . . . . . .   6
+       3.2.3.  Initialization  . . . . . . . . . . . . . . . . . . .   7
+       3.2.4.  On Sending a Packet . . . . . . . . . . . . . . . . .   8
+       3.2.5.  On Ack Receipt  . . . . . . . . . . . . . . . . . . .   8
+       3.2.6.  On Packet Acknowledgment  . . . . . . . . . . . . . .   9
+       3.2.7.  Setting the Loss Detection Alarm  . . . . . . . . . .   9
+       3.2.8.  On Alarm Firing . . . . . . . . . . . . . . . . . . .  11
+       3.2.9.  Detecting Lost Packets  . . . . . . . . . . . . . . .  12
+     3.3.  Discussion  . . . . . . . . . . . . . . . . . . . . . . .  13
    4.  Congestion Control  . . . . . . . . . . . . . . . . . . . . .  13
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
@@ -314,7 +314,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
    kDefaultInitialRtt (default 100ms):  The default RTT used before an
       RTT sample is taken.
 
-3.3.  Variables of interest
+3.2.2.  Variables of interest
 
    We first describe the variables required to implement the loss
    detection mechanisms described in this section.
@@ -364,7 +364,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
       packet number, and packets remain in sent_packets until
       acknowledged or lost.
 
-3.3.1.  Initialization
+3.2.3.  Initialization
 
    At the beginning of the connection, initialize the loss detection
    variables as follows:
@@ -394,7 +394,7 @@ Iyengar & Swett        Expires September 14, 2017               [Page 7]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
-3.3.2.  On Sending a Packet
+3.2.4.  On Sending a Packet
 
    After any packet is sent, be it a new transmission or a rebundled
    transmission, the following OnPacketSent function is called.  The
@@ -420,7 +420,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
         sent_packets[packet_number].bytes = sent_bytes
         SetLossDetectionAlarm()
 
-3.3.3.  On Ack Receipt
+3.2.5.  On Ack Receipt
 
    When an ack is received, it may acknowledge 0 or more packets.
 
@@ -474,7 +474,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
           rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - rtt_sample)
           smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * rtt_sample
 
-3.3.4.  On Packet Acknowledgment
+3.2.6.  On Packet Acknowledgment
 
    When a packet is acked for the first time, the following
    OnPacketAcked function is called.  Note that a single ACK frame may
@@ -493,7 +493,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
         rto_count = 0
         sent_packets.remove(acked_packet_number)
 
-3.3.5.  Setting the Loss Detection Alarm
+3.2.7.  Setting the Loss Detection Alarm
 
    QUIC loss detection uses a single alarm for all timer-based loss
    detection.  The duration of the alarm is based on the alarm's mode,
@@ -509,7 +509,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
    function SetLossDetectionAlarm defined below shows how the single
    timer is set based on the alarm mode.
 
-3.3.5.1.  Handshake Packets
+3.2.7.1.  Handshake Packets
 
    The initial flight has no prior RTT sample.  A client SHOULD remember
    the previous RTT it observed when resumption is attempted and use
@@ -535,7 +535,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
    once per per handshake packet that uses an unsupported QUIC version,
    and MAY be sent in response to 0RTT packets.
 
-3.3.5.2.  Tail Loss Probe and Retransmission Timeout
+3.2.7.2.  Tail Loss Probe and Retransmission Timeout
 
    Tail loss probes [I-D.dukkipati-tcpm-tcp-loss-probe] and
    retransmission timeouts[RFC6298] are an alarm based mechanism to
@@ -543,13 +543,13 @@ Internet-Draft             QUIC Loss Detection                March 2017
    packets, but an acknowledgement has not been received in a timely
    manner.
 
-3.3.5.3.  Early Retransmit
+3.2.7.3.  Early Retransmit
 
    Early retransmit [RFC5827] is implemented with a 1/4 RTT timer.  It
    is part of QUIC's time based loss detection, but is always enabled,
    even when only packet reordering loss detection is enabled.
 
-3.3.5.4.  Pseudocode
+3.2.7.4.  Pseudocode
 
    Pseudocode for SetLossDetectionAlarm follows:
 
@@ -595,7 +595,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
        loss_detection_alarm.set(now + alarm_duration)
 
-3.3.6.  On Alarm Firing
+3.2.8.  On Alarm Firing
 
    QUIC uses one loss recovery alarm, which when set, can be in one of
    several modes.  When the alarm fires, the mode determines the action
@@ -641,21 +641,21 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
         SetLossDetectionAlarm()
 
-3.3.7.  Detecting Lost Packets
+3.2.9.  Detecting Lost Packets
 
    Packets in QUIC are only considered lost once a larger packet number
    is acknowledged.  DetectLostPackets is called every time an ack is
    received.  If the loss detection alarm fires and the loss_time is
    set, the previous largest acked packet is supplied.
 
-3.3.7.1.  Handshake Packets
+3.2.9.1.  Handshake Packets
 
    The receiver MUST ignore unprotected packets that ack protected
    packets.  The receiver MUST trust protected acks for unprotected
    packets, however.  Aside from this, loss detection for handshake
    packets when an ack is processed is identical to other packets.
 
-3.3.7.2.  Pseudocode
+3.2.9.2.  Pseudocode
 
    DetectLostPackets takes one parameter, acked, which is the largest
    acked packet.
@@ -700,7 +700,7 @@ Internet-Draft             QUIC Loss Detection                March 2017
      foreach (packet in lost_packets)
        sent_packets.remove(packet.packet_number)
 
-3.4.  Discussion
+3.3.  Discussion
 
    TODO: Discuss why constants are chosen as they are.
 

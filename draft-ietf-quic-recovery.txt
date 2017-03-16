@@ -68,14 +68,14 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Notational Conventions  . . . . . . . . . . . . . . . . .   3
    2.  Design of the QUIC Transmission Machinery . . . . . . . . . .   3
-     2.1.  Relevant Differences Between QUIC and TCP . . . . . . . .   3
+     2.1.  Relevant Differences Between QUIC and TCP . . . . . . . .   4
        2.1.1.  Monotonically Increasing Packet Numbers . . . . . . .   4
        2.1.2.  No Reneging . . . . . . . . . . . . . . . . . . . . .   4
        2.1.3.  More ACK Ranges . . . . . . . . . . . . . . . . . . .   4
-       2.1.4.  Explicit Correction For Delayed Acks  . . . . . . . .   4
+       2.1.4.  Explicit Correction For Delayed Acks  . . . . . . . .   5
    3.  Loss Detection  . . . . . . . . . . . . . . . . . . . . . . .   5
      3.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .   5
      3.2.  Algorithm Details . . . . . . . . . . . . . . . . . . . .   6
@@ -90,22 +90,22 @@ Table of Contents
        3.2.9.  Detecting Lost Packets  . . . . . . . . . . . . . . .  12
      3.3.  Discussion  . . . . . . . . . . . . . . . . . . . . . . .  13
    4.  Congestion Control  . . . . . . . . . . . . . . . . . . . . .  13
-   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
-   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
-     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  14
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .  14
-   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  15
-   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  15
-     B.1.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  15
-     B.2.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  15
-     B.3.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  15
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  15
-
-1.  Introduction
-
-   QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds
-   on decades of transport and security experience, and implements
-
+     4.1.  Slow Start  . . . . . . . . . . . . . . . . . . . . . . .  13
+     4.2.  Recovery  . . . . . . . . . . . . . . . . . . . . . . . .  13
+     4.3.  Constants of interest . . . . . . . . . . . . . . . . . .  14
+     4.4.  Variables of interest . . . . . . . . . . . . . . . . . .  14
+     4.5.  Initialization  . . . . . . . . . . . . . . . . . . . . .  14
+     4.6.  On Packet Acknowledgement . . . . . . . . . . . . . . . .  15
+     4.7.  On Packets Lost . . . . . . . . . . . . . . . . . . . . .  15
+     4.8.  Pacing Packets  . . . . . . . . . . . . . . . . . . . . .  15
+   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  16
+   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  16
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  16
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  16
+   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  17
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  17
+     B.1.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  17
+     B.2.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  17
 
 
 
@@ -114,6 +114,13 @@ Iyengar & Swett        Expires September 17, 2017               [Page 2]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
+     B.3.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  17
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  17
+
+1.  Introduction
+
+   QUIC is a new multiplexed and secure transport atop UDP.  QUIC builds
+   on decades of transport and security experience, and implements
    mechanisms that make it attractive as a modern general-purpose
    transport.  The QUIC protocol is described in [QUIC-TRANSPORT].
 
@@ -156,13 +163,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
       based scheme, where acks express up to 256 ranges.  The ACK frame
       also includes a receive timestamp for each packet newly acked.
 
-2.1.  Relevant Differences Between QUIC and TCP
-
-   Readers familiar with TCP's loss detection and congestion control
-   will find algorithms here that parallel well-known TCP ones.
-   Protocol differences between QUIC and TCP however contribute to
-
-
 
 
 Iyengar & Swett        Expires September 17, 2017               [Page 3]
@@ -170,6 +170,11 @@ Iyengar & Swett        Expires September 17, 2017               [Page 3]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
+2.1.  Relevant Differences Between QUIC and TCP
+
+   Readers familiar with TCP's loss detection and congestion control
+   will find algorithms here that parallel well-known TCP ones.
+   Protocol differences between QUIC and TCP however contribute to
    algorithmic differences.  We briefly describe these protocol
    differences below.
 
@@ -213,11 +218,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
    QUIC supports up to 256 ACK ranges, opposed to TCP's 3 SACK ranges.
    In high loss environments, this speeds recovery.
 
-2.1.4.  Explicit Correction For Delayed Acks
-
-   QUIC ACKs explicitly encode the delay incurred at the receiver
-   between when a packet is received and when the corresponding ACK is
-   sent.  This allows the receiver of the ACK to adjust for receiver
 
 
 
@@ -226,6 +226,11 @@ Iyengar & Swett        Expires September 17, 2017               [Page 4]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
+2.1.4.  Explicit Correction For Delayed Acks
+
+   QUIC ACKs explicitly encode the delay incurred at the receiver
+   between when a packet is received and when the corresponding ACK is
+   sent.  This allows the receiver of the ACK to adjust for receiver
    delays, specifically the delayed ack timer, when estimating the path
    RTT.  This mechanism also allows a receiver to measure and report the
    delay from when a packet was received by the OS kernel, which is
@@ -268,11 +273,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
       sender may use a time thresold.  This allows for senders to be
       tolerant of short periods of significant reordering.  In this
       mechanism, a QUIC sender marks a packet as lost when a packet
-      larger than it is acknowledged and a threshold amount of time has
-      passed since the packet was sent.
-
-   o  Handshake packets are special in a number of ways, and a separate
-      alarm period is used for them.
 
 
 
@@ -282,14 +282,19 @@ Iyengar & Swett        Expires September 17, 2017               [Page 5]
 Internet-Draft             QUIC Loss Detection                March 2017
 
 
+      larger than it is acknowledged and a threshold amount of time has
+      passed since the packet was sent.
+
+   o  Handshake packets are special in a number of ways, and a separate
+      alarm period is used for them.
+
 3.2.  Algorithm Details
 
 3.2.1.  Constants of interest
 
-   Constants used in loss recovery and congestion control are based on a
-   combination of RFCs, papers, and common practice.  Some may need to
-   be changed or negotiated in order to better suit a variety of
-   environments.
+   Constants used in loss recovery are based on a combination of RFCs,
+   papers, and common practice.  Some may need to be changed or
+   negotiated in order to better suit a variety of environments.
 
    kMaxTLPs (default 2):  Maximum number of tail loss probes before an
       RTO fires.
@@ -316,19 +321,14 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 3.2.2.  Variables of interest
 
-   We first describe the variables required to implement the loss
-   detection mechanisms described in this section.
+   Variables required to implement the congestion control mechanisms are
+   described in this section.
 
    loss_detection_alarm:  Multi-modal alarm used for loss detection.
 
    handshake_count:  The number of times the handshake packets have been
       retransmitted without receiving an ack.
 
-   tlp_count:  The number of times a tail loss probe has been sent
-      without receiving an ack.
-
-   rto_count:  The number of times an rto has been sent without
-      receiving an ack.
 
 
 
@@ -337,6 +337,12 @@ Iyengar & Swett        Expires September 17, 2017               [Page 6]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   tlp_count:  The number of times a tail loss probe has been sent
+      without receiving an ack.
+
+   rto_count:  The number of times an rto has been sent without
+      receiving an ack.
 
    smoothed_rtt:  The smoothed RTT of the connection, computed as
       described in [RFC6298]
@@ -369,6 +375,25 @@ Internet-Draft             QUIC Loss Detection                March 2017
    At the beginning of the connection, initialize the loss detection
    variables as follows:
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Swett        Expires September 17, 2017               [Page 7]
+
+Internet-Draft             QUIC Loss Detection                March 2017
+
+
       loss_detection_alarm.reset()
       handshake_count = 0
       tlp_count = 0
@@ -383,16 +408,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
       smoothed_rtt = 0
       rttvar = 0
       initial_rtt = kDefaultInitialRtt
-
-
-
-
-
-
-Iyengar & Swett        Expires September 17, 2017               [Page 7]
-
-Internet-Draft             QUIC Loss Detection                March 2017
-
 
 3.2.4.  On Sending a Packet
 
@@ -430,21 +445,6 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Iyengar & Swett        Expires September 17, 2017               [Page 8]
 
 Internet-Draft             QUIC Loss Detection                March 2017
@@ -458,8 +458,8 @@ Internet-Draft             QUIC Loss Detection                March 2017
             rtt_sample -= ack.delay
           UpdateRtt(rtt_sample)
         // Find all newly acked packets.
-        for acked_packet_number in DetermineNewlyAckedPackets():
-          OnPacketAcked(acked_packet_number)
+        for acked_packet in DetermineNewlyAckedPackets():
+          OnPacketAcked(acked_packet.packet_number)
 
         DetectLostPackets(ack.largest_acked_packet)
         SetLossDetectionAlarm()
@@ -696,9 +696,10 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
      // Inform the congestion controller of lost packets and
      // lets it decide whether to retransmit immediately.
-     OnPacketsLost(lost_packets)
-     foreach (packet in lost_packets)
-       sent_packets.remove(packet.packet_number)
+     if (!lost_packets.empty())
+       OnPacketsLost(lost_packets)
+       foreach (packet in lost_packets)
+         sent_packets.remove(packet.packet_number)
 
 3.3.  Discussion
 
@@ -706,21 +707,20 @@ Internet-Draft             QUIC Loss Detection                March 2017
 
 4.  Congestion Control
 
-   (describe NewReno-style congestion control [RFC6582] for QUIC.)
-   (describe appropriate byte counting.) (define recovery based on
-   packet numbers.) (describe min_rtt based hystart.) (describe how
-   QUIC's F-RTO [RFC5682] delays reducing CWND.) (describe PRR
-   [RFC6937])
+   QUIC's congestion control is based on TCP NewReno[RFC6582] congestion
+   control to determine the congestion window and pacing rate.
 
-5.  IANA Considerations
+4.1.  Slow Start
 
-   This document has no IANA actions.  Yet.
+   QUIC uses a slow start approach where the congestion window is
+   increased by the same number of bytes as are acknowledged while in
+   slow start.  QUIC begins every connection in slow start and exits
+   slow start upon loss.
 
-6.  References
+4.2.  Recovery
 
-
-
-
+   Recovery is a period of time beginning with detection of a lost
+   packet.  It ends when all packets outstanding at the time recovery
 
 
 
@@ -729,6 +729,124 @@ Iyengar & Swett        Expires September 17, 2017              [Page 13]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   began have been acknowledged or lost.  During recovery, the
+   congestion window is not increased or decreased.
+
+4.3.  Constants of interest
+
+   Constants used in congestion control are based on a combination of
+   RFCs, papers, and common practice.  Some may need to be changed or
+   negotiated in order to better suit a variety of environments.
+
+   kInitialWindow (default 10 * 1500 bytes):  Default limit on the
+      amount of outstanding data in bytes.
+
+   kLossReductionFactor (default 0.5):  Reduction in congestion window
+      when a new loss event is detected.
+
+4.4.  Variables of interest
+
+   Variables required to implement the congestion control mechanisms are
+   described in this section.
+
+   bytes_in_flight:  The sum of the size in bytes of all sent packets
+      that contain at least one retransmittable frame, and have not been
+      acked or declared lost.
+
+   congestion_window:  Maximum number of bytes in flight that may be
+      sent.
+
+   end_of_recovery:  The packet number after which QUIC will no longer
+      be in recovery.
+
+   ssthresh  Slow start threshold in bytes.  When the congestion window
+      is below ssthresh, it grows by the number of bytes acknowledged
+      for each ack.
+
+4.5.  Initialization
+
+   At the beginning of the connection, initialize the loss detection
+   variables as follows:
+
+      congestion_window = kInitialWindow
+      bytes_in_flight = 0
+      end_of_recovery = 0
+      ssthresh = infinite
+
+
+
+
+
+
+
+
+Iyengar & Swett        Expires September 17, 2017              [Page 14]
+
+Internet-Draft             QUIC Loss Detection                March 2017
+
+
+4.6.  On Packet Acknowledgement
+
+   Invoked at the same time loss detection's OnPacketAcked is called and
+   supplied with the acked_packet from sent_packets.
+
+   Pseudocode for OnPacketAcked follows:
+
+      OnPacketAcked(acked_packet):
+        if (acked_packet.packet_number < end_of_recovery):
+          return
+        if (congestion_window < ssthresh):
+          congestion_window += acket_packets.bytes
+        else:
+          congestion_window +=
+              1500 * acked_packets.bytes / congestion_window
+
+4.7.  On Packets Lost
+
+   Invoked by loss detection from DetectLostPackets when new packets are
+   detected lost.
+
+      OnPacketsLost(lost_packets):
+        largest_lost_packet = lost_packets.last()
+        if (end_of_recovery < largest_lost_packet.packet_number):
+          end_of_recovery = largest_sent_packet
+          congestion_window *= kLossReductionFactor
+          ssthresh = congestion_window
+
+4.8.  Pacing Packets
+
+   QUIC sends a packet if there is available congestion window and
+   sending the packet does not exceed the pacing rate.
+
+   TimeToSend returns infinite if the congestion controller is
+   congestion window limited, a time in the past if the packet can be
+   sent immediately, and a time in the future if sending is pacing
+   limited.
+
+      TimeToSend(packet_size):
+        if (bytes_in_flight + packet_size > congestion_window)
+          return infinite
+        return time_of_last_sent_packet +
+            packet_size * smoothed_rtt / congestion_window
+
+   (describe how QUIC's F-RTO [RFC5682] delays reducing CWND.) (describe
+   PRR [RFC6937])
+
+
+
+
+
+Iyengar & Swett        Expires September 17, 2017              [Page 15]
+
+Internet-Draft             QUIC Loss Detection                March 2017
+
+
+5.  IANA Considerations
+
+   This document has no IANA actions.  Yet.
+
+6.  References
 
 6.1.  Normative References
 
@@ -771,20 +889,18 @@ Internet-Draft             QUIC Loss Detection                March 2017
               RFC 6582, DOI 10.17487/RFC6582, April 2012,
               <http://www.rfc-editor.org/info/rfc6582>.
 
-   [RFC6937]  Mathis, M., Dukkipati, N., and Y. Cheng, "Proportional
-              Rate Reduction for TCP", RFC 6937, DOI 10.17487/RFC6937,
-              May 2013, <http://www.rfc-editor.org/info/rfc6937>.
 
 
 
 
-
-
-
-Iyengar & Swett        Expires September 17, 2017              [Page 14]
+Iyengar & Swett        Expires September 17, 2017              [Page 16]
 
 Internet-Draft             QUIC Loss Detection                March 2017
 
+
+   [RFC6937]  Mathis, M., Dukkipati, N., and Y. Cheng, "Proportional
+              Rate Reduction for TCP", RFC 6937, DOI 10.17487/RFC6937,
+              May 2013, <http://www.rfc-editor.org/info/rfc6937>.
 
 Appendix A.  Acknowledgments
 
@@ -833,8 +949,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-Iyengar & Swett        Expires September 17, 2017              [Page 15]
+Iyengar & Swett        Expires September 17, 2017              [Page 17]

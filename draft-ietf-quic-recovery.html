@@ -299,6 +299,14 @@ address {
 <link href="#rfc.section.3.2.9" rel="Chapter" title="3.2.9 Detecting Lost Packets"/>
 <link href="#rfc.section.3.3" rel="Chapter" title="3.3 Discussion"/>
 <link href="#rfc.section.4" rel="Chapter" title="4 Congestion Control"/>
+<link href="#rfc.section.4.1" rel="Chapter" title="4.1 Slow Start"/>
+<link href="#rfc.section.4.2" rel="Chapter" title="4.2 Recovery"/>
+<link href="#rfc.section.4.3" rel="Chapter" title="4.3 Constants of interest"/>
+<link href="#rfc.section.4.4" rel="Chapter" title="4.4 Variables of interest"/>
+<link href="#rfc.section.4.5" rel="Chapter" title="4.5 Initialization"/>
+<link href="#rfc.section.4.6" rel="Chapter" title="4.6 On Packet Acknowledgement"/>
+<link href="#rfc.section.4.7" rel="Chapter" title="4.7 On Packets Lost"/>
+<link href="#rfc.section.4.8" rel="Chapter" title="4.8 Pacing Packets"/>
 <link href="#rfc.section.5" rel="Chapter" title="5 IANA Considerations"/>
 <link href="#rfc.references" rel="Chapter" title="6 References"/>
 <link href="#rfc.references.1" rel="Chapter" title="6.1 Normative References"/>
@@ -400,7 +408,15 @@ address {
 <li>3.2.9.   <a href="#rfc.section.3.2.9">Detecting Lost Packets</a></li>
 </ul><li>3.3.   <a href="#rfc.section.3.3">Discussion</a></li>
 </ul><li>4.   <a href="#rfc.section.4">Congestion Control</a></li>
-<li>5.   <a href="#rfc.section.5">IANA Considerations</a></li>
+<ul><li>4.1.   <a href="#rfc.section.4.1">Slow Start</a></li>
+<li>4.2.   <a href="#rfc.section.4.2">Recovery</a></li>
+<li>4.3.   <a href="#rfc.section.4.3">Constants of interest</a></li>
+<li>4.4.   <a href="#rfc.section.4.4">Variables of interest</a></li>
+<li>4.5.   <a href="#rfc.section.4.5">Initialization</a></li>
+<li>4.6.   <a href="#rfc.section.4.6">On Packet Acknowledgement</a></li>
+<li>4.7.   <a href="#rfc.section.4.7">On Packets Lost</a></li>
+<li>4.8.   <a href="#rfc.section.4.8">Pacing Packets</a></li>
+</ul><li>5.   <a href="#rfc.section.5">IANA Considerations</a></li>
 <li>6.   <a href="#rfc.references">References</a></li>
 <ul><li>6.1.   <a href="#rfc.references.1">Normative References</a></li>
 <li>6.2.   <a href="#rfc.references.2">Informative References</a></li>
@@ -456,7 +472,7 @@ address {
 </ul>
 <h2 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#algorithm-details" id="algorithm-details">Algorithm Details</a></h2>
 <h3 id="rfc.section.3.2.1"><a href="#rfc.section.3.2.1">3.2.1.</a> <a href="#constants-of-interest" id="constants-of-interest">Constants of interest</a></h3>
-<p id="rfc.section.3.2.1.p.1">Constants used in loss recovery and congestion control are based on a combination of RFCs, papers, and common practice.  Some may need to be changed or negotiated in order to better suit a variety of environments.</p>
+<p id="rfc.section.3.2.1.p.1">Constants used in loss recovery are based on a combination of RFCs, papers, and common practice.  Some may need to be changed or negotiated in order to better suit a variety of environments.</p>
 <p/>
 
 <dl>
@@ -476,7 +492,7 @@ address {
   <dd style="margin-left: 8">The default RTT used before an RTT sample is taken.</dd>
 </dl>
 <h3 id="rfc.section.3.2.2"><a href="#rfc.section.3.2.2">3.2.2.</a> <a href="#variables-of-interest" id="variables-of-interest">Variables of interest</a></h3>
-<p id="rfc.section.3.2.2.p.1">We first describe the variables required to implement the loss detection mechanisms described in this section.</p>
+<p id="rfc.section.3.2.2.p.1">Variables required to implement the congestion control mechanisms are described in this section.</p>
 <p/>
 
 <dl>
@@ -551,8 +567,8 @@ address {
          rtt_sample -= ack.delay
        UpdateRtt(rtt_sample)
      // Find all newly acked packets.
-     for acked_packet_number in DetermineNewlyAckedPackets():
-       OnPacketAcked(acked_packet_number)
+     for acked_packet in DetermineNewlyAckedPackets():
+       OnPacketAcked(acked_packet.packet_number)
 
      DetectLostPackets(ack.largest_acked_packet)
      SetLossDetectionAlarm()
@@ -683,14 +699,85 @@ address {
 
      // Inform the congestion controller of lost packets and
      // lets it decide whether to retransmit immediately.
-     OnPacketsLost(lost_packets)
-     foreach (packet in lost_packets)
-       sent_packets.remove(packet.packet_number)
+     if (!lost_packets.empty())
+       OnPacketsLost(lost_packets)
+       foreach (packet in lost_packets)
+         sent_packets.remove(packet.packet_number)
 </pre>
 <h2 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#discussion" id="discussion">Discussion</a></h2>
 <p id="rfc.section.3.3.p.1">TODO: Discuss why constants are chosen as they are.</p>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a></h1>
-<p id="rfc.section.4.p.1">(describe NewReno-style congestion control <a href="#RFC6582">[RFC6582]</a> for QUIC.) (describe appropriate byte counting.) (define recovery based on packet numbers.) (describe min_rtt based hystart.) (describe how QUIC&#8217;s F-RTO <a href="#RFC5682">[RFC5682]</a> delays reducing CWND.) (describe PRR <a href="#RFC6937">[RFC6937]</a>)</p>
+<p id="rfc.section.4.p.1">QUIC&#8217;s congestion control is based on TCP NewReno<a href="#RFC6582">[RFC6582]</a> congestion control to determine the congestion window and pacing rate.</p>
+<h2 id="rfc.section.4.1"><a href="#rfc.section.4.1">4.1.</a> <a href="#slow-start" id="slow-start">Slow Start</a></h2>
+<p id="rfc.section.4.1.p.1">QUIC uses a slow start approach where the congestion window is increased by the same number of bytes as are acknowledged while in slow start.  QUIC begins every connection in slow start and exits slow start upon loss.</p>
+<h2 id="rfc.section.4.2"><a href="#rfc.section.4.2">4.2.</a> <a href="#recovery" id="recovery">Recovery</a></h2>
+<p id="rfc.section.4.2.p.1">Recovery is a period of time beginning with detection of a lost packet.  It ends when all packets outstanding at the time recovery began have been acknowledged or lost. During recovery, the congestion window is not increased or decreased.</p>
+<h2 id="rfc.section.4.3"><a href="#rfc.section.4.3">4.3.</a> <a href="#constants-of-interest-1" id="constants-of-interest-1">Constants of interest</a></h2>
+<p id="rfc.section.4.3.p.1">Constants used in congestion control are based on a combination of RFCs, papers, and common practice.  Some may need to be changed or negotiated in order to better suit a variety of environments.</p>
+<p/>
+
+<dl>
+  <dt>kInitialWindow (default 10 * 1500 bytes):</dt>
+  <dd style="margin-left: 8">Default limit on the amount of outstanding data in bytes.</dd>
+  <dt>kLossReductionFactor (default 0.5):</dt>
+  <dd style="margin-left: 8">Reduction in congestion window when a new loss event is detected.</dd>
+</dl>
+<h2 id="rfc.section.4.4"><a href="#rfc.section.4.4">4.4.</a> <a href="#variables-of-interest-1" id="variables-of-interest-1">Variables of interest</a></h2>
+<p id="rfc.section.4.4.p.1">Variables required to implement the congestion control mechanisms are described in this section.</p>
+<p/>
+
+<dl>
+  <dt>bytes_in_flight:</dt>
+  <dd style="margin-left: 8">The sum of the size in bytes of all sent packets that contain at least one retransmittable frame, and have not been acked or declared lost.</dd>
+  <dt>congestion_window:</dt>
+  <dd style="margin-left: 8">Maximum number of bytes in flight that may be sent.</dd>
+  <dt>end_of_recovery:</dt>
+  <dd style="margin-left: 8">The packet number after which QUIC will no longer be in recovery.</dd>
+  <dt>ssthresh</dt>
+  <dd style="margin-left: 8">Slow start threshold in bytes.  When the congestion window is below ssthresh, it grows by the number of bytes acknowledged for each ack.</dd>
+</dl>
+<h2 id="rfc.section.4.5"><a href="#rfc.section.4.5">4.5.</a> <a href="#initialization-1" id="initialization-1">Initialization</a></h2>
+<p id="rfc.section.4.5.p.1">At the beginning of the connection, initialize the loss detection variables as follows:</p>
+<pre>
+   congestion_window = kInitialWindow
+   bytes_in_flight = 0
+   end_of_recovery = 0
+   ssthresh = infinite
+</pre>
+<h2 id="rfc.section.4.6"><a href="#rfc.section.4.6">4.6.</a> <a href="#on-packet-acknowledgement" id="on-packet-acknowledgement">On Packet Acknowledgement</a></h2>
+<p id="rfc.section.4.6.p.1">Invoked at the same time loss detection&#8217;s OnPacketAcked is called and supplied with the acked_packet from sent_packets.</p>
+<p id="rfc.section.4.6.p.2">Pseudocode for OnPacketAcked follows:</p>
+<pre>
+   OnPacketAcked(acked_packet):
+     if (acked_packet.packet_number &lt; end_of_recovery):
+       return
+     if (congestion_window &lt; ssthresh):
+       congestion_window += acket_packets.bytes
+     else:
+       congestion_window +=
+           1500 * acked_packets.bytes / congestion_window
+</pre>
+<h2 id="rfc.section.4.7"><a href="#rfc.section.4.7">4.7.</a> <a href="#on-packets-lost" id="on-packets-lost">On Packets Lost</a></h2>
+<p id="rfc.section.4.7.p.1">Invoked by loss detection from DetectLostPackets when new packets are detected lost.</p>
+<pre>
+   OnPacketsLost(lost_packets):
+     largest_lost_packet = lost_packets.last()
+     if (end_of_recovery &lt; largest_lost_packet.packet_number):
+       end_of_recovery = largest_sent_packet
+       congestion_window *= kLossReductionFactor
+       ssthresh = congestion_window
+</pre>
+<h2 id="rfc.section.4.8"><a href="#rfc.section.4.8">4.8.</a> <a href="#pacing-packets" id="pacing-packets">Pacing Packets</a></h2>
+<p id="rfc.section.4.8.p.1">QUIC sends a packet if there is available congestion window and sending the packet does not exceed the pacing rate.</p>
+<p id="rfc.section.4.8.p.2">TimeToSend returns infinite if the congestion controller is congestion window limited, a time in the past if the packet can be sent immediately, and a time in the future if sending is pacing limited.</p>
+<pre>
+   TimeToSend(packet_size):
+     if (bytes_in_flight + packet_size &gt; congestion_window)
+       return infinite
+     return time_of_last_sent_packet +
+         packet_size * smoothed_rtt / congestion_window
+</pre>
+<p id="rfc.section.4.8.p.3">(describe how QUIC&#8217;s F-RTO <a href="#RFC5682">[RFC5682]</a> delays reducing CWND.) (describe PRR <a href="#RFC6937">[RFC6937]</a>)</p>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a></h1>
 <p id="rfc.section.5.p.1">This document has no IANA actions.  Yet.</p>
 <h1 id="rfc.references"><a href="#rfc.references">6.</a> References</h1>

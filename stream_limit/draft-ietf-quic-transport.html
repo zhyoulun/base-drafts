@@ -376,7 +376,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-3-29" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-4-13" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -400,12 +400,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: September 30, 2017</td>
+  <td class="left">Expires: October 15, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">March 29, 2017</td>
+  <td class="right">April 13, 2017</td>
 </tr>
 
     	
@@ -430,7 +430,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on September 30, 2017.</p>
+<p>This Internet-Draft will expire on October 15, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -1239,9 +1239,9 @@ address {
 <h2 id="rfc.section.8.2"><a href="#rfc.section.8.2">8.2.</a> <a href="#frame-ack" id="frame-ack">ACK Frame</a></h2>
 <p id="rfc.section.8.2.p.1">Receivers send ACK frames to inform senders which packets they have received and processed, as well as which packets are considered missing.  The ACK frame contains between 1 and 256 ACK blocks.  ACK blocks are ranges of acknowledged packets.</p>
 <p id="rfc.section.8.2.p.2">To limit ACK blocks to those that have not yet been received by the sender, the receiver SHOULD track which ACK frames have been acknowledged by its peer.  Once an ACK frame has been acknowledged, the packets it acknowledges SHOULD not be acknowledged again.  To handle cases where the receiver is only sending ACK frames, and hence will not receive acknowledgments for its packets, it MAY send a PING frame at most once per RTT to explicitly request acknowledgment.</p>
-<p id="rfc.section.8.2.p.3">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.</p>
+<p id="rfc.section.8.2.p.3">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.  When this is necessary, the receiver SHOULD acknowledge newly received packets and stop acknowledging packets received in the past.</p>
 <p id="rfc.section.8.2.p.4">Unlike TCP SACKs, QUIC ACK blocks are cumulative and therefore irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it is assumed to be acknowledged.</p>
-<p id="rfc.section.8.2.p.5">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.</p>
+<p id="rfc.section.8.2.p.5">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
 <p id="rfc.section.8.2.p.6">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender MUST close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
 <p id="rfc.section.8.2.p.7">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>01NULLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
@@ -1624,8 +1624,8 @@ address {
 <p id="rfc.section.10.1.5.p.9">(TODO: QUIC_STREAM_NO_ERROR is a special case.  Write it up.)</p>
 <h2 id="rfc.section.10.2"><a href="#rfc.section.10.2">10.2.</a> <a href="#stream-identifiers" id="stream-identifiers">Stream Identifiers</a></h2>
 <p id="rfc.section.10.2.p.1">Streams are identified by an unsigned 32-bit integer, referred to as the StreamID.  To avoid StreamID collision, clients MUST initiate streams using odd-numbered StreamIDs; streams initiated by the server MUST use even-numbered StreamIDs.</p>
-<p id="rfc.section.10.2.p.2">A StreamID of zero (0x0) is reserved and used for connection-level flow control frames (<a href="#flow-control">Section 11</a>); the StreamID of zero cannot be used to establish a new stream.</p>
-<p id="rfc.section.10.2.p.3">StreamID 1 (0x1) is reserved for the cryptographic handshake.  StreamID 1 MUST NOT be used for application data, and MUST be the first client-initiated stream.</p>
+<p id="rfc.section.10.2.p.2">A Stream ID of zero (0x0) is reserved and used for connection-level flow control frames (<a href="#flow-control">Section 11</a>); the Stream ID of zero cannot be used to establish a new stream.</p>
+<p id="rfc.section.10.2.p.3">Stream ID 1 (0x1) is reserved for the cryptographic handshake.  Stream ID 1 MUST NOT be used for application data, and MUST be the first client-initiated stream.</p>
 <p id="rfc.section.10.2.p.4">A QUIC endpoint cannot reuse a StreamID on a given connection.  Streams MUST be created in sequential order.  Open streams can be used in any order.</p>
 <h2 id="rfc.section.10.3"><a href="#rfc.section.10.3">10.3.</a> <a href="#stream-concurrency" id="stream-concurrency">Stream Concurrency</a></h2>
 <p id="rfc.section.10.3.p.1">An endpoint limits the number of concurrently active incoming streams by adjusting the maximum stream ID.  An initial value is set in the transport parameters  (see <a href="#transport-parameter-definitions">Section 7.3.1</a>) and is subsequently increased by LIMIT_UPDATE frames (see <a href="#frame-limit-update">Section 8.5</a>). The maximum stream ID is specific to each endpoint and applies only to the peer that receives the setting. That is, clients specify the maximum stream ID the server can initiate, and servers specify the maximum stream ID the client can initiate.  Each endpoint may respond on streams initiated by the other peer, regardless of whether it is permitted to initiated new streams.</p>
@@ -1639,7 +1639,7 @@ address {
 <p id="rfc.section.10.4.p.4">Flow control is described in detail in <a href="#flow-control">Section 11</a>, and congestion control is described in the companion document <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
 <h2 id="rfc.section.10.5"><a href="#rfc.section.10.5">10.5.</a> <a href="#stream-prioritization" id="stream-prioritization">Stream Prioritization</a></h2>
 <p id="rfc.section.10.5.p.1">Stream multiplexing has a significant effect on application performance if resources allocated to streams are correctly prioritized.  Experience with other multiplexed protocols, such as HTTP/2 <a href="#RFC7540">[RFC7540]</a>, shows that effective prioritization strategies have a significant positive impact on performance.</p>
-<p id="rfc.section.10.5.p.2">QUIC does not provide frames for exchanging priotization information.  Instead it relies on receiving priority information from the application that uses QUIC.  Protocols that use QUIC are able to define any prioritization scheme that suits their application semantics.  A protocol might define explicit messages for signaling priority, such as those defined in HTTP/2; it could define rules that allow an endpoint to determine priority based on context; or it could leave the determination to the application.</p>
+<p id="rfc.section.10.5.p.2">QUIC does not provide frames for exchanging prioritization information.  Instead it relies on receiving priority information from the application that uses QUIC.  Protocols that use QUIC are able to define any prioritization scheme that suits their application semantics.  A protocol might define explicit messages for signaling priority, such as those defined in HTTP/2; it could define rules that allow an endpoint to determine priority based on context; or it could leave the determination to the application.</p>
 <p id="rfc.section.10.5.p.3">A QUIC implementation SHOULD provide ways in which an application can indicate the relative priority of streams.  When deciding which streams to dedicate resources to, QUIC SHOULD use the information provided by the application.  Failure to account for priority of streams can result in suboptimal performance.</p>
 <p id="rfc.section.10.5.p.4">Stream priority is most relevant when deciding which stream data will be transmitted.  Often, there will be limits on what can be transmitted as a result of connection flow control or the current congestion controller state.</p>
 <p id="rfc.section.10.5.p.5">Giving preference to the transmission of its own management frames ensures that the protocol functions efficiently.  That is, prioritizing frames other than STREAM frames ensures that loss recovery, congestion control, and flow control operate effectively.</p>
@@ -1653,8 +1653,8 @@ address {
 <p id="rfc.section.11.p.5">A receiver MAY advertise a larger offset at any point in the connection by sending a WINDOW_UPDATE frame.  A receiver MUST NOT renege on an advertisement; that is, once a receiver advertises an offset via a WINDOW_UPDATE frame, it MUST NOT subsequently advertise a smaller offset.  A sender may receive WINDOW_UPDATE frames out of order; a sender MUST therefore ignore any WINDOW_UPDATE that does not move the window forward.</p>
 <p id="rfc.section.11.p.6">A receiver MUST close the connection with a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error (<a href="#error-handling">Section 12</a>) if the peer violates the advertised stream or connection flow control windows.</p>
 <p id="rfc.section.11.p.7">A sender MUST send BLOCKED frames to indicate it has data to write but is blocked by lack of connection or stream flow control credit.  BLOCKED frames are expected to be sent infrequently in common cases, but they are considered useful for debugging and monitoring purposes.</p>
-<p id="rfc.section.11.p.8">A receiver advertises credit for a stream by sending a WINDOW_UPDATE frame with the StreamID set appropriately. A receiver may use the current offset of data consumed to determine the flow control offset to be advertised.  A receiver MAY send copies of a WINDOW_UPDATE frame in multiple packets in order to make sure that the sender receives it before running out of flow control credit, even if one of the packets is lost.</p>
-<p id="rfc.section.11.p.9">Connection flow control is a limit to the total bytes of stream data sent in STREAM frames on all streams contributing to connection flow control.  A receiver advertises credit for a connection by sending a WINDOW_UPDATE frame with the StreamID set to zero (0x00).  A receiver maintains a cumulative sum of bytes received on all streams contributing to connection-level flow control, to check for flow control violations. A receiver may maintain a cumulative sum of bytes consumed on all contributing streams to determine the connection-level flow control offset to be advertised.</p>
+<p id="rfc.section.11.p.8">A receiver advertises credit for a stream by sending a WINDOW_UPDATE frame with the Stream ID set appropriately. A receiver may use the current offset of data consumed to determine the flow control offset to be advertised.  A receiver MAY send copies of a WINDOW_UPDATE frame in multiple packets in order to make sure that the sender receives it before running out of flow control credit, even if one of the packets is lost.</p>
+<p id="rfc.section.11.p.9">Connection flow control is a limit to the total bytes of stream data sent in STREAM frames on all streams contributing to connection flow control.  A receiver advertises credit for a connection by sending a WINDOW_UPDATE frame with the Stream ID set to zero (0x00).  A receiver maintains a cumulative sum of bytes received on all streams contributing to connection-level flow control, to check for flow control violations. A receiver may maintain a cumulative sum of bytes consumed on all contributing streams to determine the connection-level flow control offset to be advertised.</p>
 <h2 id="rfc.section.11.1"><a href="#rfc.section.11.1">11.1.</a> <a href="#edge-cases-and-other-considerations" id="edge-cases-and-other-considerations">Edge Cases and Other Considerations</a></h2>
 <p id="rfc.section.11.1.p.1">There are some edge cases which must be considered when dealing with stream and connection level flow control.  Given enough time, both endpoints must agree on flow control state.  If one end believes it can send more than the other end is willing to receive, the connection will be torn down when too much data arrives.  Conversely if a sender believes it is blocked, while endpoint B expects more data can be received, then the connection can be in a deadlock, with the sender waiting for a WINDOW_UPDATE which will never come.</p>
 <h3 id="rfc.section.11.1.1"><a href="#rfc.section.11.1.1">11.1.1.</a> <a href="#mid-stream-rststream" id="mid-stream-rststream">Mid-stream RST_STREAM</a></h3>
@@ -1897,13 +1897,13 @@ address {
       <td class="reference">
         <b id="QUIC-RECOVERY">[QUIC-RECOVERY]</b>
       </td>
-      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-recovery-latest">QUIC Loss Detection and Congestion Control</a>", Internet-Draft draft-ietf-quic-recovery-latest, March 2017.</td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-recovery-latest">QUIC Loss Detection and Congestion Control</a>", Internet-Draft draft-ietf-quic-recovery-latest, April 2017.</td>
     </tr>
     <tr>
       <td class="reference">
         <b id="QUIC-TLS">[QUIC-TLS]</b>
       </td>
-      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-tls-latest">Using Transport Layer Security (TLS) to Secure QUIC</a>", Internet-Draft draft-ietf-quic-tls-latest, March 2017.</td>
+      <td class="top"><a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-tls-latest">Using Transport Layer Security (TLS) to Secure QUIC</a>", Internet-Draft draft-ietf-quic-tls-latest, April 2017.</td>
     </tr>
     <tr>
       <td class="reference">

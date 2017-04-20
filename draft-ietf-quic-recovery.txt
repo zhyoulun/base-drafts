@@ -74,7 +74,7 @@ Table of Contents
      2.1.  Relevant Differences Between QUIC and TCP . . . . . . . .   4
        2.1.1.  Monotonically Increasing Packet Numbers . . . . . . .   4
        2.1.2.  No Reneging . . . . . . . . . . . . . . . . . . . . .   4
-       2.1.3.  More ACK Ranges . . . . . . . . . . . . . . . . . . .   4
+       2.1.3.  More ACK Ranges . . . . . . . . . . . . . . . . . . .   5
        2.1.4.  Explicit Correction For Delayed Acks  . . . . . . . .   5
    3.  Loss Detection  . . . . . . . . . . . . . . . . . . . . . . .   5
      3.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .   5
@@ -98,6 +98,7 @@ Table of Contents
      4.6.  On Packet Acknowledgement . . . . . . . . . . . . . . . .  15
      4.7.  On Packets Lost . . . . . . . . . . . . . . . . . . . . .  15
      4.8.  On Retransmission Timeout Verified  . . . . . . . . . . .  16
+     4.9.  Pacing Packets  . . . . . . . . . . . . . . . . . . . . .  16
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  16
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  16
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .  16
@@ -105,7 +106,6 @@ Table of Contents
    Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  17
    Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  17
      B.1.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  17
-     B.2.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  18
 
 
 
@@ -114,6 +114,7 @@ Iyengar & Swett         Expires October 22, 2017                [Page 2]
 Internet-Draft             QUIC Loss Detection                April 2017
 
 
+     B.2.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  18
      B.3.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  18
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  18
 
@@ -159,9 +160,8 @@ Internet-Draft             QUIC Loss Detection                April 2017
    o  Crypto handshake data is also sent as STREAM data, and uses the
       reliability machinery of QUIC underneath.
 
-   o  ACK frames contain acknowledgment information.  QUIC uses a SACK-
-      based scheme, where acks express up to 256 ranges.  The ACK frame
-      also includes a receive timestamp for each packet newly acked.
+
+
 
 
 
@@ -169,6 +169,10 @@ Iyengar & Swett         Expires October 22, 2017                [Page 3]
 
 Internet-Draft             QUIC Loss Detection                April 2017
 
+
+   o  ACK frames contain acknowledgment information.  QUIC uses a SACK-
+      based scheme, where acks express up to 256 ranges.  The ACK frame
+      also includes a receive timestamp for each packet newly acked.
 
 2.1.  Relevant Differences Between QUIC and TCP
 
@@ -213,10 +217,6 @@ Internet-Draft             QUIC Loss Detection                April 2017
    simplifying implementations on both sides and reducing memory
    pressure on the sender.
 
-2.1.3.  More ACK Ranges
-
-   QUIC supports up to 256 ACK ranges, opposed to TCP's 3 SACK ranges.
-   In high loss environments, this speeds recovery.
 
 
 
@@ -225,6 +225,11 @@ Iyengar & Swett         Expires October 22, 2017                [Page 4]
 
 Internet-Draft             QUIC Loss Detection                April 2017
 
+
+2.1.3.  More ACK Ranges
+
+   QUIC supports up to 256 ACK ranges, opposed to TCP's 3 SACK ranges.
+   In high loss environments, this speeds recovery.
 
 2.1.4.  Explicit Correction For Delayed Acks
 
@@ -269,11 +274,6 @@ Internet-Draft             QUIC Loss Detection                April 2017
       set when any retransmittable packet is outstanding.  When this
       alarm fires, all unacknowledged packets are marked as lost.
 
-   o  Instead of a packet threshold to tolerate reordering, a QUIC
-      sender may use a time thresold.  This allows for senders to be
-      tolerant of short periods of significant reordering.  In this
-      mechanism, a QUIC sender marks a packet as lost when a packet
-
 
 
 
@@ -282,6 +282,10 @@ Iyengar & Swett         Expires October 22, 2017                [Page 5]
 Internet-Draft             QUIC Loss Detection                April 2017
 
 
+   o  Instead of a packet threshold to tolerate reordering, a QUIC
+      sender may use a time thresold.  This allows for senders to be
+      tolerant of short periods of significant reordering.  In this
+      mechanism, a QUIC sender marks a packet as lost when a packet
       larger than it is acknowledged and a threshold amount of time has
       passed since the packet was sent.
 
@@ -326,10 +330,6 @@ Internet-Draft             QUIC Loss Detection                April 2017
 
    loss_detection_alarm:  Multi-modal alarm used for loss detection.
 
-   handshake_count:  The number of times the handshake packets have been
-      retransmitted without receiving an ack.
-
-
 
 
 
@@ -337,6 +337,9 @@ Iyengar & Swett         Expires October 22, 2017                [Page 6]
 
 Internet-Draft             QUIC Loss Detection                April 2017
 
+
+   handshake_count:  The number of times the handshake packets have been
+      retransmitted without receiving an ack.
 
    tlp_count:  The number of times a tail loss probe has been sent
       without receiving an ack.
@@ -377,9 +380,6 @@ Internet-Draft             QUIC Loss Detection                April 2017
 
    At the beginning of the connection, initialize the loss detection
    variables as follows:
-
-
-
 
 
 
@@ -850,9 +850,8 @@ Internet-Draft             QUIC Loss Detection                April 2017
 
       OnRetransmissionTimeoutVerified()
         congestion_window = kMinimumWindow
-   ~~
 
-   ## Pacing Packets
+4.9.  Pacing Packets
 
    QUIC sends a packet if there is available congestion window and
    sending the packet does not exceed the pacing rate.
@@ -862,10 +861,11 @@ Internet-Draft             QUIC Loss Detection                April 2017
    sent immediately, and a time in the future if sending is pacing
    limited.
 
-
-   TimeToSend(packet_size): if (bytes_in_flight + packet_size >
-   congestion_window) return infinite return time_of_last_sent_packet +
-   (packet_size * smoothed_rtt) / congestion_window ~~~
+      TimeToSend(packet_size):
+        if (bytes_in_flight + packet_size > congestion_window)
+          return infinite
+        return time_of_last_sent_packet +
+            (packet_size * smoothed_rtt) / congestion_window
 
 5.  IANA Considerations
 

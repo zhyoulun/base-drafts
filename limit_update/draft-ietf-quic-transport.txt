@@ -161,7 +161,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  57
      12.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  58
      12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  58
-     12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  58
+     12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  59
 
 
 
@@ -2115,11 +2115,11 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    When counting data toward this limit, an endpoint accounts for the
    maximum offset of data that is sent or received on every stream.
-   Loss or reordering can mean that the maximum offset is greater than
-   the total size of data received on a stream.  Receiving STREAM frames
-   might not increase the maximum offset on a stream if the maximum
-   offset doesn't increase.  A STREAM frame with a FIN bit set or
-   RST_STREAM causes the final offset for a stream to be fixed.
+   Loss or reordering can mean that the maximum offset on a stream can
+   be greater than the total size of data received on that stream.
+   Conversely, receiving STREAM frames might not increase the maximum
+   offset on a stream if the maximum offset in the frame is lower than
+   the maximum received for that stream.
 
 
 
@@ -2139,7 +2139,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
 8.4.  MAX_STREAM_DATA Frame
 
-   The MAX_STREAM_DATA frame (type=0x04) is used in flow control to
+   The MAX_STREAM_DATA frame (type=0x05) is used in flow control to
    inform a peer of the maximum amount of data that can be sent on a
    stream.
 
@@ -2174,7 +2174,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
 8.5.  MAX_STREAM_ID Frame
 
-   The MAX_STREAM_ID frame (type=0x08) informs the peer of the maximum
+   The MAX_STREAM_ID frame (type=0x06) informs the peer of the maximum
    stream ID that they are permitted to open.
 
    The frame is as follows:
@@ -2211,7 +2211,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
 8.6.  BLOCKED Frame
 
-   A sender sends a BLOCKED frame (type=0x05) when it is ready to send
+   A sender sends a BLOCKED frame (type=0x08) when it is ready to send
    data (and has data to send), but is currently flow control blocked.
    BLOCKED frames are purely informational frames, but extremely useful
    for debugging purposes.  A receiver of a BLOCKED frame should simply
@@ -3034,8 +3034,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    A receiver MUST close the connection with a
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error (Section 12) if the
-   peer violates the advertised limits on data on a connection or
-   stream.
+   peer violates the advertised connection or stream data limits.
 
    A sender MUST send BLOCKED frames to indicate it has data to write
    but is blocked by lack of connection or stream flow control credit.
@@ -3070,6 +3069,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    expects more data can be received, then the connection can be in a
    deadlock, with the sender waiting for a MAX_DATA or MAX_STREAM_DATA
    frame which will never come.
+
 
 
 
@@ -3146,13 +3146,14 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    overhead, while withholding MAX_STREAM_ID frames can prevent the peer
    from using the available parallelism.
 
-   Implementations will likely want to increase the maximum stream ID as
-   peer-initiated streams close.  Sending a MAX_STREAM_ID frame along
-   with ACK frames ensures a regular increase in the stream limit
-   without generating excess packets.
+   Sending any increase to the maximum stream ID in the same packet as
+   an ACK frame ensures a regular increase in the stream limit without
+   generating excess packets.
 
-   A receiver MAY also advance the maximum stream ID based on current
-   activity, system conditions, and other environmental factors.
+   Implementations will likely want to increase the maximum stream ID as
+   peer-initiated streams close.  A receiver MAY also advance the
+   maximum stream ID based on current activity, system conditions, and
+   other environmental factors.
 
 11.1.5.  BLOCKED frames
 
@@ -3184,8 +3185,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    Public Reset is not suitable for any error that can be signaled with
    a CONNECTION_CLOSE or RST_STREAM frame.  Public Reset MUST NOT be
-   sent by an endpoint that has the state necessary to send a frame on
-   the connection.
+
 
 
 
@@ -3193,6 +3193,9 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 57]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   sent by an endpoint that has the state necessary to send a frame on
+   the connection.
 
 12.1.  Connection Errors
 
@@ -3236,10 +3239,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    An endpoint MAY send a RST_STREAM frame in the same packet as a
    CONNECTION_CLOSE frame.
 
-12.3.  Error Codes
 
-   Error codes are 32 bits long, with the first two bits indicating the
-   source of the error code:
 
 
 
@@ -3249,6 +3249,11 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 58]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+12.3.  Error Codes
+
+   Error codes are 32 bits long, with the first two bits indicating the
+   source of the error code:
 
    0x00000000-0x3FFFFFFF:  Application-specific error codes.  Defined by
       each application-layer protocol.
@@ -3292,11 +3297,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    QUIC_INVALID_STREAM_DATA (0x8000002E):  STREAM frame data is
       malformed.
 
-   QUIC_UNENCRYPTED_STREAM_DATA (0x8000003D):  Received STREAM frame
-      data is not encrypted.
-
-   QUIC_MAYBE_CORRUPTED_MEMORY (0x80000059):  Received a frame which is
-      likely the result of memory corruption.
 
 
 
@@ -3305,6 +3305,12 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 59]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   QUIC_UNENCRYPTED_STREAM_DATA (0x8000003D):  Received STREAM frame
+      data is not encrypted.
+
+   QUIC_MAYBE_CORRUPTED_MEMORY (0x80000059):  Received a frame which is
+      likely the result of memory corruption.
 
    QUIC_INVALID_RST_STREAM_DATA (0x80000006):  RST_STREAM frame data is
       malformed.
@@ -3349,18 +3355,18 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    QUIC_TOO_MANY_OPEN_STREAMS (0x80000012):  Too many streams already
       open.
 
-   QUIC_TOO_MANY_AVAILABLE_STREAMS (0x8000004c):  The peer created too
-      many available streams.
-
-   QUIC_PUBLIC_RESET (0x80000013):  Received public reset for this
-      connection.
-
 
 
 Iyengar & Thomson       Expires October 22, 2017               [Page 60]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   QUIC_TOO_MANY_AVAILABLE_STREAMS (0x8000004c):  The peer created too
+      many available streams.
+
+   QUIC_PUBLIC_RESET (0x80000013):  Received public reset for this
+      connection.
 
    QUIC_INVALID_VERSION (0x80000014):  Invalid protocol version.
 
@@ -3403,12 +3409,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS (0x80000044):  The connection
       has too many outstanding sent packets.
 
-   QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS (0x80000045):  The
-      connection has too many outstanding received packets.
-
-   QUIC_CONNECTION_CANCELLED (0x80000046):  The QUIC connection has been
-      cancelled.
-
 
 
 
@@ -3417,6 +3417,12 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 61]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS (0x80000045):  The
+      connection has too many outstanding received packets.
+
+   QUIC_CONNECTION_CANCELLED (0x80000046):  The QUIC connection has been
+      cancelled.
 
    QUIC_BAD_PACKET_LOSS_RATE (0x80000047):  Disabled QUIC because of
       high packet loss rate.
@@ -3459,13 +3465,7 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    future, spoof this same address (which now presumably addresses a
    different endpoint), and initiate a 0-RTT connection with a server on
    the victim's behalf.  The attacker then spoofs ACK frames to the
-   server which cause the server to potentially drown the victim in
-   data.
 
-   There are two possible mitigations to this attack.  The simplest one
-   is that a server can unilaterally create a gap in packet-number
-   space.  In the non-attack scenario, the client will send an ACK frame
-   with the larger value for largest acknowledged.  In the attack
 
 
 
@@ -3474,6 +3474,13 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 62]
 Internet-Draft           QUIC Transport Protocol              April 2017
 
 
+   server which cause the server to potentially drown the victim in
+   data.
+
+   There are two possible mitigations to this attack.  The simplest one
+   is that a server can unilaterally create a gap in packet-number
+   space.  In the non-attack scenario, the client will send an ACK frame
+   with the larger value for largest acknowledged.  In the attack
    scenario, the attacker could acknowledge a packet in the gap.  If the
    server sees an acknowledgment for a packet that was never sent, the
    connection can be aborted.
@@ -3515,13 +3522,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    The nominated expert(s) verify that a specification exists and is
    readily accessible.  The expert(s) are encouraged to be biased
    towards approving registrations unless they are abusive, frivolous,
-   or actively harmful (not merely aesthetically displeasing, or
-   architecturally dubious).
-
-   The initial contents of this registry are shown in Table 4.
-
-
-
 
 
 
@@ -3529,6 +3529,11 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 63]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   or actively harmful (not merely aesthetically displeasing, or
+   architecturally dubious).
+
+   The initial contents of this registry are shown in Table 4.
 
            +--------+-------------------------+---------------+
            | Value  | Parameter Name          | Specification |
@@ -3573,11 +3578,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
               for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
               1996, <http://www.rfc-editor.org/info/rfc1981>.
 
-   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
-              Requirement Levels", BCP 14, RFC 2119,
-              DOI 10.17487/RFC2119, March 1997,
-              <http://www.rfc-editor.org/info/rfc2119>.
-
 
 
 
@@ -3585,6 +3585,11 @@ Iyengar & Thomson       Expires October 22, 2017               [Page 64]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
 
    [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
               Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
@@ -3629,11 +3634,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
               Abstraction", DOI 10.1145/1282427.1282421, ACM
               SIGCOMM Computer Communication Review Volume 37 Issue 4,
               October 2007.
-
-
-
-
-
 
 
 

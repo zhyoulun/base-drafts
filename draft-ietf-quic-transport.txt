@@ -82,12 +82,12 @@ Table of Contents
      3.1.  Low-Latency Connection Establishment  . . . . . . . . . .   6
      3.2.  Stream Multiplexing . . . . . . . . . . . . . . . . . . .   6
      3.3.  Rich Signaling for Congestion Control and Loss Recovery .   6
-     3.4.  Stream and Connection Flow Control  . . . . . . . . . . .   6
+     3.4.  Stream and Connection Flow Control  . . . . . . . . . . .   7
      3.5.  Authenticated and Encrypted Header and Payload  . . . . .   7
      3.6.  Connection Migration and Resilience to NAT Rebinding  . .   7
      3.7.  Version Negotiation . . . . . . . . . . . . . . . . . . .   8
    4.  Versions  . . . . . . . . . . . . . . . . . . . . . . . . . .   8
-   5.  Packet Types and Formats  . . . . . . . . . . . . . . . . . .   8
+   5.  Packet Types and Formats  . . . . . . . . . . . . . . . . . .   9
      5.1.  Long Header . . . . . . . . . . . . . . . . . . . . . . .   9
      5.2.  Short Header  . . . . . . . . . . . . . . . . . . . . . .  11
      5.3.  Version Negotiation Packet  . . . . . . . . . . . . . . .  12
@@ -171,19 +171,22 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
 
      13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  61
-   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  62
-     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  62
-   15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  63
-     15.1.  Normative References . . . . . . . . . . . . . . . . . .  63
-     15.2.  Informative References . . . . . . . . . . . . . . . . .  64
-     15.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  64
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  65
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  65
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  65
-     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  65
-     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  67
-     C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  67
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  68
+     13.2.  Slowloris Attacks  . . . . . . . . . . . . . . . . . . .  62
+     13.3.  Stream Fragmentation and Reassembly Attacks  . . . . . .  62
+     13.4.  Stream Commitment Attack . . . . . . . . . . . . . . . .  63
+   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  63
+     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  63
+   15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  64
+     15.1.  Normative References . . . . . . . . . . . . . . . . . .  64
+     15.2.  Informative References . . . . . . . . . . . . . . . . .  65
+     15.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  66
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  66
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  66
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  66
+     C.1.  Since draft-ietf-quic-transport-01: . . . . . . . . . . .  66
+     C.2.  Since draft-ietf-quic-transport-00: . . . . . . . . . . .  68
+     C.3.  Since draft-hamilton-quic-transport-protocol-01:  . . . .  69
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  69
 
 1.  Introduction
 
@@ -215,9 +218,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    Definitions of terms that are used in this document:
 
-   Client:  The endpoint initiating a QUIC connection.
-
-   Server:  The endpoint accepting incoming QUIC connections.
 
 
 
@@ -225,6 +225,10 @@ Iyengar & Thomson       Expires October 26, 2017                [Page 4]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   Client:  The endpoint initiating a QUIC connection.
+
+   Server:  The endpoint accepting incoming QUIC connections.
 
    Endpoint:  The client or server end of a connection.
 
@@ -270,10 +274,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    o  Stream and connection flow control
 
-   o  Connection migration and resilience to NAT rebinding
-
-   o  Version negotiation
-
 
 
 
@@ -281,6 +281,10 @@ Iyengar & Thomson       Expires October 26, 2017                [Page 5]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   o  Connection migration and resilience to NAT rebinding
+
+   o  Version negotiation
 
 3.1.  Low-Latency Connection Establishment
 
@@ -324,12 +328,8 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    resilient to reordering than TCP with SACK support, as well as able
    to keep more bytes on the wire when there is reordering or loss.
 
-3.4.  Stream and Connection Flow Control
 
-   QUIC implements stream- and connection-level flow control, closely
-   following HTTP/2's flow control mechanisms.  At a high level, a QUIC
-   receiver advertises the absolute byte offset within each stream up to
-   which the receiver is willing to receive data.  As data is sent,
+
 
 
 
@@ -338,6 +338,12 @@ Iyengar & Thomson       Expires October 26, 2017                [Page 6]
 Internet-Draft           QUIC Transport Protocol              April 2017
 
 
+3.4.  Stream and Connection Flow Control
+
+   QUIC implements stream- and connection-level flow control, closely
+   following HTTP/2's flow control mechanisms.  At a high level, a QUIC
+   receiver advertises the absolute byte offset within each stream up to
+   which the receiver is willing to receive data.  As data is sent,
    received, and delivered on a particular stream, the receiver sends
    WINDOW_UPDATE frames that increase the advertised offset limit for
    that stream, allowing the peer to send more data on that stream.  In
@@ -380,12 +386,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    connectivity to a new address.  QUIC provides automatic cryptographic
    verification of a rebound client, since the client continues to use
    the same session key for encrypting and decrypting packets.  The
-   consistent connection ID can be used to allow migration of the
-   connection to a new server IP address as well, since the Connection
-   ID remains consistent across changes in the client's and the server's
-   network addresses.
-
-
 
 
 
@@ -393,6 +393,11 @@ Iyengar & Thomson       Expires October 26, 2017                [Page 7]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   consistent connection ID can be used to allow migration of the
+   connection to a new server IP address as well, since the Connection
+   ID remains consistent across changes in the client's and the server's
+   network addresses.
 
 3.7.  Version Negotiation
 
@@ -437,11 +442,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    Implementors are encouraged to register version numbers of QUIC that
    they are using for private experimentation on the github wiki [4].
 
-5.  Packet Types and Formats
-
-   We first describe QUIC's packet types and their formats, since some
-   are referenced in subsequent mechanisms.
-
 
 
 
@@ -449,6 +449,11 @@ Iyengar & Thomson       Expires October 26, 2017                [Page 8]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+5.  Packet Types and Formats
+
+   We first describe QUIC's packet types and their formats, since some
+   are referenced in subsequent mechanisms.
 
    All numeric values are encoded in network byte order (that is, big-
    endian) and all field sizes are in bits.  When discussing individual
@@ -494,17 +499,17 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    Header Form:  The most significant bit (0x80) of the first octet is
       set to 1 for long headers and 0 for short headers.
 
-   Long Packet Type:  The remaining seven bits of first octet of a long
-      packet is the packet type.  This field can indicate one of 128
-      packet types.  The types specified for this version are listed in
-      Table 1.
-
 
 
 Iyengar & Thomson       Expires October 26, 2017                [Page 9]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   Long Packet Type:  The remaining seven bits of first octet of a long
+      packet is the packet type.  This field can indicate one of 128
+      packet types.  The types specified for this version are listed in
+      Table 1.
 
    Connection ID:  Octets 1 through 8 contain the connection ID.
       Section 5.7 describes the use of this field in more detail.
@@ -549,11 +554,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    Section 5.9 for details on how packets from different versions of
    QUIC are interpreted.
 
-   (TODO: Should the list of packet types be version-independent?)
-
-   The interpretation of the fields and the payload are specific to a
-   version and packet type.  Type-specific semantics for this version
-
 
 
 
@@ -562,6 +562,10 @@ Iyengar & Thomson       Expires October 26, 2017               [Page 10]
 Internet-Draft           QUIC Transport Protocol              April 2017
 
 
+   (TODO: Should the list of packet types be version-independent?)
+
+   The interpretation of the fields and the payload are specific to a
+   version and packet type.  Type-specific semantics for this version
    are described in Section 5.3, Section 5.6, Section 5.4, and
    Section 5.5.
 
@@ -604,10 +608,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
       one of 32 packet types.  Table 2 lists the types that are defined
       for short packets.
 
-   Connection ID:  If the Connection ID Flag is set, a connection ID
-      occupies octets 1 through 8 of the packet.  See Section 5.7 for
-      more details.
-
 
 
 
@@ -617,6 +617,10 @@ Iyengar & Thomson       Expires October 26, 2017               [Page 11]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   Connection ID:  If the Connection ID Flag is set, a connection ID
+      occupies octets 1 through 8 of the packet.  See Section 5.7 for
+      more details.
 
    Packet Number:  The length of the packet number field depends on the
       packet type.  This field can be 1, 2 or 4 octets long depending on
@@ -662,10 +666,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    o  Octets 17+: Payload
 
-   The payload of the Version Negotiation packet is a list of 32-bit
-   versions which the server supports, as shown below.
-
-
 
 
 
@@ -673,6 +673,9 @@ Iyengar & Thomson       Expires October 26, 2017               [Page 12]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   The payload of the Version Negotiation packet is a list of 32-bit
+   versions which the server supports, as shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -719,9 +722,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 
    Final Server Cleartext packets contains:
 
-   o  Octet 0: 0x84
-
-   o  Octets 1-8: Connection ID (final)
 
 
 
@@ -729,6 +729,10 @@ Iyengar & Thomson       Expires October 26, 2017               [Page 13]
 
 Internet-Draft           QUIC Transport Protocol              April 2017
 
+
+   o  Octet 0: 0x84
+
+   o  Octets 1-8: Connection ID (final)
 
    o  Octets 9-12: Packet Number
 
@@ -773,10 +777,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    packet protection keys.  [QUIC-TLS] describes packet protection in
    detail.  After decryption, the plaintext consists of a sequence of
    frames, as described in Section 6.
-
-
-
-
 
 
 
@@ -3426,6 +3426,75 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    forward secure key, the attacker will not be able to generate
    forward-secure encrypted packets with ACK frames.
 
+13.2.  Slowloris Attacks
+
+   The attacks commonly known as Slowloris [SLOWLORIS] try to keep many
+   connections to the target endpoint open and hold them open as long as
+   possible.  These attacks can be executed against a QUIC endpoint by
+   generating the minimum amount of activity necessary to avoid being
+   closed for inactivity.  This might involve sending small amounts of
+   data, gradually opening flow control windows in order to control the
+   sender rate, or manufacturing ACK frames that simulate a high loss
+   rate.
+
+   QUIC deployments SHOULD provide mitigations of the Slowloris attacks,
+   such as increasing the maximum number of clients the server will
+   allow, limiting the number of connections a single IP address is
+   allowed to make, imposing restrictions on the minimum transfer speed
+   a connection is allowed to have, and restricting the length of time
+   an endpoint is allowed to stay connected.
+
+13.3.  Stream Fragmentation and Reassembly Attacks
+
+   An adversarial endpoint might intentionally fragment the data on
+   stream buffers in order to cause disproportionate memory commitment.
+   An adversarial endpoint could open a stream and send some STREAM
+   frames containing arbitrary fragments of the stream content.
+
+   The attack is mitigated if flow control windows correspond to
+   available memory.  However, some receivers will over-commit memory
+   and advertise flow control offsets in the aggregate that exceed
+   actual available memory.  The over-commitment strategy can lead to
+   better performance when endpoints are well behaved, but renders
+   endpoints vulnerable to the stream fragmentation attack.
+
+   QUIC deployments SHOULD provide mitigations against the stream
+   fragmentation attack.  Mitigations could consist of avoiding over-
+   committing memory, delaying reassembly of STREAM frames, implementing
+   heuristics based on the age and duration of reassembly holes, or some
+   combination.
+
+
+
+
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 62]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
+13.4.  Stream Commitment Attack
+
+   An adversarial endpoint can open lots of streams, exhausting state on
+   an endpoint.  The adversarial endpoint could repeat the process on a
+   large number of connections, in a manner similar to SYN flooding
+   attacks in TCP.
+
+   Normally, clients will open streams sequentially, as explained in
+   Section 10.2.  However, when several streams are initiated at short
+   intervals, transmission error may cause STREAM DATA frames opening
+   streams to be received out of sequence.  A receiver is obligated to
+   open intervening streams if a higher-numbered stream ID is received.
+   Thus, on a new connection, opening stream 2000001 opens 1 million
+   streams, as required by the specification.
+
+   The number of active streams is limited by the concurrent stream
+   limit transport parameter, as explained in Section 10.3.  If chosen
+   judisciously, this limit mitigates the effect of the stream
+   commitment attack.  However, setting the limit too low could affect
+   performance when applications expect to open large number of streams.
+
 14.  IANA Considerations
 
 14.1.  QUIC Transport Parameter Registry
@@ -3453,26 +3522,18 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    The nominated expert(s) verify that a specification exists and is
    readily accessible.  The expert(s) are encouraged to be biased
    towards approving registrations unless they are abusive, frivolous,
+
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 63]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
    or actively harmful (not merely aesthetically displeasing, or
    architecturally dubious).
 
    The initial contents of this registry are shown in Table 4.
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 62]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
             +--------+------------------------+---------------+
             | Value  | Parameter Name         | Specification |
@@ -3517,18 +3578,18 @@ Internet-Draft           QUIC Transport Protocol              April 2017
               for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
               1996, <http://www.rfc-editor.org/info/rfc1981>.
 
+
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 64]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
-
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 63]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
    [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
               Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
@@ -3569,6 +3630,18 @@ Internet-Draft           QUIC Transport Protocol              April 2017
               DOI 10.17487/RFC7540, May 2015,
               <http://www.rfc-editor.org/info/rfc7540>.
 
+   [SLOWLORIS]
+              RSnake Hansen, R., "Welcome to Slowloris...", June 2009,
+              <https://web.archive.org/web/20150315054838/
+              http://ha.ckers.org/slowloris/>.
+
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 65]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
    [SST]      Ford, B., "Structured streams", ACM SIGCOMM Computer
               Communication Review Vol. 37, pp. 361,
               DOI 10.1145/1282427.1282421, October 2007.
@@ -3576,15 +3649,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
 15.3.  URIs
 
    [1] https://github.com/quicwg/base-drafts/wiki/QUIC-Versions
-
-
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 64]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
 Appendix A.  Contributors
 
@@ -3626,6 +3690,14 @@ C.1.  Since draft-ietf-quic-transport-01:
    o  Define reserved version values for "greasing" negotiation (#112,
       #278)
 
+
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 66]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
    o  The initial packet number is randomized (#35, #283)
 
    o  Narrow the packet number encoding range requirement (#67, #286,
@@ -3634,13 +3706,6 @@ C.1.  Since draft-ietf-quic-transport-01:
    o  Defined client address validation (#52, #118, #120, #275)
 
    o  Define transport parameters as a TLS extension (#49, #122)
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 65]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
    o  SCUP and COPT parameters are no longer valid (#116, #117)
 
@@ -3682,6 +3747,13 @@ Internet-Draft           QUIC Transport Protocol              April 2017
    o  Forbid the use of Public Reset where CONNECTION_CLOSE is possible
       (#289)
 
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 67]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
    o  Define packet protection rules (#336)
 
    o  Require that stream be entirely delivered or reset, including
@@ -3689,14 +3761,6 @@ Internet-Draft           QUIC Transport Protocol              April 2017
       closes (#381)
 
    o  Remove stream reservation from state machine (#174, #280)
-
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 66]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
    o  Only stream 1 does not contribute to connection-level flow control
       (#204)
@@ -3739,6 +3803,13 @@ C.2.  Since draft-ietf-quic-transport-00:
 
    o  Use big endian for all numeric values
 
+
+
+Iyengar & Thomson       Expires October 26, 2017               [Page 68]
+
+Internet-Draft           QUIC Transport Protocol              April 2017
+
+
 C.3.  Since draft-hamilton-quic-transport-protocol-01:
 
    o  Adopted as base for draft-ietf-quic-tls.
@@ -3746,13 +3817,6 @@ C.3.  Since draft-hamilton-quic-transport-protocol-01:
    o  Updated authors/editors list.
 
    o  Added IANA Considerations section.
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 67]
-
-Internet-Draft           QUIC Transport Protocol              April 2017
-
 
    o  Moved Contributors and Acknowledgments to appendices.
 
@@ -3797,12 +3861,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-
-
-
-
-Iyengar & Thomson       Expires October 26, 2017               [Page 68]
+Iyengar & Thomson       Expires October 26, 2017               [Page 69]

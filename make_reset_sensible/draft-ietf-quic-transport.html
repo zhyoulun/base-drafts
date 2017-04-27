@@ -352,6 +352,7 @@ address {
 <link href="#rfc.section.11.1.2" rel="Chapter" title="11.1.2 Data Limit Increments"/>
 <link href="#rfc.section.11.2" rel="Chapter" title="11.2 Stream Limit Increment"/>
 <link href="#rfc.section.11.2.1" rel="Chapter" title="11.2.1 Blocking on Flow Control"/>
+<link href="#rfc.section.11.3" rel="Chapter" title="11.3 Stream Final Offset"/>
 <link href="#rfc.section.12" rel="Chapter" title="12 Error Handling"/>
 <link href="#rfc.section.12.1" rel="Chapter" title="12.1 Connection Errors"/>
 <link href="#rfc.section.12.2" rel="Chapter" title="12.2 Stream Errors"/>
@@ -521,7 +522,8 @@ address {
 <li>11.1.2.   <a href="#rfc.section.11.1.2">Data Limit Increments</a></li>
 </ul><li>11.2.   <a href="#rfc.section.11.2">Stream Limit Increment</a></li>
 <ul><li>11.2.1.   <a href="#rfc.section.11.2.1">Blocking on Flow Control</a></li>
-</ul></ul><li>12.   <a href="#rfc.section.12">Error Handling</a></li>
+</ul><li>11.3.   <a href="#rfc.section.11.3">Stream Final Offset</a></li>
+</ul><li>12.   <a href="#rfc.section.12">Error Handling</a></li>
 <ul><li>12.1.   <a href="#rfc.section.12.1">Connection Errors</a></li>
 <li>12.2.   <a href="#rfc.section.12.2">Stream Errors</a></li>
 <li>12.3.   <a href="#rfc.section.12.3">Error Codes</a></li>
@@ -1657,12 +1659,10 @@ address {
 <p id="rfc.section.10.1.4.p.2">Once all data has been either received or discarded, a sender is no longer obligated to update the maximum received data for the connection.</p>
 <p id="rfc.section.10.1.4.p.3">An endpoint that receives a RST_STREAM frame (and which has not sent a FIN or a RST_STREAM) MUST immediately respond with a RST_STREAM frame, and MUST NOT send any more data on the stream.</p>
 <p id="rfc.section.10.1.4.p.4">Due to reordering, an endpoint could continue receiving frames for the stream even after the stream is closed for sending.  Frames received after a peer closes a stream SHOULD be discarded.  An endpoint MAY choose to limit the period over which it ignores frames and treat frames that arrive after this time as being in error.</p>
-<p id="rfc.section.10.1.4.p.5">An endpoint will learn the final offset of the data it receives on a stream when it enters the &#8220;half-closed (remote)&#8221;.  The final offset is carried explicitly in the RST_STREAM frame; otherwise, the final offset is the offset of the end of the data carried in STREAM frame marked with a FIN flag.</p>
-<p id="rfc.section.10.1.4.p.6">An endpoint MUST NOT send data on a stream at or beyond the final offset.</p>
-<p id="rfc.section.10.1.4.p.7">Once a final offset for a stream is known, it cannot change.  If a RST_STREAM or STREAM frame causes the final offset to change for a stream, an endpoint SHOULD respond with a QUIC_STREAM_DATA_AFTER_TERMINATION error (see <a href="#error-handling">Section 12</a>).  A receiver SHOULD treat receipt of data at or beyond the final offset as a QUIC_STREAM_DATA_AFTER_TERMINATION error.  Generating these errors is not mandatory, but only because requiring that an endpoint generate these errors also means that the endpoint needs to maintain the final offset state for closed streams, which could mean a significant state commitment.</p>
-<p id="rfc.section.10.1.4.p.8">A stream in this state can be used by the endpoint to send any frame that mentions a stream ID.  In this state, the endpoint MUST observe advertised stream and connection data limits (see <a href="#flow-control">Section 11</a>).</p>
-<p id="rfc.section.10.1.4.p.9">A stream can transition from this state to &#8220;closed&#8221; by completing transmission of all data.  This includes sending all data carried in STREAM frames up including the terminal STREAM frame that contains a FIN flag and receiving acknowledgment from the peer for all data.</p>
-<p id="rfc.section.10.1.4.p.10">A stream becomes &#8220;closed&#8221; when the endpoint sends and receives acknowledgment of a RST_STREAM frame.</p>
+<p id="rfc.section.10.1.4.p.5">An endpoint will know the final offset of the data it receives on a stream when it reaches the &#8220;half-closed (remote)&#8221; state, see <a href="#final-offset">Section 11.3</a> for details.</p>
+<p id="rfc.section.10.1.4.p.6">A stream in this state can be used by the endpoint to send any frame that mentions a stream ID.  In this state, the endpoint MUST observe advertised stream and connection data limits (see <a href="#flow-control">Section 11</a>).</p>
+<p id="rfc.section.10.1.4.p.7">A stream can transition from this state to &#8220;closed&#8221; by completing transmission of all data.  This includes sending all data carried in STREAM frames up including the terminal STREAM frame that contains a FIN flag and receiving acknowledgment from the peer for all data.</p>
+<p id="rfc.section.10.1.4.p.8">A stream becomes &#8220;closed&#8221; when the endpoint sends and receives acknowledgment of a RST_STREAM frame.</p>
 <h3 id="rfc.section.10.1.5"><a href="#rfc.section.10.1.5">10.1.5.</a> <a href="#state-closed" id="state-closed">closed</a></h3>
 <p id="rfc.section.10.1.5.p.1">The &#8220;closed&#8221; state is the terminal state for a stream.</p>
 <p id="rfc.section.10.1.5.p.2">Once a stream reaches this state, no frames can be sent that mention the stream.  Reordering might cause frames to be received after closing, see <a href="#state-hc-remote">Section 10.1.4</a>.</p>
@@ -1714,6 +1714,11 @@ address {
 <h3 id="rfc.section.11.2.1"><a href="#rfc.section.11.2.1">11.2.1.</a> <a href="#blocking" id="blocking">Blocking on Flow Control</a></h3>
 <p id="rfc.section.11.2.1.p.1">If a sender does not receive a MAX_DATA or MAX_STREAM_DATA frame when it has run out of flow control credit, the sender will be blocked and MUST send a BLOCKED or STREAM_BLOCKED frame.  These frames are expected to be useful for debugging at the receiver; they do not require any other action.  A receiver SHOULD NOT wait for a BLOCKED or STREAM_BLOCKED frame before sending MAX_DATA or MAX_STREAM_DATA, since doing so will mean that a sender is unable to send for an entire round trip.</p>
 <p id="rfc.section.11.2.1.p.2">For smooth operation of the congestion controller, it is generally considered best to not let the sender go into quiescence if avoidable.  To avoid blocking a sender, and to reasonably account for the possibiity of loss, a receiver should send a MAX_DATA or MAX_STREAM_DATA frame at least two roundtrips before it expects the sender to get blocked.</p>
+<h2 id="rfc.section.11.3"><a href="#rfc.section.11.3">11.3.</a> <a href="#final-offset" id="final-offset">Stream Final Offset</a></h2>
+<p id="rfc.section.11.3.p.1">The final offset is the count of the number of octets that are transmitted on a stream.  For a stream that is reset, the final offset is carried explicitly in the RST_STREAM frame.  Otherwise, the final offset is the offset of the end of the data carried in STREAM frame marked with a FIN flag.</p>
+<p id="rfc.section.11.3.p.2">An endpoint will know the final offset for a stream when the stream enters the &#8220;half-closed (remote)&#8221; state.  However, if there is reordering or loss, an endpoint might learn the final offset prior to entering this state if it is carried on a STREAM frame.</p>
+<p id="rfc.section.11.3.p.3">An endpoint MUST NOT send data on a stream at or beyond the final offset.</p>
+<p id="rfc.section.11.3.p.4">Once a final offset for a stream is known, it cannot change.  If a RST_STREAM or STREAM frame causes the final offset to change for a stream, an endpoint SHOULD respond with a QUIC_STREAM_DATA_AFTER_TERMINATION error (see <a href="#error-handling">Section 12</a>).  A receiver SHOULD treat receipt of data at or beyond the final offset as a QUIC_STREAM_DATA_AFTER_TERMINATION error, even after a stream is closed.  Generating these errors is not mandatory, but only because requiring that an endpoint generate these errors also means that the endpoint needs to maintain the final offset state for closed streams, which could mean a significant state commitment.</p>
 <h1 id="rfc.section.12"><a href="#rfc.section.12">12.</a> <a href="#error-handling" id="error-handling">Error Handling</a></h1>
 <p id="rfc.section.12.p.1">An endpoint that detects an error SHOULD signal the existence of that error to its peer.  Errors can affect an entire connection (see <a href="#connection-errors">Section 12.1</a>), or a single stream (see <a href="#stream-errors">Section 12.2</a>).</p>
 <p id="rfc.section.12.p.2">The most appropriate error code (<a href="#error-codes">Section 12.3</a>) SHOULD be included in the frame that signals the error.  Where this specification identifies error conditions, it also identifies the error code that is used.</p>

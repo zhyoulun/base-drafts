@@ -98,7 +98,7 @@ Table of Contents
      5.5.  Receiving Protected Packets . . . . . . . . . . . . . . .  18
    6.  Unprotected Packets . . . . . . . . . . . . . . . . . . . . .  19
      6.1.  Integrity Check Processing  . . . . . . . . . . . . . . .  19
-     6.2.  The 128-bit FNV-1a Algorithm  . . . . . . . . . . . . . .  20
+     6.2.  The 128-bit FNV-1a Algorithm  . . . . . . . . . . . . . .  19
    7.  Key Phases  . . . . . . . . . . . . . . . . . . . . . . . . .  20
      7.1.  Packet Protection for the TLS Handshake . . . . . . . . .  21
        7.1.1.  Initial Key Transitions . . . . . . . . . . . . . . .  21
@@ -1053,10 +1053,10 @@ Internet-Draft                QUIC over TLS                   April 2017
    packets that do not contain a valid integrity check MUST be
    discarded.
 
-   An implementation could choose to treat the addition and removal of
-   the integrity check as though it were an AEAD.
+6.2.  The 128-bit FNV-1a Algorithm
 
-
+   QUIC uses the 128-bit version of the alternative Fowler/Noll/Vo hash,
+   or FNV-1a [FNV].
 
 
 
@@ -1065,11 +1065,6 @@ Thomson & Turner        Expires October 30, 2017               [Page 19]
 
 Internet-Draft                QUIC over TLS                   April 2017
 
-
-6.2.  The 128-bit FNV-1a Algorithm
-
-   QUIC uses the 128-bit version of the alternative Fowler/Noll/Vo hash,
-   or FNV-1a [FNV].
 
    FNV-1a can be expressed in pseudocode as:
 
@@ -1112,6 +1107,11 @@ Internet-Draft                QUIC over TLS                   April 2017
 
    The KEY_PHASE bit is the third bit of the public flags (0x04).
 
+   Transitions between keys during the handshake are complicated by the
+   need to ensure that TLS handshake messages are sent with the correct
+   packet protection.
+
+
 
 
 
@@ -1121,10 +1121,6 @@ Thomson & Turner        Expires October 30, 2017               [Page 20]
 
 Internet-Draft                QUIC over TLS                   April 2017
 
-
-   Transitions between keys during the handshake are complicated by the
-   need to ensure that TLS handshake messages are sent with the correct
-   packet protection.
 
 7.1.  Packet Protection for the TLS Handshake
 
@@ -1170,6 +1166,10 @@ Internet-Draft                QUIC over TLS                   April 2017
    Including the version also ensures that the packet format is known to
    the server in this case.
 
+   Using both KEY_PHASE and VERSION also ensures that the server is able
+   to distinguish between cleartext handshake packets (KEY_PHASE=0,
+   VERSION=1), 0-RTT protected packets (KEY_PHASE=1, VERSION=1), and
+   1-RTT protected packets (KEY_PHASE=1, VERSION=0).  Packets with all
 
 
 
@@ -1178,10 +1178,6 @@ Thomson & Turner        Expires October 30, 2017               [Page 21]
 Internet-Draft                QUIC over TLS                   April 2017
 
 
-   Using both KEY_PHASE and VERSION also ensures that the server is able
-   to distinguish between cleartext handshake packets (KEY_PHASE=0,
-   VERSION=1), 0-RTT protected packets (KEY_PHASE=1, VERSION=1), and
-   1-RTT protected packets (KEY_PHASE=1, VERSION=0).  Packets with all
    of these markings can arrive concurrently, and being able to identify
    each cleanly ensures that the correct packet protection keys can be
    selected and applied.
@@ -1227,6 +1223,10 @@ Internet-Draft                QUIC over TLS                   April 2017
    might cause unprotected packets to arrive once 1-RTT keys are in use,
    unprotected packets are easily distinguished from 1-RTT packets.
 
+   Once 1-RTT keys are available to an endpoint, it no longer needs the
+   TLS handshake messages that are carried in unprotected packets.
+   However, a server might need to retransmit its TLS handshake messages
+
 
 
 Thomson & Turner        Expires October 30, 2017               [Page 22]
@@ -1234,9 +1234,6 @@ Thomson & Turner        Expires October 30, 2017               [Page 22]
 Internet-Draft                QUIC over TLS                   April 2017
 
 
-   Once 1-RTT keys are available to an endpoint, it no longer needs the
-   TLS handshake messages that are carried in unprotected packets.
-   However, a server might need to retransmit its TLS handshake messages
    in response to receiving an unprotected packet that contains ACK
    frames.  A server MUST process ACK frames in unprotected packets
    until the TLS handshake is reported as complete, or it receives an
@@ -1282,6 +1279,9 @@ Internet-Draft                QUIC over TLS                   April 2017
    higher packet numbers always use the updated keys and MUST NOT be
    decrypted with old keys.
 
+   Keys and their corresponding secrets SHOULD be discarded when an
+   endpoint has received all packets with sequence numbers lower than
+   the lowest sequence number used for the new key.  An endpoint might
 
 
 
@@ -1290,9 +1290,6 @@ Thomson & Turner        Expires October 30, 2017               [Page 23]
 Internet-Draft                QUIC over TLS                   April 2017
 
 
-   Keys and their corresponding secrets SHOULD be discarded when an
-   endpoint has received all packets with sequence numbers lower than
-   the lowest sequence number used for the new key.  An endpoint might
    discard keys if it determines that the length of the delay to
    affected packets is excessive.
 
@@ -1337,6 +1334,9 @@ Internet-Draft                QUIC over TLS                   April 2017
    Two tools are provided by TLS to enable validation of client source
    addresses at a server: the cookie in the HelloRetryRequest message,
    and the ticket in the NewSessionTicket message.
+
+
+
 
 
 

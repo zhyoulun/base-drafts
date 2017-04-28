@@ -307,6 +307,7 @@ address {
 <link href="#rfc.section.4.6" rel="Chapter" title="4.6 On Packet Acknowledgement"/>
 <link href="#rfc.section.4.7" rel="Chapter" title="4.7 On Packets Lost"/>
 <link href="#rfc.section.4.8" rel="Chapter" title="4.8 On Retransmission Timeout Verified"/>
+<link href="#rfc.section.4.9" rel="Chapter" title="4.9 Pacing Packets"/>
 <link href="#rfc.section.5" rel="Chapter" title="5 IANA Considerations"/>
 <link href="#rfc.references" rel="Chapter" title="6 References"/>
 <link href="#rfc.references.1" rel="Chapter" title="6.1 Normative References"/>
@@ -324,7 +325,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-4-20" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-4-28" />
   <meta name="dct.abstract" content="This document describes loss detection and congestion control mechanisms for QUIC." />
   <meta name="description" content="This document describes loss detection and congestion control mechanisms for QUIC." />
 
@@ -348,8 +349,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: October 22, 2017</td>
-  <td class="right">April 20, 2017</td>
+  <td class="left">Expires: October 30, 2017</td>
+  <td class="right">April 28, 2017</td>
 </tr>
 
     	
@@ -374,7 +375,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on October 22, 2017.</p>
+<p>This Internet-Draft will expire on October 30, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -416,6 +417,7 @@ address {
 <li>4.6.   <a href="#rfc.section.4.6">On Packet Acknowledgement</a></li>
 <li>4.7.   <a href="#rfc.section.4.7">On Packets Lost</a></li>
 <li>4.8.   <a href="#rfc.section.4.8">On Retransmission Timeout Verified</a></li>
+<li>4.9.   <a href="#rfc.section.4.9">Pacing Packets</a></li>
 </ul><li>5.   <a href="#rfc.section.5">IANA Considerations</a></li>
 <li>6.   <a href="#rfc.references">References</a></li>
 <ul><li>6.1.   <a href="#rfc.references.1">Normative References</a></li>
@@ -467,7 +469,7 @@ address {
   <li>If a packet is near the tail, where fewer than kReorderingThreshold packets are sent after it, the sender cannot expect to detect loss based on the previous mechanism. In this case, a sender uses both ack information and an alarm to detect loss. Specifically, when the last sent packet is acknowledged, the sender waits a short period of time to allow for reordering and then marks any unacknowledged packets as lost. This mechanism is based on the Linux implementation of TCP Early Retransmit.</li>
   <li>If a packet is sent at the tail, there are no packets sent after it, and the sender cannot use ack information to detect its loss. The sender therefore relies on an alarm to detect such tail losses. This mechanism is based on TCP&#8217;s Tail Loss Probe.</li>
   <li>If all else fails, a Retransmission Timeout (RTO) alarm is always set when any retransmittable packet is outstanding. When this alarm fires, all unacknowledged packets are marked as lost.</li>
-  <li>Instead of a packet threshold to tolerate reordering, a QUIC sender may use a time thresold. This allows for senders to be tolerant of short periods of significant reordering. In this mechanism, a QUIC sender marks a packet as lost when a packet larger than it is acknowledged and a threshold amount of time has passed since the packet was sent.</li>
+  <li>Instead of a packet threshold to tolerate reordering, a QUIC sender may use a time threshold. This allows for senders to be tolerant of short periods of significant reordering. In this mechanism, a QUIC sender marks a packet as lost when a packet larger than it is acknowledged and a threshold amount of time has passed since the packet was sent.</li>
   <li>Handshake packets are special in a number of ways, and a separate alarm period is used for them.</li>
 </ul>
 <h2 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#algorithm-details" id="algorithm-details">Algorithm Details</a></h2>
@@ -481,7 +483,7 @@ address {
   <dt>kReorderingThreshold (default 3):</dt>
   <dd style="margin-left: 8">Maximum reordering in packet number space before FACK style loss detection considers a packet lost.</dd>
   <dt>kTimeReorderingFraction (default 1/8):</dt>
-  <dd style="margin-left: 8">Maximum reordering in time sapce before time based loss detection considers a packet lost.  In fraction of an RTT.</dd>
+  <dd style="margin-left: 8">Maximum reordering in time space before time based loss detection considers a packet lost.  In fraction of an RTT.</dd>
   <dt>kMinTLPTimeout (default 10ms):</dt>
   <dd style="margin-left: 8">Minimum time in the future a tail loss probe alarm may be set for.</dd>
   <dt>kMinRTOTimeout (default 200ms):</dt>
@@ -546,7 +548,7 @@ address {
 
 <ul>
   <li>packet_number: The packet number of the sent packet.</li>
-  <li>is_retransmittble: A boolean that indicates whether the packet contains at least one frame requiring reliable deliver.  The retransmittability of various QUIC frames is described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.  If false, it is still acceptable for an ack to be received for this packet.  However, a caller MUST NOT set is_retransmittable to true if an ack is not expected.</li>
+  <li>is_retransmittable: A boolean that indicates whether the packet contains at least one frame requiring reliable deliver.  The retransmittability of various QUIC frames is described in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.  If false, it is still acceptable for an ack to be received for this packet.  However, a caller MUST NOT set is_retransmittable to true if an ack is not expected.</li>
   <li>sent_bytes: The number of bytes sent in the packet.</li>
 </ul>
 <p id="rfc.section.3.2.4.p.3">Pseudocode for OnPacketSent follows:</p>
@@ -616,7 +618,7 @@ address {
 <p id="rfc.section.3.2.7.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
 <p id="rfc.section.3.2.7.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
 <h4 id="rfc.section.3.2.7.2"><a href="#rfc.section.3.2.7.2">3.2.7.2.</a> <a href="#tail-loss-probe-and-retransmission-timeout" id="tail-loss-probe-and-retransmission-timeout">Tail Loss Probe and Retransmission Timeout</a></h4>
-<p id="rfc.section.3.2.7.2.p.1">Tail loss probes <a href="#I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</a> and retransmission timeouts<a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
+<p id="rfc.section.3.2.7.2.p.1">Tail loss probes <a href="#LOSS-PROBE">[LOSS-PROBE]</a> and retransmission timeouts <a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
 <h4 id="rfc.section.3.2.7.3"><a href="#rfc.section.3.2.7.3">3.2.7.3.</a> <a href="#early-retransmit" id="early-retransmit">Early Retransmit</a></h4>
 <p id="rfc.section.3.2.7.3.p.1">Early retransmit <a href="#RFC5827">[RFC5827]</a> is implemented with a 1/4 RTT timer. It is part of QUIC&#8217;s time based loss detection, but is always enabled, even when only packet reordering loss detection is enabled.</p>
 <h4 id="rfc.section.3.2.7.4"><a href="#rfc.section.3.2.7.4">3.2.7.4.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a></h4>
@@ -715,7 +717,7 @@ address {
 </pre>
 <h2 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#discussion" id="discussion">Discussion</a></h2>
 <p id="rfc.section.3.3.p.1">The majority of constants were derived from best common practices among widely deployed TCP implementations on the internet.  Exceptions follow.</p>
-<p id="rfc.section.3.3.p.2">A shorter delayed ack time of 25ms was chosen because longer delayed acks can delay loss recovery and for the small number of connections where less than packet per 25ms is delievered, acking every packet is beneficial to congestion control and loss recovery.</p>
+<p id="rfc.section.3.3.p.2">A shorter delayed ack time of 25ms was chosen because longer delayed acks can delay loss recovery and for the small number of connections where less than packet per 25ms is delivered, acking every packet is beneficial to congestion control and loss recovery.</p>
 <p id="rfc.section.3.3.p.3">The default initial RTT of 100ms was chosen because it is slightly higher than both the median and mean min_rtt typically observed on the public internet.</p>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a></h1>
 <p id="rfc.section.4.p.1">QUIC&#8217;s congestion control is based on TCP NewReno<a href="#RFC6582">[RFC6582]</a> congestion control to determine the congestion window and pacing rate.</p>
@@ -790,20 +792,17 @@ address {
 <pre>
    OnRetransmissionTimeoutVerified()
      congestion_window = kMinimumWindow
-~~
-
-## Pacing Packets
-
-QUIC sends a packet if there is available congestion window and
-sending the packet does not exceed the pacing rate.
-
-TimeToSend returns infinite if the congestion controller is
-congestion window limited, a time in the past if the packet can be
-sent immediately, and a time in the future if sending is pacing
-limited.
-
 </pre>
-<p id="rfc.section.4.8.p.2">TimeToSend(packet_size): if (bytes_in_flight + packet_size &gt; congestion_window) return infinite return time_of_last_sent_packet + (packet_size * smoothed_rtt) / congestion_window ~~~</p>
+<h2 id="rfc.section.4.9"><a href="#rfc.section.4.9">4.9.</a> <a href="#pacing-packets" id="pacing-packets">Pacing Packets</a></h2>
+<p id="rfc.section.4.9.p.1">QUIC sends a packet if there is available congestion window and sending the packet does not exceed the pacing rate.</p>
+<p id="rfc.section.4.9.p.2">TimeToSend returns infinite if the congestion controller is congestion window limited, a time in the past if the packet can be sent immediately, and a time in the future if sending is pacing limited.</p>
+<pre>
+   TimeToSend(packet_size):
+     if (bytes_in_flight + packet_size &gt; congestion_window)
+       return infinite
+     return time_of_last_sent_packet +
+         (packet_size * smoothed_rtt) / congestion_window
+</pre>
 <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a></h1>
 <p id="rfc.section.5.p.1">This document has no IANA actions.  Yet.</p>
 <h1 id="rfc.references"><a href="#rfc.references">6.</a> References</h1>
@@ -814,7 +813,7 @@ limited.
       <td class="reference">
         <b id="QUIC-TRANSPORT">[QUIC-TRANSPORT]</b>
       </td>
-      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-transport-latest">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport-latest</td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-transport">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport, April 2017.</td>
     </tr>
     <tr>
       <td class="reference">
@@ -829,7 +828,7 @@ limited.
   <tbody>
     <tr>
       <td class="reference">
-        <b id="I-D.dukkipati-tcpm-tcp-loss-probe">[I-D.dukkipati-tcpm-tcp-loss-probe]</b>
+        <b id="LOSS-PROBE">[LOSS-PROBE]</b>
       </td>
       <td class="top"><a>Dukkipati, N.</a>, <a>Cardwell, N.</a>, <a>Cheng, Y.</a> and <a>M. Mathis</a>, "<a href="http://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01">Tail Loss Probe (TLP): An Algorithm for Fast Recovery of Tail Losses</a>", Internet-Draft draft-dukkipati-tcpm-tcp-loss-probe-01, February 2013.</td>
     </tr>

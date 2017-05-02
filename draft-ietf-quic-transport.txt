@@ -134,12 +134,13 @@ Internet-Draft           QUIC Transport Protocol                May 2017
      8.5.  MAX_STREAM_ID Frame . . . . . . . . . . . . . . . . . . .  39
      8.6.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  40
      8.7.  STREAM_BLOCKED Frame  . . . . . . . . . . . . . . . . . .  40
-     8.8.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  40
-     8.9.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  41
-     8.10. PING frame  . . . . . . . . . . . . . . . . . . . . . . .  41
-     8.11. CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  42
-     8.12. GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  42
-   9.  Packetization and Reliability . . . . . . . . . . . . . . . .  43
+     8.8.  STREAM_ID_NEEDED Frame  . . . . . . . . . . . . . . . . .  40
+     8.9.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  41
+     8.10. PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  41
+     8.11. PING frame  . . . . . . . . . . . . . . . . . . . . . . .  42
+     8.12. CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  42
+     8.13. GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  42
+   9.  Packetization and Reliability . . . . . . . . . . . . . . . .  44
      9.1.  Special Considerations for PMTU Discovery . . . . . . . .  46
    10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  46
      10.1.  Life of a Stream . . . . . . . . . . . . . . . . . . . .  47
@@ -161,7 +162,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
      11.3.  Stream Final Offset  . . . . . . . . . . . . . . . . . .  57
    12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  57
      12.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  58
-     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  58
 
 
 
@@ -170,6 +170,7 @@ Iyengar & Thomson       Expires November 3, 2017                [Page 3]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  58
      12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  58
    13. Security and Privacy Considerations . . . . . . . . . . . . .  62
      13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  62
@@ -217,7 +218,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    The words "MUST", "MUST NOT", "SHOULD", and "MAY" are used in this
    document.  It's not shouting; when they are capitalized, they have
    the special meaning defined in [RFC2119].
-
 
 
 
@@ -1013,13 +1013,13 @@ Internet-Draft           QUIC Transport Protocol                May 2017
              +-------------+------------------+--------------+
              | Type Value  | Frame Type Name  | Definition   |
              +-------------+------------------+--------------+
-             | 0x00        | PADDING          | Section 8.9  |
+             | 0x00        | PADDING          | Section 8.10 |
              |             |                  |              |
-             | 0x01        | RST_STREAM       | Section 8.8  |
+             | 0x01        | RST_STREAM       | Section 8.9  |
              |             |                  |              |
-             | 0x02        | CONNECTION_CLOSE | Section 8.11 |
+             | 0x02        | CONNECTION_CLOSE | Section 8.12 |
              |             |                  |              |
-             | 0x03        | GOAWAY           | Section 8.12 |
+             | 0x03        | GOAWAY           | Section 8.13 |
              |             |                  |              |
              | 0x04        | MAX_DATA         | Section 8.3  |
              |             |                  |              |
@@ -1027,11 +1027,13 @@ Internet-Draft           QUIC Transport Protocol                May 2017
              |             |                  |              |
              | 0x06        | MAX_STREAM_ID    | Section 8.5  |
              |             |                  |              |
-             | 0x07        | PING             | Section 8.10 |
+             | 0x07        | PING             | Section 8.11 |
              |             |                  |              |
              | 0x08        | BLOCKED          | Section 8.6  |
              |             |                  |              |
              | 0x09        | STREAM_BLOCKED   | Section 8.7  |
+             |             |                  |              |
+             | 0x0a        | STREAM_ID_NEEDED | Section 8.8  |
              |             |                  |              |
              | 0xa0 - 0x7f | ACK              | Section 8.2  |
              |             |                  |              |
@@ -1056,8 +1058,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    QUIC's connection establishment begins with version negotiation,
    since all communication between the endpoints, including packet and
    frame formats, relies on the two endpoints agreeing on a version.
-
-
 
 
 
@@ -2229,10 +2229,10 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    Stream ID:  A 32-bit unsigned number indicating the stream which is
       flow control blocked.
 
-8.8.  RST_STREAM Frame
+8.8.  STREAM_ID_NEEDED Frame
 
-   An endpoint may use a RST_STREAM frame (type=0x01) to abruptly
-   terminate a stream.
+   A sender sends a STREAM_ID_NEEDED frame (type=0x0a) when it wishes to
+   open a stream, but is unable to due to the maximum stream ID limit.
 
 
 
@@ -2241,6 +2241,13 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 40]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   The STREAM_ID_NEEDED frame does not contain a payload.
+
+8.9.  RST_STREAM Frame
+
+   An endpoint may use a RST_STREAM frame (type=0x01) to abruptly
+   terminate a stream.
 
    After sending a RST_STREAM, an endpoint ceases transmission of STREAM
    frames on the identified stream.  A receiver of RST_STREAM can
@@ -2273,7 +2280,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       offset of the end of data written on this stream by the RST_STREAM
       sender.
 
-8.9.  PADDING Frame
+8.10.  PADDING Frame
 
    The PADDING frame (type=0x00) has no semantic value.  PADDING frames
    can be used to increase the size of a packet.  Padding can be used to
@@ -2283,13 +2290,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    A PADDING frame has no content.  That is, a PADDING frame consists of
    the single octet that identifies the frame as a PADDING frame.
 
-8.10.  PING frame
-
-   Endpoints can use PING frames (type=0x07) to verify that their peers
-   are still alive or to check reachability to the peer.  The PING frame
-   contains no additional fields.  The receiver of a PING frame simply
-   needs to acknowledge the packet containing this frame.  The PING
-   frame SHOULD be used to keep a connection alive when a stream is
 
 
 
@@ -2298,10 +2298,17 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 41]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+8.11.  PING frame
+
+   Endpoints can use PING frames (type=0x07) to verify that their peers
+   are still alive or to check reachability to the peer.  The PING frame
+   contains no additional fields.  The receiver of a PING frame simply
+   needs to acknowledge the packet containing this frame.  The PING
+   frame SHOULD be used to keep a connection alive when a stream is
    open.  The default is to send a PING frame after 15 seconds of
    quiescence.  A PING frame has no additional fields.
 
-8.11.  CONNECTION_CLOSE frame
+8.12.  CONNECTION_CLOSE frame
 
    An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
    peer that the connection is being closed.  If there are open streams
@@ -2333,18 +2340,11 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       give details beyond the Error Code.  This SHOULD be a UTF-8
       encoded string [RFC3629].
 
-8.12.  GOAWAY Frame
+8.13.  GOAWAY Frame
 
    An endpoint uses a GOAWAY frame (type=0x03) to initiate a graceful
    shutdown of a connection.  The endpoints will continue to use any
    active streams, but the sender of the GOAWAY will not initiate or
-   accept any additional streams beyond those indicated.  The GOAWAY
-   frame is as follows:
-
-
-
-
-
 
 
 
@@ -2353,6 +2353,9 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 42]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   accept any additional streams beyond those indicated.  The GOAWAY
+   frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2395,12 +2398,9 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    that is sent as a result of detecting a fatal error.  Higher-numbered
    streams than those indicated in the GOAWAY frame can then be retried.
 
-9.  Packetization and Reliability
 
-   The Path Maximum Transmission Unit (PTMU) is the maximum size of the
-   entire IP header, UDP header, and UDP payload.  The UDP payload
-   includes the QUIC public header, encrypted payload, and any
-   authentication fields.
+
+
 
 
 
@@ -2409,6 +2409,13 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 43]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+9.  Packetization and Reliability
+
+   The Path Maximum Transmission Unit (PTMU) is the maximum size of the
+   entire IP header, UDP header, and UDP payload.  The UDP payload
+   includes the QUIC public header, encrypted payload, and any
+   authentication fields.
 
    All QUIC packets SHOULD be sized to fit within the estimated PMTU to
    avoid IP fragmentation or packet drops.  To optimize bandwidth
@@ -2450,14 +2457,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    If a QUIC endpoint determines that the PMTU between any pair of local
    and remote IP addresses has fallen below 1280 octets, it MUST
    immediately cease sending QUIC packets on the affected path.  This
-   could result in termination of the connection if an alternative path
-   cannot be found.
 
-   A sender bundles one or more frames in a Regular QUIC packet (see
-   Section 6).
-
-   A sender SHOULD minimize per-packet bandwidth and computational costs
-   by bundling as many frames as possible within a QUIC packet.  A
 
 
 
@@ -2466,6 +2466,14 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 44]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+   could result in termination of the connection if an alternative path
+   cannot be found.
+
+   A sender bundles one or more frames in a Regular QUIC packet (see
+   Section 6).
+
+   A sender SHOULD minimize per-packet bandwidth and computational costs
+   by bundling as many frames as possible within a QUIC packet.  A
    sender MAY wait for a short period of time to bundle multiple frames
    before sending a packet that is not maximally packed, to avoid
    sending out large numbers of small packets.  An implementation may
@@ -2506,14 +2514,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
    frames have occurred.  Once the packet has been fully processed, a
-   receiver acknowledges receipt by sending one or more ACK frames
-   containing the packet number of the received packet.
-
-   To avoid creating an indefinite feedback loop, an endpoint MUST NOT
-   generate an ACK frame in response to a packet containing only ACK or
-   PADDING frames.
-
-
 
 
 
@@ -2521,6 +2521,13 @@ Iyengar & Thomson       Expires November 3, 2017               [Page 45]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   receiver acknowledges receipt by sending one or more ACK frames
+   containing the packet number of the received packet.
+
+   To avoid creating an indefinite feedback loop, an endpoint MUST NOT
+   generate an ACK frame in response to a packet containing only ACK or
+   PADDING frames.
 
    Strategies and implications of the frequency of generating
    acknowledgments are discussed in more detail in [QUIC-RECOVERY].
@@ -2562,6 +2569,15 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    concurrently send data interleaved with other streams, and can be
    cancelled.
 
+
+
+
+
+Iyengar & Thomson       Expires November 3, 2017               [Page 46]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
    Data that is received on a stream is delivered in order within that
    stream, but there is no particular delivery order across streams.
    Transmit ordering among streams is left to the implementation.
@@ -2570,13 +2586,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    bandwidth and computational cost.  A single STREAM frame may create,
    carry data for, and terminate a stream, or a stream may last the
    entire duration of a connection.
-
-
-
-Iyengar & Thomson       Expires November 3, 2017               [Page 46]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
 
    Streams are individually flow controlled, allowing an endpoint to
    limit memory commitment and to apply back pressure.  The creation of
@@ -2596,15 +2605,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3199,7 +3199,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    Errors that result in the connection being unusable, such as an
    obvious violation of protocol semantics or corruption of state that
    affects an entire connection, MUST be signaled using a
-   CONNECTION_CLOSE frame (Section 8.11).  An endpoint MAY close the
+   CONNECTION_CLOSE frame (Section 8.12).  An endpoint MAY close the
    connection in this manner, even if the error only affects a single
    stream.
 
@@ -3219,7 +3219,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    If the error affects a single stream, but otherwise leaves the
    connection in a recoverable state, the endpoint can sent a RST_STREAM
-   frame (Section 8.8) with an appropriate error code to terminate just
+   frame (Section 8.9) with an appropriate error code to terminate just
    the affected stream.
 
    Stream 1 is critical to the functioning of the entire connection.  If

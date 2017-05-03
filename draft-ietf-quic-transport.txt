@@ -102,7 +102,7 @@ Table of Contents
    6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  18
    7.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  19
      7.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  19
-       7.1.1.  Using Reserved Versions . . . . . . . . . . . . . . .  20
+       7.1.1.  Using Reserved Versions . . . . . . . . . . . . . . .  21
      7.2.  Cryptographic and Transport Handshake . . . . . . . . . .  21
      7.3.  Transport Parameters  . . . . . . . . . . . . . . . . . .  22
        7.3.1.  Transport Parameter Definitions . . . . . . . . . . .  24
@@ -1078,9 +1078,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    If the version selected by the client is not acceptable to the
    server, the server discards the incoming packet and responds with a
    Version Negotiation packet (Section 5.3).  This includes a list of
-   versions that the server will accept.  A server MUST send a Version
-   Negotiation packet for every packet that it receives with an
-   unacceptable version.
+   versions that the server will accept.
+
+   A server sends a Version Negotiation packet for every packet that it
+   receives with an unacceptable version.  This allows a server to
+   process packets with unsupported versions without retaining state.
+   Though either the initial client packet or the version negotiation
+   packet that is sent in response could be lost, the client will send
+   new packets until it successfully receives a response.
 
    If the packet contains a version that is acceptable to the server,
    the server proceeds with the handshake (Section 7.2).  This commits
@@ -1102,8 +1107,20 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    A client MUST NOT change the version it uses unless it is in response
    to a Version Negotiation packet from the server.  Once a client
    receives a packet from the server which is not a Version Negotiation
-   packet, it MUST ignore Version Negotiation packets on the same
-   connection.
+   packet, it MUST ignore other Version Negotiation packets on the same
+   connection.  Similarly, a client MUST ignore a Version Negotiation
+   packet if it has already received and acted on a Version Negotiation
+   packet.
+
+   A client MUST ignore a Version Negotiation packet that lists the
+   client's chosen version.
+
+
+
+Iyengar & Thomson       Expires November 4, 2017               [Page 20]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
 
    Version negotiation uses unprotected data.  The result of the
    negotiation MUST be revalidated as part of the cryptographic
@@ -1113,15 +1130,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    For a server to use a new version in the future, clients must
    correctly handle unsupported versions.  To help ensure this, a server
-
-
-
-
-Iyengar & Thomson       Expires November 4, 2017               [Page 20]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
-
    SHOULD include a reserved version (see Section 4) while generating a
    Version Negotiation packet.
 
@@ -1163,6 +1171,13 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       *  keying material is usable for packet protection for both 0-RTT
          and 1-RTT packets, and
 
+
+
+Iyengar & Thomson       Expires November 4, 2017               [Page 21]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
       *  1-RTT keys have forward secrecy
 
    o  authenticated values for the transport parameters of the peer (see
@@ -1170,13 +1185,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    o  authenticated confirmation of version negotiation (see
       Section 7.3.4)
-
-
-
-Iyengar & Thomson       Expires November 4, 2017               [Page 21]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
 
    o  authenticated negotiation of an application protocol (TLS uses
       ALPN [RFC7301] for this purpose)
@@ -1210,14 +1218,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    The format of the transport parameters is the TransportParameters
    struct from Figure 6.  This is described using the presentation
    language from Section 3 of [I-D.ietf-tls-tls13].
-
-
-
-
-
-
-
-
 
 
 

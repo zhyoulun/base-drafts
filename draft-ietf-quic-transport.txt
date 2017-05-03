@@ -148,9 +148,9 @@ Internet-Draft           QUIC Transport Protocol                May 2017
        10.2.1.  idle . . . . . . . . . . . . . . . . . . . . . . . .  49
        10.2.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  50
        10.2.3.  half-closed (local)  . . . . . . . . . . . . . . . .  50
-       10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  50
+       10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  51
        10.2.5.  closed . . . . . . . . . . . . . . . . . . . . . . .  51
-     10.3.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  51
+     10.3.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  52
      10.4.  Sending and Receiving Data . . . . . . . . . . . . . . .  52
      10.5.  Stream Prioritization  . . . . . . . . . . . . . . . . .  53
    11. Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .  54
@@ -2245,6 +2245,11 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    Stream ID:  A 32-bit unsigned number indicating the stream which is
       flow control blocked.
 
+   An endpoint MAY send a STREAM_BLOCKED frame for a stream that exceeds
+   the maximum stream ID set by its peer (see Section 8.5).  This does
+   not open the stream, but informs the peer that a new stream was
+   needed, but the stream limit prevented the creation of the stream.
+
 8.8.  STREAM_ID_NEEDED Frame
 
    A sender sends a STREAM_ID_NEEDED frame (type=0x0a) when it wishes to
@@ -2284,11 +2289,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    Stream ID:  The 32-bit Stream ID of the stream being terminated.
 
-   Final offset:  A 64-bit unsigned integer indicating the absolute byte
-      offset of the end of data written on this stream by the RST_STREAM
-      sender.
-
-
 
 
 
@@ -2297,6 +2297,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 41]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   Final offset:  A 64-bit unsigned integer indicating the absolute byte
+      offset of the end of data written on this stream by the RST_STREAM
+      sender.
 
 8.10.  PADDING Frame
 
@@ -2342,10 +2346,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    Reason Phrase Length:  A 16-bit unsigned number specifying the length
       of the reason phrase.  Note that a CONNECTION_CLOSE frame cannot
-      be split between packets, so in practice any limits on packet size
-      will also limit the space available for a reason phrase.
-
-
 
 
 
@@ -2353,6 +2353,9 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 42]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+      be split between packets, so in practice any limits on packet size
+      will also limit the space available for a reason phrase.
 
    Reason Phrase:  A human-readable explanation for why the connection
       was closed.  This can be zero length if the sender chooses to not
@@ -2399,9 +2402,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    An endpoint MAY choose a larger stream identifier if it wishes to
    allow for a number of streams to be created.  This is especially
-   valuable for peer-initiated streams where packets creating new
-   streams could be in transit; using a larger stream number allows
-   those streams to complete.
 
 
 
@@ -2409,6 +2409,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 43]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   valuable for peer-initiated streams where packets creating new
+   streams could be in transit; using a larger stream number allows
+   those streams to complete.
 
    In addition to initiating a graceful shutdown of a connection, GOAWAY
    MAY be sent immediately prior to sending a CONNECTION_CLOSE frame
@@ -2454,10 +2458,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    The initial client packet SHOULD be padded to exactly these values
    unless the client has a reasonable assurance that the PMTU is larger.
    Sending a packet of this size ensures that the network path supports
-   an MTU of this size and helps reduce the amplitude of amplification
-   attacks caused by server responses toward an unverified client
-   address.
-
 
 
 
@@ -2465,6 +2465,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 44]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   an MTU of this size and helps reduce the amplitude of amplification
+   attacks caused by server responses toward an unverified client
+   address.
 
    Servers MUST ignore an initial plaintext packet from a client if its
    total size is less than 1232 octets for IPv6 or 1252 octets for IPv4.
@@ -2510,10 +2514,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    o  All other frames MUST be retransmitted.
 
-   Upon detecting losses, a sender MUST take appropriate congestion
-   control action.  The details of loss detection and congestion control
-   are described in [QUIC-RECOVERY].
-
 
 
 
@@ -2521,6 +2521,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 45]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   Upon detecting losses, a sender MUST take appropriate congestion
+   control action.  The details of loss detection and congestion control
+   are described in [QUIC-RECOVERY].
 
    A packet MUST NOT be acknowledged until packet protection has been
    successfully removed and all frames contained in the packet have been
@@ -2565,10 +2569,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    o  Any reduction in PMTU due to a report contained in an ICMP packet
       is provisional until QUIC's loss detection algorithm determines
       that the packet is actually lost.
-
-
-
-
 
 
 
@@ -2711,10 +2711,10 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    The following transitions are valid from this state:
 
-   Sending or receiving a STREAM frame causes the stream to become
-   "open".  The stream identifier is selected as described in
-   Section 10.1.  The same STREAM frame can also cause a stream to
-   immediately become "half-closed".
+   Sending or receiving a STREAM frame causes the identified stream to
+   become "open".  The stream identifier for a new stream is selected as
+   described in Section 10.1.  The same STREAM frame can also cause a
+   stream to immediately become "half-closed" if the FIN flag is set.
 
    Receiving a STREAM frame on a peer-initiated stream (that is, a
    packet sent by a server on an even-numbered stream or a client packet
@@ -2729,13 +2729,13 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    become "half-closed (local)"; receiving RST_STREAM causes the stream
    to become "half-closed (remote)".
 
-   Receiving any frame other than STREAM or RST_STREAM on a stream in
-   this state MUST be treated as a connection error (Section 12) of type
-   YYYY.
+   An endpoint might receive MAX_STREAM_DATA frames on peer-initiated
+   streams that are "idle" if there is loss or reordering of packets.
 
-   An endpoint MUST NOT send a STREAM of RST_STREAM frame for a stream
-   ID that is higher than the peers advertised maximum stream ID (see
-   Section 8.5).
+   Receiving any frame other than STREAM, MAX_STREAM_DATA,
+   STREAM_BLOCKED, or RST_STREAM on a stream in this state MUST be
+   treated as a connection error (Section 12) of type YYYY.
+
 
 
 
@@ -2745,6 +2745,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 49]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   An endpoint MUST NOT send a STREAM of RST_STREAM frame for a stream
+   ID that is higher than the peers advertised maximum stream ID (see
+   Section 8.5).
 
 10.2.2.  open
 
@@ -2789,10 +2793,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    which might arrive for a short period after a frame bearing the FIN
    flag is sent.
 
-10.2.4.  half-closed (remote)
-
-   A stream is "half-closed (remote)" when the stream is no longer being
-   used by the peer to send any data.  An endpoint will have either
 
 
 
@@ -2802,6 +2802,10 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 50]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+10.2.4.  half-closed (remote)
+
+   A stream is "half-closed (remote)" when the stream is no longer being
+   used by the peer to send any data.  An endpoint will have either
    received all data that a peer has sent or will have received a
    RST_STREAM frame and discarded any received data.
 
@@ -2843,12 +2847,8 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    the stream.  Reordering might cause frames to be received after
    closing, see Section 10.2.4.
 
-10.3.  Stream Concurrency
 
-   An endpoint limits the number of concurrently active incoming streams
-   by adjusting the maximum stream ID.  An initial value is set in the
-   transport parameters (see Section 7.3.1) and is subsequently
-   increased by MAX_STREAM_ID frames (see Section 8.5).
+
 
 
 
@@ -2857,6 +2857,13 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 51]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+10.3.  Stream Concurrency
+
+   An endpoint limits the number of concurrently active incoming streams
+   by adjusting the maximum stream ID.  An initial value is set in the
+   transport parameters (see Section 7.3.1) and is subsequently
+   increased by MAX_STREAM_ID frames (see Section 8.5).
 
    The maximum stream ID is specific to each endpoint and applies only
    to the peer that receives the setting.  That is, clients specify the
@@ -2899,13 +2906,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    An endpoint MUST NOT send data on any stream without ensuring that it
    is within the data limits set by its peer.  The cryptographic
-   handshake stream, Stream 0, is exempt from the connection-level data
-   limits established by MAX_DATA.  Stream 0 is still subject to stream-
-   level data limits and MAX_STREAM_DATA.
-
-   Flow control is described in detail in Section 11, and congestion
-   control is described in the companion document [QUIC-RECOVERY].
-
 
 
 
@@ -2913,6 +2913,13 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 52]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   handshake stream, Stream 0, is exempt from the connection-level data
+   limits established by MAX_DATA.  Stream 0 is still subject to stream-
+   level data limits and MAX_STREAM_DATA.
+
+   Flow control is described in detail in Section 11, and congestion
+   control is described in the companion document [QUIC-RECOVERY].
 
 10.5.  Stream Prioritization
 
@@ -2955,13 +2962,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    STREAM frames that are determined to be lost SHOULD be retransmitted
    before sending new data, unless application priorities indicate
    otherwise.  Retransmitting lost STREAM frames can fill in gaps, which
-   allows the peer to consume already received data and free up flow
-   control window.
-
-
-
-
-
 
 
 
@@ -2969,6 +2969,9 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 53]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   allows the peer to consume already received data and free up flow
+   control window.
 
 11.  Flow Control
 
@@ -3016,9 +3019,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    the sender receives an update before running out of flow control
    credit, even if one of the packets is lost.
 
-   Connection flow control is a limit to the total bytes of stream data
-   sent in STREAM frames on all streams.  A receiver advertises credit
-
 
 
 Iyengar & Thomson       Expires November 4, 2017               [Page 54]
@@ -3026,6 +3026,8 @@ Iyengar & Thomson       Expires November 4, 2017               [Page 54]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+   Connection flow control is a limit to the total bytes of stream data
+   sent in STREAM frames on all streams.  A receiver advertises credit
    for a connection by sending a MAX_DATA frame.  A receiver maintains a
    cumulative sum of bytes received on all streams, which are used to
    check for flow control violations.  A receiver might use a sum of
@@ -3070,8 +3072,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    receives a RST_STREAM frame and has sent neither a FIN nor a
    RST_STREAM, it MUST send a RST_STREAM in response, bearing the offset
    of the last byte sent on this stream as the final offset.
-
-
 
 
 

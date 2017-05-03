@@ -1484,6 +1484,7 @@ address {
   <dt>Stream ID:</dt>
   <dd style="margin-left: 8">A 32-bit unsigned number indicating the stream which is flow control blocked.</dd>
 </dl>
+<p id="rfc.section.8.7.p.5">An endpoint MAY send a STREAM_BLOCKED frame for a stream that exceeds the maximum stream ID set by its peer (see <a href="#frame-max-stream-id">Section 8.5</a>).  This does not open the stream, but informs the peer that a new stream was needed, but the stream limit prevented the creation of the stream.</p>
 <h2 id="rfc.section.8.8"><a href="#rfc.section.8.8">8.8.</a> <a href="#frame-stream-id-needed" id="frame-stream-id-needed">STREAM_ID_NEEDED Frame</a></h2>
 <p id="rfc.section.8.8.p.1">A sender sends a STREAM_ID_NEEDED frame (type=0x0a) when it wishes to open a stream, but is unable to due to the maximum stream ID limit.</p>
 <p id="rfc.section.8.8.p.2">The STREAM_ID_NEEDED frame does not contain a payload.</p>
@@ -1657,11 +1658,12 @@ address {
 <h3 id="rfc.section.10.2.1"><a href="#rfc.section.10.2.1">10.2.1.</a> <a href="#idle" id="idle">idle</a></h3>
 <p id="rfc.section.10.2.1.p.1">All streams start in the &#8220;idle&#8221; state.</p>
 <p id="rfc.section.10.2.1.p.2">The following transitions are valid from this state:</p>
-<p id="rfc.section.10.2.1.p.3">Sending or receiving a STREAM frame causes the stream to become &#8220;open&#8221;.  The stream identifier is selected as described in <a href="#stream-id">Section 10.1</a>.  The same STREAM frame can also cause a stream to immediately become &#8220;half-closed&#8221;.</p>
+<p id="rfc.section.10.2.1.p.3">Sending or receiving a STREAM frame causes the identified stream to become &#8220;open&#8221;.  The stream identifier for a new stream is selected as described in <a href="#stream-id">Section 10.1</a>.  The same STREAM frame can also cause a stream to immediately become &#8220;half-closed&#8221; if the FIN flag is set.</p>
 <p id="rfc.section.10.2.1.p.4">Receiving a STREAM frame on a peer-initiated stream (that is, a packet sent by a server on an even-numbered stream or a client packet on an odd-numbered stream) also causes all lower-numbered &#8220;idle&#8221; streams in the same direction to become &#8220;open&#8221;.  This could occur if a peer begins sending on streams in a different order to their creation, or it could happen if packets are lost or reordered in transit.</p>
 <p id="rfc.section.10.2.1.p.5">A RST_STREAM frame on an &#8220;idle&#8221; stream causes the stream to become &#8220;half-closed&#8221;.  Sending a RST_STREAM frame causes the stream to become &#8220;half-closed (local)&#8221;; receiving RST_STREAM causes the stream to become &#8220;half-closed (remote)&#8221;.</p>
-<p id="rfc.section.10.2.1.p.6">Receiving any frame other than STREAM or RST_STREAM on a stream in this state MUST be treated as a connection error (<a href="#error-handling">Section 12</a>) of type YYYY.</p>
-<p id="rfc.section.10.2.1.p.7">An endpoint MUST NOT send a STREAM of RST_STREAM frame for a stream ID that is higher than the peers advertised maximum stream ID (see <a href="#frame-max-stream-id">Section 8.5</a>).</p>
+<p id="rfc.section.10.2.1.p.6">An endpoint might receive MAX_STREAM_DATA frames on peer-initiated streams that are &#8220;idle&#8221; if there is loss or reordering of packets.</p>
+<p id="rfc.section.10.2.1.p.7">Receiving any frame other than STREAM, MAX_STREAM_DATA, STREAM_BLOCKED, or RST_STREAM on a stream in this state MUST be treated as a connection error (<a href="#error-handling">Section 12</a>) of type YYYY.</p>
+<p id="rfc.section.10.2.1.p.8">An endpoint MUST NOT send a STREAM of RST_STREAM frame for a stream ID that is higher than the peers advertised maximum stream ID (see <a href="#frame-max-stream-id">Section 8.5</a>).</p>
 <h3 id="rfc.section.10.2.2"><a href="#rfc.section.10.2.2">10.2.2.</a> <a href="#open" id="open">open</a></h3>
 <p id="rfc.section.10.2.2.p.1">A stream in the &#8220;open&#8221; state may be used by both peers to send frames of any type.  In this state, endpoints can send MAX_STREAM_DATA and MUST observe the value advertised by its receiving peer (see <a href="#flow-control">Section 11</a>).</p>
 <p id="rfc.section.10.2.2.p.2">From this state, either endpoint can send a frame with the FIN flag set, which causes the stream to transition into one of the &#8220;half-closed&#8221; states.  An endpoint sending an FIN flag causes the stream state to become &#8220;half-closed (local)&#8221;.  An endpoint receiving a FIN flag causes the stream state to become &#8220;half-closed (remote)&#8221; once all preceding data has arrived.  The receiving endpoint MUST NOT consider the stream state to have changed until all data has arrived.</p>

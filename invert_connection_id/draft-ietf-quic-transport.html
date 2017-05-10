@@ -390,7 +390,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-5-9" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-5-10" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -414,12 +414,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: November 10, 2017</td>
+  <td class="left">Expires: November 11, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">May 9, 2017</td>
+  <td class="right">May 10, 2017</td>
 </tr>
 
     	
@@ -444,7 +444,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on November 10, 2017.</p>
+<p>This Internet-Draft will expire on November 11, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -872,8 +872,9 @@ address {
 <p id="rfc.section.5.4.2.p.1">A Server Stateless Retry packet has a type octet of 0x83.  It carries cryptographic handshake messages and acknowledgments.  It is used by a server that wishes to perform a stateless retry (see <a href="#stateless-retry">Section 7.4</a>).</p>
 <p id="rfc.section.5.4.2.p.2">The connection ID field in a Server Stateless Retry packet contains a server selected value, see <a href="#connection-id">Section 5.7</a>.</p>
 <p id="rfc.section.5.4.2.p.3">The packet number field echoes the packet number of the triggering client packet.  This allows a client to verify that the server received its packet.</p>
-<p id="rfc.section.5.4.2.p.4">After receiving a Server Stateless Retry packet, the client MUST generate a new Client Initial packet containing the next cryptographic handshake message.  The client discards any buffers it uses for generating retransmissions of handshake data, resets the initial packet number and resets the stream offset for stream 0, keeping only the cryptographic handshake state.  In effect, the cryptographic handshake is continued, but the transport connection is reset.  Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.</p>
-<p id="rfc.section.5.4.2.p.5">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
+<p id="rfc.section.5.4.2.p.4">After receiving a Server Stateless Retry packet, the client uses a new Client Initial packet containing the next cryptographic handshake message.  The client retains the state of its cryptographic handshake, but discards all transport state.  In effect, the next cryptographic handshake message is sent on a new connection.  The new Client Initial packet is sent in a packet with a newly randomized packet number and starting at a stream offset of 0.</p>
+<p id="rfc.section.5.4.2.p.5">Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.  In addition to continuing the cryptographic handshake, the client MUST remember the results of any version negotiation that occurred (see <a href="#version-negotiation">Section 7.1</a>).  The client MAY also retain any observed RTT or congestion state that it has accumulated for the flow, but other transport state MUST be discarded.</p>
+<p id="rfc.section.5.4.2.p.6">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
 <h3 id="rfc.section.5.4.3"><a href="#rfc.section.5.4.3">5.4.3.</a> <a href="#packet-server-cleartext" id="packet-server-cleartext">Server Cleartext Packet</a></h3>
 <p id="rfc.section.5.4.3.p.1">A Server Cleartext packet has a type octet of 0x84.  It is used to carry acknowledgments and cryptographic handshake messages from the server.</p>
 <p id="rfc.section.5.4.3.p.2">The connection ID field in a Server Cleartext packet contains a connection ID that is chosen by the server (see <a href="#connection-id">Section 5.7</a>).</p>
@@ -1198,11 +1199,10 @@ address {
 <p id="rfc.section.7.3.4.p.8">The server includes a list of versions that it would send in any version negotiation packet (<a href="#packet-version">Section 5.3</a>) in supported_versions.  This value is set even if it did not send a version negotiation packet.</p>
 <p id="rfc.section.7.3.4.p.9">The client can validate that the negotiated_version is included in the supported_versions list and - if version negotiation was performed - that it would have selected the negotiated version.  A client MUST terminate the connection with a QUIC_VERSION_NEGOTIATION_MISMATCH error code if the negotiated_version value is not included in the supported_versions list.  A client MUST terminate with a QUIC_VERSION_NEGOTIATION_MISMATCH error code if version negotiation occurred but it would have selected a different version based on the value of the supported_versions list.</p>
 <h2 id="rfc.section.7.4"><a href="#rfc.section.7.4">7.4.</a> <a href="#stateless-retry" id="stateless-retry">Stateless Retries</a></h2>
-<p id="rfc.section.7.4.p.1">A server can process an initial cryptographic handshake messages from a client without committing any state.  This allows a server to perform address validation (<a href="#address-validation">Section 7.5</a>, or to defer connection establishment costs.</p>
-<p id="rfc.section.7.4.p.2">In order to ensure consistent state regarding stream offsets and packet numbers, a server that generates a response to an initial packet without retaining connection state MUST use the Server Stateless Retry packet (<a href="#packet-server-stateless">Section 5.4.2</a>).  This packet causes a client to reset the state of stream 0 and continue the connection attempt with fresh stream state while maintaining the state of the cryptographic handshake.</p>
-<p id="rfc.section.7.4.p.3">A server that sends a Server Stateless Retry packet is then not obligated to ensure that it correctly accounts for data already sent on stream 0 either by both itself or by the client.  Similarly, a server also does not have to remember a randomized initial packet number: the Server Stateless Retry packet includes a copy of the packet number from the client packet.</p>
-<p id="rfc.section.7.4.p.4">A server MUST NOT send multiple Server Stateless Retry packets in response to a client handshake packet.  Thus, any cryptographic handshake message that is sent MUST fit within a single packet.</p>
-<p id="rfc.section.7.4.p.5">In TLS, the Server Stateless Retry packet type is used to carry the HelloRetryRequest message.</p>
+<p id="rfc.section.7.4.p.1">A server can process an initial cryptographic handshake messages from a client without committing any state. This allows a server to perform address validation (<a href="#address-validation">Section 7.5</a>, or to defer connection establishment costs.</p>
+<p id="rfc.section.7.4.p.2">A server that generates a response to an initial packet without retaining connection state MUST use the Server Stateless Retry packet (<a href="#packet-server-stateless">Section 5.4.2</a>).  This packet causes a client to reset its transport state and to continue the connection attempt with new connection state while maintaining the state of the cryptographic handshake.</p>
+<p id="rfc.section.7.4.p.3">A server MUST NOT send multiple Server Stateless Retry packets in response to a client handshake packet.  Thus, any cryptographic handshake message that is sent MUST fit within a single packet.</p>
+<p id="rfc.section.7.4.p.4">In TLS, the Server Stateless Retry packet type is used to carry the HelloRetryRequest message.</p>
 <h2 id="rfc.section.7.5"><a href="#rfc.section.7.5">7.5.</a> <a href="#address-validation" id="address-validation">Proof of Source Address Ownership</a></h2>
 <p id="rfc.section.7.5.p.1">Transport protocols commonly spend a round trip checking that a client owns the transport address (IP and port) that it claims.  Verifying that a client can receive packets sent to its claimed transport address protects against spoofing of this information by malicious clients.</p>
 <p id="rfc.section.7.5.p.2">This technique is used primarily to avoid QUIC from being used for traffic amplification attack.  In such an attack, a packet is sent to a server with spoofed source address information that identifies a victim.  If a server generates more or larger packets in response to that packet, the attacker can use the server to send more data toward the victim than it would be able to send on its own.</p>

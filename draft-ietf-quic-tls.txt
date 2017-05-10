@@ -99,7 +99,7 @@ Table of Contents
      5.6.  Packet Number Gaps  . . . . . . . . . . . . . . . . . . .  19
    6.  Unprotected Packets . . . . . . . . . . . . . . . . . . . . .  19
      6.1.  Integrity Check Processing  . . . . . . . . . . . . . . .  19
-     6.2.  The 128-bit FNV-1a Algorithm  . . . . . . . . . . . . . .  20
+     6.2.  The 64-bit FNV-1a Algorithm . . . . . . . . . . . . . . .  20
    7.  Key Phases  . . . . . . . . . . . . . . . . . . . . . . . . .  20
      7.1.  Packet Protection for the TLS Handshake . . . . . . . . .  21
        7.1.1.  Initial Key Transitions . . . . . . . . . . . . . . .  21
@@ -1038,14 +1038,14 @@ Internet-Draft                QUIC over TLS                     May 2017
 
    QUIC adds an integrity check to all unprotected packets.  Any packet
    that is not protected by the negotiated AEAD (see Section 5),
-   includes a integrity check.  This check does not prevent the packet
+   includes an integrity check.  This check does not prevent the packet
    from being altered, it exists for added resilience against data
    corruption and to provided added assurance that the sender intends to
    use QUIC.
 
    Unprotected packets all use the long form of the QUIC header and so
    will include a version number.  For this version of QUIC, the
-   integrity check uses the 128-bit FNV-1a hash (see Section 6.2).  The
+   integrity check uses the 64-bit FNV-1a hash (see Section 6.2).  The
    output of this hash is appended to the payload of the packet.
 
    The integrity check algorithm MAY change for other versions of the
@@ -1071,14 +1071,14 @@ Internet-Draft                QUIC over TLS                     May 2017
    appended to the packet.
 
    A receiver that receives an unprotected packet first checks that the
-   version is correct, then removes the trailing 16 octets.  It
+   version is correct, then removes the trailing 8 octets.  It
    calculates the integrity check over the remainder of the packet.
    Unprotected packets that do not contain a valid integrity check MUST
    be discarded.
 
-6.2.  The 128-bit FNV-1a Algorithm
+6.2.  The 64-bit FNV-1a Algorithm
 
-   QUIC uses the 128-bit version of the alternative Fowler/Noll/Vo hash
+   QUIC uses the 64-bit version of the alternative Fowler/Noll/Vo hash
    (FNV-1a) [FNV].
 
    FNV-1a can be expressed in pseudocode as:
@@ -1086,19 +1086,18 @@ Internet-Draft                QUIC over TLS                     May 2017
    "hash := offset basis for each input octet: hash := hash XOR input
    octet hash := hash * prime "
 
-   That is, a 128-bit unsigned integer is initialized with an offset
+   That is, a 64-bit unsigned integer is initialized with an offset
    basis.  Then, for each octet of the input, the exclusive binary OR of
    the value is taken, then multiplied by a prime.  Any overflow from
    multiplication is discarded.
 
-   The offset basis for the 128-bit FNV-1a is the decimal value
-   144066263297769815596495629667062367629 (in hex,
-   0x6c62272e07bb014262b821756295c58d).  The prime is
-   309485009821345068724781371 (in hex, 0x1000000000000000000013b; or as
-   an expression 2^88 + 2^8 + 0x3b).
+   The offset basis for the 64-bit FNV-1a is the decimal value
+   14695981039346656037 (in hex, 0xcbf29ce484222325).  The prime is
+   1099511628211 (in hex, 0x100000001b3; or as an expression 2^40 + 2^8
+   + 0xb3).
 
    Once all octets have been processed in this fashion, the final
-   integer value is encoded as 16 octets in network byte order.
+   integer value is encoded as 8 octets in network byte order.
 
 7.  Key Phases
 
@@ -1113,6 +1112,7 @@ Internet-Draft                QUIC over TLS                     May 2017
    exception is the transition from 0-RTT keys to 1-RTT keys, where the
    presence of the version field and its associated bit is used (see
    Section 7.1.1).
+
 
 
 

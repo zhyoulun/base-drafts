@@ -177,7 +177,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
      12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  61
    13. Security and Privacy Considerations . . . . . . . . . . . . .  65
      13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  65
-     13.2.  Slowloris Attacks  . . . . . . . . . . . . . . . . . . .  65
+     13.2.  Slowloris Attacks  . . . . . . . . . . . . . . . . . . .  66
      13.3.  Stream Fragmentation and Reassembly Attacks  . . . . . .  66
      13.4.  Stream Commitment Attack . . . . . . . . . . . . . . . .  66
    14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  67
@@ -3284,6 +3284,12 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    MAX_STREAM_DATA frame at least two roundtrips before it expects the
    sender to get blocked.
 
+   A sender sends a single BLOCKED or STREAM_BLOCKED frame only once
+   when it reaches a data limit.  A sender MUST NOT send multiple
+   BLOCKED or STREAM_BLOCKED frames for the same data limit, unless the
+   original frame is determined to be lost.  Another BLOCKED or
+   STREAM_BLOCKED frame can be sent after the data limit is increased.
+
 11.3.  Stream Final Offset
 
    The final offset is the count of the number of octets that are
@@ -3292,12 +3298,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    final offset is the offset of the end of the data carried in STREAM
    frame marked with a FIN flag.
 
-   An endpoint will know the final offset for a stream when the stream
-   enters the "half-closed (remote)" state.  However, if there is
-   reordering or loss, an endpoint might learn the final offset prior to
-   entering this state if it is carried on a STREAM frame.
-
-
 
 
 
@@ -3305,6 +3305,11 @@ Iyengar & Thomson       Expires November 11, 2017              [Page 59]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   An endpoint will know the final offset for a stream when the stream
+   enters the "half-closed (remote)" state.  However, if there is
+   reordering or loss, an endpoint might learn the final offset prior to
+   entering this state if it is carried on a STREAM frame.
 
    An endpoint MUST NOT send data on a stream at or beyond the final
    offset.
@@ -3349,11 +3354,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    endpoint SHOULD be prepared to retransmit a packet containing a
    CONNECTION_CLOSE frame if it receives more packets on a terminated
    connection.  Limiting the number of retransmissions and the time over
-   which this final packet is sent limits the effort expended on
-   terminated connections.
-
-   An endpoint that chooses not to retransmit packets containing
-   CONNECTION_CLOSE risks a peer missing the first such packet.  The
 
 
 
@@ -3362,6 +3362,11 @@ Iyengar & Thomson       Expires November 11, 2017              [Page 60]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+   which this final packet is sent limits the effort expended on
+   terminated connections.
+
+   An endpoint that chooses not to retransmit packets containing
+   CONNECTION_CLOSE risks a peer missing the first such packet.  The
    only mechanism available to an endpoint that continues to receive
    data for a terminated connection is to send a Public Reset packet.
 
@@ -3404,11 +3409,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    0xC0000000-0xFFFFFFFF:  Cryptographic error codes.  Defined by the
       cryptographic handshake protocol in use.
 
-   This section lists the defined QUIC transport error codes that may be
-   used in a CONNECTION_CLOSE or RST_STREAM frame.  Error codes share a
-   common code space.  Some error codes apply only to either streams or
-   the entire connection and have no defined semantics in the other
-   context.
 
 
 
@@ -3417,6 +3417,12 @@ Iyengar & Thomson       Expires November 11, 2017              [Page 61]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   This section lists the defined QUIC transport error codes that may be
+   used in a CONNECTION_CLOSE or RST_STREAM frame.  Error codes share a
+   common code space.  Some error codes apply only to either streams or
+   the entire connection and have no defined semantics in the other
+   context.
 
    QUIC_INTERNAL_ERROR (0x80000001):  Connection has reached an invalid
       state.
@@ -3459,13 +3465,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    QUIC_INVALID_WINDOW_UPDATE_DATA (0x80000039):  WINDOW_UPDATE frame
       data is malformed.
 
-   QUIC_INVALID_BLOCKED_DATA (0x8000003A):  BLOCKED frame data is
-      malformed.
 
-   QUIC_INVALID_PATH_CLOSE_DATA (0x8000004E):  PATH_CLOSE frame data is
-      malformed.
-
-   QUIC_INVALID_ACK_DATA (0x80000009):  ACK frame data is malformed.
 
 
 
@@ -3473,6 +3473,14 @@ Iyengar & Thomson       Expires November 11, 2017              [Page 62]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   QUIC_INVALID_BLOCKED_DATA (0x8000003A):  BLOCKED frame data is
+      malformed.
+
+   QUIC_INVALID_PATH_CLOSE_DATA (0x8000004E):  PATH_CLOSE frame data is
+      malformed.
+
+   QUIC_INVALID_ACK_DATA (0x80000009):  ACK frame data is malformed.
 
    QUIC_INVALID_VERSION_NEGOTIATION_PACKET (0x8000000A):  Version
       negotiation packet is malformed.
@@ -3514,6 +3522,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    QUIC_DECOMPRESSION_FAILURE (0x80000018):  There was an error
       decompressing data.
 
+
+
+
+Iyengar & Thomson       Expires November 11, 2017              [Page 63]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
    QUIC_NETWORK_IDLE_TIMEOUT (0x80000019):  The connection timed out due
       to no network activity.
 
@@ -3522,13 +3538,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    QUIC_ERROR_MIGRATING_ADDRESS (0x8000001a):  There was an error
       encountered migrating addresses.
-
-
-
-Iyengar & Thomson       Expires November 11, 2017              [Page 63]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
 
    QUIC_ERROR_MIGRATING_PORT (0x80000056):  There was an error
       encountered migrating port only.
@@ -3568,6 +3577,15 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    QUIC_TOO_MANY_RTOS (0x80000055):  QUIC timed out after too many RTOs.
 
+
+
+
+
+Iyengar & Thomson       Expires November 11, 2017              [Page 64]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
    QUIC_ENCRYPTION_LEVEL_INCORRECT (0x8000002c):  A packet was received
       with the wrong encryption level (i.e. it should have been
       encrypted but was not.)
@@ -3578,13 +3596,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    QUIC_IP_ADDRESS_CHANGED (0x80000050):  IP address changed causing
       connection close.
-
-
-
-Iyengar & Thomson       Expires November 11, 2017              [Page 64]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
 
    QUIC_ADDRESS_VALIDATION_FAILURE (0x80000051):  Client address
       validation failed.
@@ -3623,6 +3634,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    connection.  If a packet sent is encrypted with a forward-secure key,
    then any acknowledgments that are received for them MUST also be
    forward-secure encrypted.  Since the attacker will not have the
+
+
+
+Iyengar & Thomson       Expires November 11, 2017              [Page 65]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
    forward secure key, the attacker will not be able to generate
    forward-secure encrypted packets with ACK frames.
 
@@ -3634,14 +3653,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    generating the minimum amount of activity necessary to avoid being
    closed for inactivity.  This might involve sending small amounts of
    data, gradually opening flow control windows in order to control the
-
-
-
-Iyengar & Thomson       Expires November 11, 2017              [Page 65]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
-
    sender rate, or manufacturing ACK frames that simulate a high loss
    rate.
 
@@ -3679,6 +3690,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    large number of connections, in a manner similar to SYN flooding
    attacks in TCP.
 
+
+
+
+Iyengar & Thomson       Expires November 11, 2017              [Page 66]
+
+Internet-Draft           QUIC Transport Protocol                May 2017
+
+
    Normally, clients will open streams sequentially, as explained in
    Section 10.1.  However, when several streams are initiated at short
    intervals, transmission error may cause STREAM DATA frames opening
@@ -3690,14 +3709,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    The number of active streams is limited by the concurrent stream
    limit transport parameter, as explained in Section 10.3.  If chosen
    judisciously, this limit mitigates the effect of the stream
-
-
-
-Iyengar & Thomson       Expires November 11, 2017              [Page 66]
-
-Internet-Draft           QUIC Transport Protocol                May 2017
-
-
    commitment attack.  However, setting the limit too low could affect
    performance when applications expect to open large number of streams.
 
@@ -3732,17 +3743,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    architecturally dubious).
 
    The initial contents of this registry are shown in Table 4.
-
-
-
-
-
-
-
-
-
-
-
 
 
 

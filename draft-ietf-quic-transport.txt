@@ -96,7 +96,7 @@ Table of Contents
        5.4.2.  Server Stateless Retry Packet . . . . . . . . . . . .  15
        5.4.3.  Server Cleartext Packet . . . . . . . . . . . . . . .  15
        5.4.4.  Client Cleartext Packet . . . . . . . . . . . . . . .  16
-     5.5.  Encrypted Packets . . . . . . . . . . . . . . . . . . . .  16
+     5.5.  Protected Packets . . . . . . . . . . . . . . . . . . . .  16
      5.6.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  17
        5.6.1.  Public Reset Proof  . . . . . . . . . . . . . . . . .  18
      5.7.  Connection ID . . . . . . . . . . . . . . . . . . . . . .  18
@@ -577,11 +577,11 @@ Internet-Draft           QUIC Transport Protocol                May 2017
          |      |                               |               |
          | 05   | Client Cleartext              | Section 5.4.4 |
          |      |                               |               |
-         | 06   | 0-RTT Encrypted               | Section 5.5   |
+         | 06   | 0-RTT Protected               | Section 5.5   |
          |      |                               |               |
-         | 07   | 1-RTT Encrypted (key phase 0) | Section 5.5   |
+         | 07   | 1-RTT Protected (key phase 0) | Section 5.5   |
          |      |                               |               |
-         | 08   | 1-RTT Encrypted (key phase 1) | Section 5.5   |
+         | 08   | 1-RTT Protected (key phase 1) | Section 5.5   |
          |      |                               |               |
          | 09   | Public Reset                  | Section 5.6   |
          +------+-------------------------------+---------------+
@@ -629,7 +629,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                      Packet Number (8/16/32)                ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                     Encrypted Payload (*)                   ...
+   |                     Protected Payload (*)                   ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                        Figure 2: Short Header Format
@@ -663,7 +663,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       packet type.  This field can be 1, 2 or 4 octets long depending on
       the short packet type.
 
-   Encrypted Payload:  Packets with a short header always include a
+   Protected Payload:  Packets with a short header always include a
       1-RTT protected payload.
 
 
@@ -861,14 +861,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    server-selected connection ID, see Section 5.7.
 
    The Client Cleartext packet includes a packet number that is one
-   higher than the last Client Initial, 0-RTT Encrypted or Client
+   higher than the last Client Initial, 0-RTT Protected or Client
    Cleartext packet that was sent.  The packet number is incremented for
    each subsequent packet, see Section 5.8.
 
    The payload of this packet contains STREAM frames and could contain
    PADDING and ACK frames.
 
-5.5.  Encrypted Packets
+5.5.  Protected Packets
 
    Packets that are protected with 0-RTT keys are sent with long
    headers.  Packets that are protected with 1-RTT keys MAY be sent with
@@ -898,15 +898,15 @@ Iyengar & Thomson       Expires November 12, 2017              [Page 16]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
-   The version field for encrypted packets is the current QUIC version.
+   The version field for protected packets is the current QUIC version.
 
    The packet number field contains a packet number, which increases
    with each packet sent, see Section 5.8 for details.
 
-   The encrypted payload is both authenticated and encrypted using
-   packet protection keys.  [QUIC-TLS] describes packet protection in
-   detail.  After decryption, the plaintext consists of a sequence of
-   frames, as described in Section 6.
+   The payload is protected using authenticated encryption.  [QUIC-TLS]
+   describes packet protection in detail.  After decryption, the
+   plaintext consists of a sequence of frames, as described in
+   Section 6.
 
 5.6.  Public Reset Packet
 
@@ -926,7 +926,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    is simply an echo of the client's Connection ID, and the Packet
    Number field includes an echo of the client's packet number.
    Depending on the client's packet number length it might also include
-   0, 2, or 3 additional octets from the encrypted payload of the client
+   0, 2, or 3 additional octets from the protected payload of the client
    packet.
 
    The version field contains the current QUIC version.
@@ -1096,7 +1096,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 6.  Frames and Frame Types
 
    The payload of cleartext packets and the plaintext after decryption
-   of encrypted payloads consists of a sequence of frames, as shown in
+   of protected payloads consists of a sequence of frames, as shown in
    Figure 4.
 
     0                   1                   2                   3
@@ -1111,7 +1111,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    |                          Frame N (*)                        ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-                  Figure 4: Contents of Encrypted Payload
+                  Figure 4: Contents of Protected Payload
 
 
 
@@ -1122,7 +1122,7 @@ Iyengar & Thomson       Expires November 12, 2017              [Page 20]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
-   Encrypted payloads MUST contain at least one frame, and MAY contain
+   Protected payloads MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.
 
    Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC
@@ -2694,7 +2694,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    The Path Maximum Transmission Unit (PTMU) is the maximum size of the
    entire IP header, UDP header, and UDP payload.  The UDP payload
-   includes the QUIC public header, encrypted payload, and any
+   includes the QUIC public header, protected payload, and any
    authentication fields.
 
    All QUIC packets SHOULD be sized to fit within the estimated PMTU to
@@ -3743,9 +3743,9 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    acknowledgments for sent packets match the encryption level of the
    sent packet.  This mitigation is useful if the connection has an
    ephemeral forward-secure key that is generated and used for every new
-   connection.  If a packet sent is encrypted with a forward-secure key,
+   connection.  If a packet sent is protected with a forward-secure key,
    then any acknowledgments that are received for them MUST also be
-   forward-secure encrypted.  Since the attacker will not have the
+   forward-secure protected.  Since the attacker will not have the
 
 
 
@@ -3755,7 +3755,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
 
    forward secure key, the attacker will not be able to generate
-   forward-secure encrypted packets with ACK frames.
+   forward-secure protected packets with ACK frames.
 
 13.2.  Slowloris Attacks
 

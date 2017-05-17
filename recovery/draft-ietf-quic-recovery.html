@@ -442,7 +442,7 @@ address {
 
 <ul>
   <li>Retransmittable frames are frames requiring reliable delivery.  The most common are STREAM frames, which typically contain application data.</li>
-  <li>Crypto handshake data is also sent as STREAM data, and uses the reliability machinery of QUIC underneath.</li>
+  <li>Crypto handshake data is sent on stream 0, and uses the reliability machinery of QUIC underneath.</li>
   <li>ACK frames contain acknowledgment information.  QUIC uses a SACK-based scheme, where acks express up to 256 ranges.  The ACK frame also includes a receive timestamp for each packet newly acked.</li>
 </ul>
 <h2 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1.</a> <a href="#relevant-differences-between-quic-and-tcp" id="relevant-differences-between-quic-and-tcp">Relevant Differences Between QUIC and TCP</a></h2>
@@ -467,8 +467,8 @@ address {
   <li>When a Retransmission Timeout (RTO) alarm fires. An RTO alarm is set after Tail Loss Probe attempts at evoking acknowledgements (see below). When this alarm fires, all unacknowledged packets are marked as lost.</li>
 </ul>
 <p id="rfc.section.3.p.3">A packet sent at the tail is particularly vulnerable to slow detection, since only the RTO alarm detects its loss. To ameliorate this weakness of tail packets, QUIC uses Tail Loss Probe (TLP). When a TLP alarm set on the last sent packet fires, a QUIC sender sends a packet with new data &#8212; or retransmitted data if no new data is available to send &#8212; helping to evoke an acknowledgement from the receiver which can trigger loss detection.</p>
-<p id="rfc.section.3.p.4">Handshake packets are special in a number of ways, and a separate alarm period is used for them.</p>
-<p id="rfc.section.3.p.5">The above mechanisms use a packet threshold to tolerate reordering. Alternatively, a QUIC sender may use a time threshold. This allows for senders to be tolerant of short periods of significant reordering. In this mechanism, a QUIC sender marks a packet as lost when a packet larger than it is acknowledged and a threshold amount of time has passed since the packet was sent.</p>
+<p id="rfc.section.3.p.4">The above mechanisms use a packet threshold to tolerate reordering. Alternatively, a QUIC sender may use a time threshold. This allows for senders to be tolerant of short periods of significant reordering. In this mechanism, a QUIC sender marks a packet as lost when a packet larger than it is acknowledged and a threshold amount of time has passed since the packet was sent.</p>
+<p id="rfc.section.3.p.5">Handshake packets, which contain STREAM frames for stream 0, are critical to QUIC transport and crypto negotiation, so a separate (more aggressive) alarm period is used for them.</p>
 <h2 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#algorithm-details" id="algorithm-details">Algorithm Details</a></h2>
 <h3 id="rfc.section.3.1.1"><a href="#rfc.section.3.1.1">3.1.1.</a> <a href="#constants-of-interest" id="constants-of-interest">Constants of Interest</a></h3>
 <p id="rfc.section.3.1.1.p.1">Constants used in loss recovery are based on a combination of RFCs, papers, and common practice.  Some may need to be changed or negotiated in order to better suit a variety of environments.</p>
@@ -509,8 +509,6 @@ address {
   <dd style="margin-left: 8">The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
   <dt>rttvar:</dt>
   <dd style="margin-left: 8">The RTT variance, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
-  <dt>initial_rtt:</dt>
-  <dd style="margin-left: 8">The initial RTT used before any RTT measurements have been made.</dd>
   <dt>reordering_threshold:</dt>
   <dd style="margin-left: 8">The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</dd>
   <dt>time_reordering_fraction:</dt>
@@ -536,7 +534,6 @@ address {
    loss_time = 0
    smoothed_rtt = 0
    rttvar = 0
-   initial_rtt = kDefaultInitialRtt
    largest_sent_before_rto = 0
 </pre>
 <h3 id="rfc.section.3.1.4"><a href="#rfc.section.3.1.4">3.1.4.</a> <a href="#on-sending-a-packet" id="on-sending-a-packet">On Sending a Packet</a></h3>
@@ -609,7 +606,7 @@ address {
 <h3 id="rfc.section.3.1.7"><a href="#rfc.section.3.1.7">3.1.7.</a> <a href="#setting-the-loss-detection-alarm" id="setting-the-loss-detection-alarm">Setting the Loss Detection Alarm</a></h3>
 <p id="rfc.section.3.1.7.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
 <h4 id="rfc.section.3.1.7.1"><a href="#rfc.section.3.1.7.1">3.1.7.1.</a> <a href="#handshake-packets" id="handshake-packets">Handshake Packets</a></h4>
-<p id="rfc.section.3.1.7.1.p.1">The initial flight has no prior RTT sample.  A client SHOULD remember the previous RTT it observed when resumption is attempted and use that for an initial RTT value.  If no previous RTT is available, the initial RTT defaults to 200ms.  Once an RTT measurement is taken, it MUST replace initial_rtt.</p>
+<p id="rfc.section.3.1.7.1.p.1">The initial flight has no prior RTT sample.  A client SHOULD remember the previous RTT it observed when resumption is attempted and use that for an initial RTT value.  If no previous RTT is available, the initial RTT defaults to 200ms.</p>
 <p id="rfc.section.3.1.7.1.p.2">Endpoints MUST retransmit handshake frames if not acknowledged within a time limit. This time limit will start as the largest of twice the rtt value and MinTLPTimeout.  Each consecutive handshake retransmission doubles the time limit, until an acknowledgement is received.</p>
 <p id="rfc.section.3.1.7.1.p.3">Handshake frames may be cancelled by handshake state transitions.  In particular, all non-protected frames SHOULD be no longer be transmitted once packet protection is available.</p>
 <p id="rfc.section.3.1.7.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
@@ -629,11 +626,11 @@ address {
     if (handshake packets are outstanding):
       // Handshake retransmission alarm.
       if (smoothed_rtt == 0):
-        alarm_duration = 2 * initial_rtt
+        alarm_duration = 2 * kDefaultInitialRtt
       else:
         alarm_duration = 2 * smoothed_rtt
       alarm_duration = max(alarm_duration, kMinTLPTimeout)
-      alarm_duration = alarm_duration &lt;&lt; handshake_count
+      alarm_duration = alarm_duration * (2 ^ handshake_count)
     else if (loss_time != 0):
       // Early retransmit timer or time loss detection.
       alarm_duration = loss_time - now
@@ -648,7 +645,7 @@ address {
       // RTO alarm
       alarm_duration = smoothed_rtt + 4 * rttvar
       alarm_duration = max(alarm_duration, kMinRTOTimeout)
-      alarm_duration = alarm_duration &lt;&lt; rto_count
+      alarm_duration = alarm_duration * (2 ^ rto_count)
 
     loss_detection_alarm.set(now + alarm_duration)
 </pre>

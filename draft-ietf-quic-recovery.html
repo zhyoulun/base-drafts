@@ -326,7 +326,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-5-22" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-5-24" />
   <meta name="dct.abstract" content="This document describes loss detection and congestion control mechanisms for QUIC." />
   <meta name="description" content="This document describes loss detection and congestion control mechanisms for QUIC." />
 
@@ -350,8 +350,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: November 23, 2017</td>
-  <td class="right">May 22, 2017</td>
+  <td class="left">Expires: November 25, 2017</td>
+  <td class="right">May 24, 2017</td>
 </tr>
 
     	
@@ -376,7 +376,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on November 23, 2017.</p>
+<p>This Internet-Draft will expire on November 25, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -510,6 +510,8 @@ address {
   <dd style="margin-left: 8">The number of times an rto has been sent without receiving an ack.</dd>
   <dt>largest_sent_before_rto:</dt>
   <dd style="margin-left: 8">The last packet number sent prior to the first retransmission timeout.</dd>
+  <dt>latest_rtt:</dt>
+  <dd style="margin-left: 8">The most recent RTT measurement made when receiving an ack for a previously unacked packet.</dd>
   <dt>smoothed_rtt:</dt>
   <dd style="margin-left: 8">The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
   <dt>rttvar:</dt>
@@ -567,10 +569,10 @@ address {
    OnAckReceived(ack):
      // If the largest acked is newly acked, update the RTT.
      if (sent_packets[ack.largest_acked]):
-       rtt_sample = now - sent_packets[ack.largest_acked].time
-       if (rtt_sample &gt; ack.ack_delay):
-         rtt_sample -= ack.delay
-       UpdateRtt(rtt_sample)
+       latest_rtt = now - sent_packets[ack.largest_acked].time
+       if (latest_rtt &gt; ack.ack_delay):
+         latest_rtt -= ack.delay
+       UpdateRtt(latest_rtt)
      // The sender may skip packets for detecting optimistic ACKs
      if (packets acked that the sender skipped):
        abortConnection()
@@ -582,14 +584,14 @@ address {
      SetLossDetectionAlarm()
 
 
-   UpdateRtt(rtt_sample):
+   UpdateRtt(latest_rtt):
      // Based on {{RFC6298}}.
      if (smoothed_rtt == 0):
-       smoothed_rtt = rtt_sample
-       rttvar = rtt_sample / 2
+       smoothed_rtt = latest_rtt
+       rttvar = latest_rtt / 2
      else:
-       rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - rtt_sample)
-       smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * rtt_sample
+       rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - latest_rtt)
+       smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * latest_rtt
 </pre>
 <h3 id="rfc.section.3.2.6"><a href="#rfc.section.3.2.6">3.2.6.</a> <a href="#on-packet-acknowledgment" id="on-packet-acknowledgment">On Packet Acknowledgment</a></h3>
 <p id="rfc.section.3.2.6.p.1">When a packet is acked for the first time, the following OnPacketAcked function is called.  Note that a single ACK frame may newly acknowledge several packets.  OnPacketAcked must be called once for each of these newly acked packets.</p>

@@ -510,6 +510,10 @@ address {
   <dd style="margin-left: 8">The number of times an rto has been sent without receiving an ack.</dd>
   <dt>largest_sent_before_rto:</dt>
   <dd style="margin-left: 8">The last packet number sent prior to the first retransmission timeout.</dd>
+  <dt>time_of_last_sent_packet:</dt>
+  <dd style="margin-left: 8">The time the most recent packet was sent.</dd>
+  <dt>latest_rtt:</dt>
+  <dd style="margin-left: 8">The most recent RTT measurement made when receiving an ack for a previously unacked packet.</dd>
   <dt>smoothed_rtt:</dt>
   <dd style="margin-left: 8">The smoothed RTT of the connection, computed as described in <a href="#RFC6298">[RFC6298]</a></dd>
   <dt>rttvar:</dt>
@@ -540,6 +544,7 @@ address {
    smoothed_rtt = 0
    rttvar = 0
    largest_sent_before_rto = 0
+   time_of_last_sent_packet = 0
 </pre>
 <h3 id="rfc.section.3.2.4"><a href="#rfc.section.3.2.4">3.2.4.</a> <a href="#on-sending-a-packet" id="on-sending-a-packet">On Sending a Packet</a></h3>
 <p id="rfc.section.3.2.4.p.1">After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called.  The parameters to OnPacketSent are as follows:</p>
@@ -553,6 +558,7 @@ address {
 <p id="rfc.section.3.2.4.p.3">Pseudocode for OnPacketSent follows:</p>
 <pre>
  OnPacketSent(packet_number, is_retransmittable, sent_bytes):
+   time_of_last_sent_packet = now;
    sent_packets[packet_number].packet_number = packet_number
    sent_packets[packet_number].time = now
    if is_retransmittable:
@@ -566,10 +572,10 @@ address {
    OnAckReceived(ack):
      // If the largest acked is newly acked, update the RTT.
      if (sent_packets[ack.largest_acked]):
-       rtt_sample = now - sent_packets[ack.largest_acked].time
-       if (rtt_sample &gt; ack.ack_delay):
-         rtt_sample -= ack.delay
-       UpdateRtt(rtt_sample)
+       latest_rtt = now - sent_packets[ack.largest_acked].time
+       if (latest_rtt &gt; ack.ack_delay):
+         latest_rtt -= ack.delay
+       UpdateRtt(latest_rtt)
      // Find all newly acked packets.
      for acked_packet in DetermineNewlyAckedPackets():
        OnPacketAcked(acked_packet.packet_number)
@@ -578,14 +584,14 @@ address {
      SetLossDetectionAlarm()
 
 
-   UpdateRtt(rtt_sample):
+   UpdateRtt(latest_rtt):
      // Based on {{RFC6298}}.
      if (smoothed_rtt == 0):
-       smoothed_rtt = rtt_sample
-       rttvar = rtt_sample / 2
+       smoothed_rtt = latest_rtt
+       rttvar = latest_rtt / 2
      else:
-       rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - rtt_sample)
-       smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * rtt_sample
+       rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - latest_rtt)
+       smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * latest_rtt
 </pre>
 <h3 id="rfc.section.3.2.6"><a href="#rfc.section.3.2.6">3.2.6.</a> <a href="#on-packet-acknowledgment" id="on-packet-acknowledgment">On Packet Acknowledgment</a></h3>
 <p id="rfc.section.3.2.6.p.1">When a packet is acked for the first time, the following OnPacketAcked function is called.  Note that a single ACK frame may newly acknowledge several packets.  OnPacketAcked must be called once for each of these newly acked packets.</p>

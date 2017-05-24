@@ -902,7 +902,7 @@ address {
 <p id="rfc.section.5.7.p.5">The sender MUST use a packet number size able to represent more than twice as large a range than the difference between the largest acknowledged packet and packet number being sent.  A peer receiving the packet will then correctly decode the packet number, unless the packet is delayed in transit such that it arrives after many higher-numbered packets have been received.  An endpoint MAY use a larger packet number size to safeguard against such reordering.</p>
 <p id="rfc.section.5.7.p.6">As a result, the size of the packet number encoding is at least one more than the base 2 logarithm of the number of contiguous unacknowledged packet numbers, including the new packet.</p>
 <p id="rfc.section.5.7.p.7">For example, if an endpoint has received an acknowledgment for packet 0x6afa2f, sending a packet with a number of 0x6b4264 requires a 16-bit or larger packet number encoding; whereas a 32-bit packet number is needed to send a packet with a number of 0x6bc107.</p>
-<p id="rfc.section.5.7.p.8">Version Negotiation (<a href="#packet-version">Section 5.3</a>), and Server Stateless Retry (<a href="#packet-server-stateless">Section 5.4.2</a>) packets have special rules for populating the packet number field.</p>
+<p id="rfc.section.5.7.p.8">Version Negotiation (<a href="#packet-version">Section 5.3</a>) and Server Stateless Retry (<a href="#packet-server-stateless">Section 5.4.2</a>) packets have special rules for populating the packet number field.</p>
 <h3 id="rfc.section.5.7.1"><a href="#rfc.section.5.7.1">5.7.1.</a> <a href="#initial-packet-number" id="initial-packet-number">Initial Packet Number</a></h3>
 <p id="rfc.section.5.7.1.p.1">The initial value for packet number MUST be selected from an uniform random distribution between 0 and 2^31-1.  That is, the lower 31 bits of the packet number are randomized.  <a href="#RFC4086">[RFC4086]</a> provides guidance on the generation of random values.</p>
 <p id="rfc.section.5.7.1.p.2">The first set of packets sent by an endpoint MUST include the low 32-bits of the packet number.  Once any packet has been acknowledged, subsequent packets can use a shorter packet number encoding.</p>
@@ -1236,7 +1236,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 </ol>
 <p id="rfc.section.7.7.p.3">TODO: Connections that are terminated are added to a TIME_WAIT list at the server, so as to absorb any straggler packets in the network.  Discuss TIME_WAIT list.</p>
 <h2 id="rfc.section.7.8"><a href="#rfc.section.7.8">7.8.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a></h2>
-<p id="rfc.section.7.8.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  This is intended for use by a server that has lost state (for example, through a crash or outage).  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
+<p id="rfc.section.7.8.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  A server crash or outage might result in clients continuing to send data to a server that is unable to properly continue the connection.  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
 <p id="rfc.section.7.8.p.2">To support this process, the server sends a stateless_reset_secret value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>
 <p id="rfc.section.7.8.p.3">A server that receives packets that it cannot process sends a packet in the following layout:</p>
 <pre>
@@ -1272,7 +1272,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.7.8.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Secret for that connection.</p>
 <p id="rfc.section.7.8.2.p.3">A server that loses state can use the same method to generate a valid Stateless Reset Secret.  The connection ID comes from the packet that the server receives.</p>
 <p id="rfc.section.7.8.2.p.4">This design relies on the client always sending a connection ID in its packets so that the server can use the connection ID from a packet to reset the connection.  A server that uses this design cannot allow clients to omit a connection ID (that is, it cannot use the truncate_connection_id transport parameter <a href="#transport-parameter-definitions">Section 7.3.1</a>).</p>
-<p id="rfc.section.7.8.2.p.5">A Stateless Reset Secret can only be used once for a given set of server instance, connection ID, and static key.  A connection ID from a connection that was reset cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
+<p id="rfc.section.7.8.2.p.5">Revealing the Stateless Reset Secret allows any entity to terminate the connection, so a value can only be used once.  This method for choosing the Stateless Reset Secret means that the combination of server instance, connection ID, and static key cannot occur for another connection.  A connection ID from a connection that is reset by revealing the Stateless Reset Secret cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#frame-types-and-formats" id="frame-types-and-formats">Frame Types and Formats</a></h1>
 <p id="rfc.section.8.p.1">As described in <a href="#frames">Section 6</a>, Regular packets contain one or more frames.  We now describe the various QUIC frame types that can be present in a Regular packet. The use of these frames and various frame header bits are described in subsequent sections.</p>
 <h2 id="rfc.section.8.1"><a href="#rfc.section.8.1">8.1.</a> <a href="#frame-stream" id="frame-stream">STREAM Frame</a></h2>
@@ -2043,12 +2043,6 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h2 id="rfc.references.1"><a href="#rfc.references.1">15.1.</a> Normative References</h2>
 <table>
   <tbody>
-    <tr>
-      <td class="reference">
-        <b id="FIPS180">[FIPS180]</b>
-      </td>
-      <td class="top"><a>Department of Commerce, National.</a>, "<a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf">NIST FIPS 180-4, Secure Hash Standard</a>", DOI 10.6028/NIST.FIPS.180-4 , August 2015.</td>
-    </tr>
     <tr>
       <td class="reference">
         <b id="I-D.ietf-tls-tls13">[I-D.ietf-tls-tls13]</b>

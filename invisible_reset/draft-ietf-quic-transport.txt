@@ -992,7 +992,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    16-bit or larger packet number encoding; whereas a 32-bit packet
    number is needed to send a packet with a number of 0x6bc107.
 
-   Version Negotiation (Section 5.3), and Server Stateless Retry
+   Version Negotiation (Section 5.3) and Server Stateless Retry
    (Section 5.4.2) packets have special rules for populating the packet
    number field.
 
@@ -1861,11 +1861,11 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 7.8.  Stateless Reset
 
    A stateless reset is provided as an option of last resort for a
-   server that does not have access to the state of a connection.  This
-   is intended for use by a server that has lost state (for example,
-   through a crash or outage).  A server that wishes to communicate a
-   fatal connection error MUST use a CONNECTION_CLOSE frame if it has
-   sufficient state to do so.
+   server that does not have access to the state of a connection.  A
+   server crash or outage might result in clients continuing to send
+   data to a server that is unable to properly continue the connection.
+   A server that wishes to communicate a fatal connection error MUST use
+   a CONNECTION_CLOSE frame if it has sufficient state to do so.
 
    To support this process, the server sends a stateless_reset_secret
    value during the handshake in the transport parameters.  This value
@@ -1975,11 +1975,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    cannot allow clients to omit a connection ID (that is, it cannot use
    the truncate_connection_id transport parameter Section 7.3.1).
 
-   A Stateless Reset Secret can only be used once for a given set of
-   server instance, connection ID, and static key.  A connection ID from
-   a connection that was reset cannot be reused for new connections at
-   the same server without first changing to use a different static key
-   or server identifier.
+   Revealing the Stateless Reset Secret allows any entity to terminate
+   the connection, so a value can only be used once.  This method for
+   choosing the Stateless Reset Secret means that the combination of
+   server instance, connection ID, and static key cannot occur for
+   another connection.  A connection ID from a connection that is reset
+   by revealing the Stateless Reset Secret cannot be reused for new
+   connections at the same server without first changing to use a
+   different static key or server identifier.
 
 8.  Frame Types and Formats
 
@@ -2007,9 +2010,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       length should only be used when the packet is a "full-sized"
       packet, to avoid the risk of corruption via padding.
 
-   o  The "OO" bits encode the length of the Offset header field as 0,
-      16, 32, or 64 bits long.
-
 
 
 
@@ -2017,6 +2017,9 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 36]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
+
+   o  The "OO" bits encode the length of the Offset header field as 0,
+      16, 32, or 64 bits long.
 
    o  The "SS" bits encode the length of the Stream ID header field as
       8, 16, 24, or 32 bits.
@@ -2063,9 +2066,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    multiple streams into one or more QUIC packets.  A single QUIC packet
    MAY bundle STREAM frames from multiple streams.
 
-   Implementation note: One of the benefits of QUIC is avoidance of
-   head-of-line blocking across multiple streams.  When a packet loss
-   occurs, only streams with data in that packet are blocked waiting for
 
 
 
@@ -2074,6 +2074,9 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 37]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+   Implementation note: One of the benefits of QUIC is avoidance of
+   head-of-line blocking across multiple streams.  When a packet loss
+   occurs, only streams with data in that packet are blocked waiting for
    a retransmission to be received, while other streams can continue
    making progress.  Note that when data from multiple streams is
    bundled into a single QUIC packet, loss of that packet blocks all
@@ -2120,9 +2123,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    send timestamps for non-retransmittable packets.  A receiver MUST not
    send timestamps in unprotected packets.
 
-   A sender MAY intentionally skip packet numbers to introduce entropy
-   into the connection, to avoid opportunistic acknowledgement attacks.
-
 
 
 Iyengar & Thomson       Expires November 25, 2017              [Page 38]
@@ -2130,6 +2130,8 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 38]
 Internet-Draft           QUIC Transport Protocol                May 2017
 
 
+   A sender MAY intentionally skip packet numbers to introduce entropy
+   into the connection, to avoid opportunistic acknowledgement attacks.
    The sender MUST close the connection if an unsent packet number is
    acknowledged.  The format of the ACK frame is efficient at expressing
    blocks of missing packets; skipping packet numbers between 1 and 255
@@ -2176,8 +2178,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    Num Blocks (opt):  An optional 8-bit unsigned value specifying the
       number of additional ACK blocks (besides the required First ACK
       Block) in this ACK frame.  Only present if the 'N' flag bit is 1.
-
-
 
 
 
@@ -3944,11 +3944,6 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
 15.1.  Normative References
 
-   [FIPS180]  Department of Commerce, National., "NIST FIPS 180-4,
-              Secure Hash Standard", DOI 10.6028/NIST.FIPS.180-4 ,
-              August 2015, <http://nvlpubs.nist.gov/nistpubs/FIPS/
-              NIST.FIPS.180-4.pdf>.
-
    [I-D.ietf-tls-tls13]
               Rescorla, E., "The Transport Layer Security (TLS) Protocol
               Version 1.3", draft-ietf-tls-tls13-20 (work in progress),
@@ -3968,6 +3963,11 @@ Internet-Draft           QUIC Transport Protocol                May 2017
               DOI 10.17487/RFC1191, November 1990,
               <http://www.rfc-editor.org/info/rfc1191>.
 
+   [RFC1981]  McCann, J., Deering, S., and J. Mogul, "Path MTU Discovery
+              for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
+              1996, <http://www.rfc-editor.org/info/rfc1981>.
+
+
 
 
 
@@ -3977,10 +3977,6 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 71]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   [RFC1981]  McCann, J., Deering, S., and J. Mogul, "Path MTU Discovery
-              for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
-              1996, <http://www.rfc-editor.org/info/rfc1981>.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -4025,6 +4021,10 @@ Internet-Draft           QUIC Transport Protocol                May 2017
               DOI 10.17487/RFC5869, May 2010,
               <http://www.rfc-editor.org/info/rfc5869>.
 
+   [RFC6824]  Ford, A., Raiciu, C., Handley, M., and O. Bonaventure,
+              "TCP Extensions for Multipath Operation with Multiple
+              Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
+              <http://www.rfc-editor.org/info/rfc6824>.
 
 
 
@@ -4033,11 +4033,6 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 72]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   [RFC6824]  Ford, A., Raiciu, C., Handley, M., and O. Bonaventure,
-              "TCP Extensions for Multipath Operation with Multiple
-              Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
-              <http://www.rfc-editor.org/info/rfc6824>.
 
    [RFC7301]  Friedl, S., Popov, A., Langley, A., and E. Stephan,
               "Transport Layer Security (TLS) Application-Layer Protocol
@@ -4082,6 +4077,11 @@ Appendix B.  Acknowledgments
    QUIC and its deployment: Chris Bentzel, Misha Efimov, Roberto Peon,
    Alistair Riddoch, Siddharth Vijayakrishnan, and Assar Westerlund.
 
+   This document has benefited immensely from various private
+   discussions and public ones on the quic@ietf.org and proto-
+   quic@chromium.org mailing lists.  Our thanks to all.
+
+
 
 
 
@@ -4089,10 +4089,6 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 73]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   This document has benefited immensely from various private
-   discussions and public ones on the quic@ietf.org and proto-
-   quic@chromium.org mailing lists.  Our thanks to all.
 
 Appendix C.  Change Log
 
@@ -4139,15 +4135,16 @@ C.1.  Since draft-ietf-quic-transport-02
    o  A NEW_CONNECTION_ID frame supports connection migration without
       linkability (#232, #491, #496)
 
+   o  Transport parameters for 0-RTT are retained from a previous
+      connection (#512)
+
+
 
 
 Iyengar & Thomson       Expires November 25, 2017              [Page 74]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   o  Transport parameters for 0-RTT are retained from a previous
-      connection (#512)
 
       *  A client in 0-RTT no longer required to reset excess streams
          (#425, #479)
@@ -4194,6 +4191,9 @@ C.2.  Since draft-ietf-quic-transport-01
    o  Forbid acknowledgment of packets containing only ACK and PADDING
       (#291)
 
+   o  Require that frames are processed when packets are acknowledged
+      (#381, #341)
+
 
 
 
@@ -4201,9 +4201,6 @@ Iyengar & Thomson       Expires November 25, 2017              [Page 75]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   o  Require that frames are processed when packets are acknowledged
-      (#381, #341)
 
    o  Removed the STOP_WAITING frame (#66)
 
@@ -4251,15 +4248,15 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
    o  GOAWAY includes a final stream number for both directions (#347)
 
+   o  Error codes for RST_STREAM and CONNECTION_CLOSE are now at a
+      consistent offset (#249)
+
 
 
 Iyengar & Thomson       Expires November 25, 2017              [Page 76]
 
 Internet-Draft           QUIC Transport Protocol                May 2017
 
-
-   o  Error codes for RST_STREAM and CONNECTION_CLOSE are now at a
-      consistent offset (#249)
 
    o  Defined priority as the responsibility of the application protocol
       (#104, #303)
@@ -4298,6 +4295,9 @@ Authors' Addresses
    Mozilla
 
    Email: martin.thomson@gmail.com
+
+
+
 
 
 

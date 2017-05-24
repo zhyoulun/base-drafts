@@ -130,7 +130,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
      7.7.  Connection Termination  . . . . . . . . . . . . . . . . .  33
      7.8.  Stateless Reset . . . . . . . . . . . . . . . . . . . . .  34
        7.8.1.  Detecting a Stateless Reset . . . . . . . . . . . . .  35
-       7.8.2.  Selecting a Stateless Reset Secret  . . . . . . . . .  35
+       7.8.2.  Selecting a Stateless Reset Token . . . . . . . . . .  35
    8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  36
      8.1.  STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  36
      8.2.  ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  38
@@ -1358,7 +1358,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
          initial_max_stream_id(2),
          idle_timeout(3),
          truncate_connection_id(4),
-         stateless_reset_secret(5),
+         stateless_reset_token(5),
          (65535)
       } TransportParameterId;
 
@@ -1435,9 +1435,9 @@ Internet-Draft           QUIC Transport Protocol                May 2017
       is encoded as an unsigned 16-bit integer.  The maximum value is
       600 seconds (10 minutes).
 
-   stateless_reset_secret (0x0005):  The Stateless Reset Secret is used
-      in verifying a stateless reset, see Section 7.8.  This parameter
-      is a sequence of 16 octets.
+   stateless_reset_token (0x0005):  The Stateless Reset Token is used in
+      verifying a stateless reset, see Section 7.8.  This parameter is a
+      sequence of 16 octets.
 
    An endpoint MAY use the following transport parameters:
 
@@ -1867,7 +1867,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    A server that wishes to communicate a fatal connection error MUST use
    a CONNECTION_CLOSE frame if it has sufficient state to do so.
 
-   To support this process, the server sends a stateless_reset_secret
+   To support this process, the server sends a stateless_reset_token
    value during the handshake in the transport parameters.  This value
    is protected by encryption, so only client and server know this
    value.
@@ -1917,10 +1917,10 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    connection ID.
 
    After the first short header octet and optional connection ID, the
-   server includes the value of the Stateless Reset Secret that it
+   server includes the value of the Stateless Reset Token that it
    included in its transport parameters.
 
-   After the Stateless Reset Secret, the server pads the message with
+   After the Stateless Reset Token, the server pads the message with
    random octets.
 
    This design ensures that a stateless reset packet is - to the extent
@@ -1931,14 +1931,14 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    A client detects a potential stateless reset when a packet with a
    short header cannot be decrypted.  The client then performs a
    constant-time comparison of the 16 octets that follow the Connection
-   ID with the Stateless Reset Secret provided by the server in its
+   ID with the Stateless Reset Token provided by the server in its
    transport parameters.  If this comparison is successful, the
    connection MUST be terminated immediately.  Otherwise, the packet can
    be discarded.
 
-7.8.2.  Selecting a Stateless Reset Secret
+7.8.2.  Selecting a Stateless Reset Token
 
-   In order to create a Stateless Reset Secret, a server could randomly
+   In order to create a Stateless Reset Token, a server could randomly
    generate [RFC4086] a secret for every connection that it creates.
    However, this presents a coordination problem when there are multiple
    servers in a cluster or a storage problem for a server that might
@@ -1963,7 +1963,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
 
 
    output of this function is truncated to 16 octets to produce the
-   Stateless Reset Secret for that connection.
+   Stateless Reset Token for that connection.
 
    A server that loses state can use the same method to generate a valid
    Stateless Reset Secret.  The connection ID comes from the packet that
@@ -1975,12 +1975,12 @@ Internet-Draft           QUIC Transport Protocol                May 2017
    cannot allow clients to omit a connection ID (that is, it cannot use
    the truncate_connection_id transport parameter Section 7.3.1).
 
-   Revealing the Stateless Reset Secret allows any entity to terminate
+   Revealing the Stateless Reset Token allows any entity to terminate
    the connection, so a value can only be used once.  This method for
-   choosing the Stateless Reset Secret means that the combination of
+   choosing the Stateless Reset Token means that the combination of
    server instance, connection ID, and static key cannot occur for
    another connection.  A connection ID from a connection that is reset
-   by revealing the Stateless Reset Secret cannot be reused for new
+   by revealing the Stateless Reset Token cannot be reused for new
    connections at the same server without first changing to use a
    different static key or server identifier.
 
@@ -3935,7 +3935,7 @@ Internet-Draft           QUIC Transport Protocol                May 2017
            |        |                         |               |
            | 0x0004 | truncate_connection_id  | Section 7.3.1 |
            |        |                         |               |
-           | 0x0005 | stateless_reset_secret  | Section 7.3.1 |
+           | 0x0005 | stateless_reset_token   | Section 7.3.1 |
            +--------+-------------------------+---------------+
 
             Table 4: Initial QUIC Transport Parameters Entries

@@ -324,7 +324,7 @@ address {
 <link href="#rfc.section.7.7" rel="Chapter" title="7.7 Connection Termination"/>
 <link href="#rfc.section.7.8" rel="Chapter" title="7.8 Stateless Reset"/>
 <link href="#rfc.section.7.8.1" rel="Chapter" title="7.8.1 Detecting a Stateless Reset"/>
-<link href="#rfc.section.7.8.2" rel="Chapter" title="7.8.2 Selecting a Stateless Reset Secret"/>
+<link href="#rfc.section.7.8.2" rel="Chapter" title="7.8.2 Selecting a Stateless Reset Token"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 Frame Types and Formats"/>
 <link href="#rfc.section.8.1" rel="Chapter" title="8.1 STREAM Frame"/>
 <link href="#rfc.section.8.2" rel="Chapter" title="8.2 ACK Frame"/>
@@ -505,7 +505,7 @@ address {
 </ul><li>7.7.   <a href="#rfc.section.7.7">Connection Termination</a></li>
 <li>7.8.   <a href="#rfc.section.7.8">Stateless Reset</a></li>
 <ul><li>7.8.1.   <a href="#rfc.section.7.8.1">Detecting a Stateless Reset</a></li>
-<li>7.8.2.   <a href="#rfc.section.7.8.2">Selecting a Stateless Reset Secret</a></li>
+<li>7.8.2.   <a href="#rfc.section.7.8.2">Selecting a Stateless Reset Token</a></li>
 </ul></ul><li>8.   <a href="#rfc.section.8">Frame Types and Formats</a></li>
 <ul><li>8.1.   <a href="#rfc.section.8.1">STREAM Frame</a></li>
 <li>8.2.   <a href="#rfc.section.8.2">ACK Frame</a></li>
@@ -1111,7 +1111,7 @@ address {
       initial_max_stream_id(2),
       idle_timeout(3),
       truncate_connection_id(4),
-      stateless_reset_secret(5),
+      stateless_reset_token(5),
       (65535)
    } TransportParameterId;
 
@@ -1149,8 +1149,8 @@ address {
   <dd style="margin-left: 8">The initial maximum stream ID parameter contains the initial maximum stream number the peer may initiate, encoded as an unsigned 32-bit integer.  This is equivalent to sending a MAX_STREAM_ID (<a href="#frame-max-stream-id">Section 8.5</a>) immediately after completing the handshake.</dd>
   <dt>idle_timeout (0x0003):</dt>
   <dd style="margin-left: 8">The idle timeout is a value in seconds that is encoded as an unsigned 16-bit integer.  The maximum value is 600 seconds (10 minutes).</dd>
-  <dt>stateless_reset_secret (0x0005):</dt>
-  <dd style="margin-left: 8">The Stateless Reset Secret is used in verifying a stateless reset, see <a href="#stateless-reset">Section 7.8</a>.  This parameter is a sequence of 16 octets.</dd>
+  <dt>stateless_reset_token (0x0005):</dt>
+  <dd style="margin-left: 8">The Stateless Reset Token is used in verifying a stateless reset, see <a href="#stateless-reset">Section 7.8</a>.  This parameter is a sequence of 16 octets.</dd>
 </dl>
 <p id="rfc.section.7.3.1.p.3">An endpoint MAY use the following transport parameters:</p>
 <p/>
@@ -1237,7 +1237,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.7.7.p.3">TODO: Connections that are terminated are added to a TIME_WAIT list at the server, so as to absorb any straggler packets in the network.  Discuss TIME_WAIT list.</p>
 <h2 id="rfc.section.7.8"><a href="#rfc.section.7.8">7.8.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a></h2>
 <p id="rfc.section.7.8.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  A server crash or outage might result in clients continuing to send data to a server that is unable to properly continue the connection.  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
-<p id="rfc.section.7.8.p.2">To support this process, the server sends a stateless_reset_secret value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>
+<p id="rfc.section.7.8.p.2">To support this process, the server sends a stateless_reset_token value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>
 <p id="rfc.section.7.8.p.3">A server that receives packets that it cannot process sends a packet in the following layout:</p>
 <pre>
  0                   1                   2                   3
@@ -1262,17 +1262,17 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 </pre>
 <p id="rfc.section.7.8.p.4">This packet uses the short header form with the shortest possible packet number encoding.  This minimizes the perceived gap between the last packet that the server sent and this packet.  The leading octet of the Stateless Reset Token will be interpreted as a packet number.  A server MAY use a different short header type, indicating a different packet number length, but this allows for the message to be identified as a stateless reset more easily using heuristics.</p>
 <p id="rfc.section.7.8.p.5">A server copies the connection ID field from the packet that triggers the stateless reset.  A server omits the connection ID if explicitly configured to do so, or if the client packet did not include a connection ID.</p>
-<p id="rfc.section.7.8.p.6">After the first short header octet and optional connection ID, the server includes the value of the Stateless Reset Secret that it included in its transport parameters.</p>
-<p id="rfc.section.7.8.p.7">After the Stateless Reset Secret, the server pads the message with random octets.</p>
+<p id="rfc.section.7.8.p.6">After the first short header octet and optional connection ID, the server includes the value of the Stateless Reset Token that it included in its transport parameters.</p>
+<p id="rfc.section.7.8.p.7">After the Stateless Reset Token, the server pads the message with random octets.</p>
 <p id="rfc.section.7.8.p.8">This design ensures that a stateless reset packet is - to the extent possible - indistinguishable from a regular packet.</p>
 <h3 id="rfc.section.7.8.1"><a href="#rfc.section.7.8.1">7.8.1.</a> <a href="#detecting-a-stateless-reset" id="detecting-a-stateless-reset">Detecting a Stateless Reset</a></h3>
-<p id="rfc.section.7.8.1.p.1">A client detects a potential stateless reset when a packet with a short header cannot be decrypted.  The client then performs a constant-time comparison of the 16 octets that follow the Connection ID with the Stateless Reset Secret provided by the server in its transport parameters.  If this comparison is successful, the connection MUST be terminated immediately.  Otherwise, the packet can be discarded.</p>
-<h3 id="rfc.section.7.8.2"><a href="#rfc.section.7.8.2">7.8.2.</a> <a href="#selecting-a-stateless-reset-secret" id="selecting-a-stateless-reset-secret">Selecting a Stateless Reset Secret</a></h3>
-<p id="rfc.section.7.8.2.p.1">In order to create a Stateless Reset Secret, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
-<p id="rfc.section.7.8.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Secret for that connection.</p>
+<p id="rfc.section.7.8.1.p.1">A client detects a potential stateless reset when a packet with a short header cannot be decrypted.  The client then performs a constant-time comparison of the 16 octets that follow the Connection ID with the Stateless Reset Token provided by the server in its transport parameters.  If this comparison is successful, the connection MUST be terminated immediately.  Otherwise, the packet can be discarded.</p>
+<h3 id="rfc.section.7.8.2"><a href="#rfc.section.7.8.2">7.8.2.</a> <a href="#selecting-a-stateless-reset-token" id="selecting-a-stateless-reset-token">Selecting a Stateless Reset Token</a></h3>
+<p id="rfc.section.7.8.2.p.1">In order to create a Stateless Reset Token, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
+<p id="rfc.section.7.8.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Token for that connection.</p>
 <p id="rfc.section.7.8.2.p.3">A server that loses state can use the same method to generate a valid Stateless Reset Secret.  The connection ID comes from the packet that the server receives.</p>
 <p id="rfc.section.7.8.2.p.4">This design relies on the client always sending a connection ID in its packets so that the server can use the connection ID from a packet to reset the connection.  A server that uses this design cannot allow clients to omit a connection ID (that is, it cannot use the truncate_connection_id transport parameter <a href="#transport-parameter-definitions">Section 7.3.1</a>).</p>
-<p id="rfc.section.7.8.2.p.5">Revealing the Stateless Reset Secret allows any entity to terminate the connection, so a value can only be used once.  This method for choosing the Stateless Reset Secret means that the combination of server instance, connection ID, and static key cannot occur for another connection.  A connection ID from a connection that is reset by revealing the Stateless Reset Secret cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
+<p id="rfc.section.7.8.2.p.5">Revealing the Stateless Reset Token allows any entity to terminate the connection, so a value can only be used once.  This method for choosing the Stateless Reset Token means that the combination of server instance, connection ID, and static key cannot occur for another connection.  A connection ID from a connection that is reset by revealing the Stateless Reset Token cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#frame-types-and-formats" id="frame-types-and-formats">Frame Types and Formats</a></h1>
 <p id="rfc.section.8.p.1">As described in <a href="#frames">Section 6</a>, Regular packets contain one or more frames.  We now describe the various QUIC frame types that can be present in a Regular packet. The use of these frames and various frame header bits are described in subsequent sections.</p>
 <h2 id="rfc.section.8.1"><a href="#rfc.section.8.1">8.1.</a> <a href="#frame-stream" id="frame-stream">STREAM Frame</a></h2>
@@ -2032,7 +2032,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
     </tr>
     <tr>
       <td class="left">0x0005</td>
-      <td class="left">stateless_reset_secret</td>
+      <td class="left">stateless_reset_token</td>
       <td class="left">
         <a href="#transport-parameter-definitions">Section 7.3.1</a>
       </td>

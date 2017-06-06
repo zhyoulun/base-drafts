@@ -94,7 +94,7 @@ Table of Contents
      5.4.  Cleartext Packets . . . . . . . . . . . . . . . . . . . .  14
        5.4.1.  Client Initial Packet . . . . . . . . . . . . . . . .  14
        5.4.2.  Server Stateless Retry Packet . . . . . . . . . . . .  15
-       5.4.3.  Server Cleartext Packet . . . . . . . . . . . . . . .  15
+       5.4.3.  Server Cleartext Packet . . . . . . . . . . . . . . .  16
        5.4.4.  Client Cleartext Packet . . . . . . . . . . . . . . .  16
      5.5.  Protected Packets . . . . . . . . . . . . . . . . . . . .  16
      5.6.  Public Reset Packet . . . . . . . . . . . . . . . . . . .  17
@@ -776,8 +776,8 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    The payload of a Client Initial packet consists of a STREAM frame (or
    frames) for stream 0 containing a cryptographic handshake message,
    plus any PADDING frames necessary to ensure that the packet is at
-   least the minimum size (see Section 9).  This stream frame always
-   starts at an offset of 0 (see Section 7.4).
+   least the minimum PMTU size (see Section 9).  The stream in this
+   packet always starts at an offset of 0 (see Section 7.4) and the
 
 
 
@@ -785,6 +785,9 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 14]
 
 Internet-Draft           QUIC Transport Protocol               June 2017
 
+
+   complete cyptographic handshake message MUST fit in a single packet
+   (see Section 7.2).
 
    The client uses the Client Initial Packet type for any packet that
    contains an initial cryptographic handshake message.  This includes
@@ -828,11 +831,8 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    send a single Server Stateless Retry packet in response to each
    Client Initial packet that is receives.
 
-5.4.3.  Server Cleartext Packet
 
-   A Server Cleartext packet uses long headers with a type value of
-   0x04.  It is used to carry acknowledgments and cryptographic
-   handshake messages from the server.
+
 
 
 
@@ -841,6 +841,12 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 15]
 
 Internet-Draft           QUIC Transport Protocol               June 2017
 
+
+5.4.3.  Server Cleartext Packet
+
+   A Server Cleartext packet uses long headers with a type value of
+   0x04.  It is used to carry acknowledgments and cryptographic
+   handshake messages from the server.
 
    The connection ID field in a Server Cleartext packet contains a
    connection ID that is chosen by the server (see Section 5.7).
@@ -883,12 +889,6 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    The client can send 0-RTT packets after having received a packet from
    the server if that packet does not complete the handshake.  Even if
    the client receives a different connection ID from the server, it
-   MUST NOT update the connection ID it uses for 0-RTT packets.  This
-   enables consistent routing for all 0-RTT packets.
-
-   Packets protected with 1-RTT keys that use long headers use a type
-   value of 0x07 for key phase 0 and 0x08 for key phase 1; see
-   [QUIC-TLS] for more details on the use of key phases.  The connection
 
 
 
@@ -898,6 +898,12 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 16]
 Internet-Draft           QUIC Transport Protocol               June 2017
 
 
+   MUST NOT update the connection ID it uses for 0-RTT packets.  This
+   enables consistent routing for all 0-RTT packets.
+
+   Packets protected with 1-RTT keys that use long headers use a type
+   value of 0x07 for key phase 0 and 0x08 for key phase 1; see
+   [QUIC-TLS] for more details on the use of key phases.  The connection
    ID field for these packet types MUST contain the value selected by
    the server, see Section 5.7.
 
@@ -940,12 +946,6 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    originally participated in the connection (see Section 5.6.1 for
    details).
 
-   Upon receipt of a Public Reset packet that contains a valid proof, a
-   client MUST tear down state associated with the connection.  The
-   client MUST then cease sending packets on the connection and SHOULD
-   discard any subsequent packets that arrive.  A Public Reset that does
-   not contain a valid proof MUST be ignored.
-
 
 
 
@@ -953,6 +953,12 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 17]
 
 Internet-Draft           QUIC Transport Protocol               June 2017
 
+
+   Upon receipt of a Public Reset packet that contains a valid proof, a
+   client MUST tear down state associated with the connection.  The
+   client MUST then cease sending packets on the connection and SHOULD
+   discard any subsequent packets that arrive.  A Public Reset that does
+   not contain a valid proof MUST be ignored.
 
 5.6.1.  Public Reset Proof
 
@@ -996,12 +1002,6 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    A QUIC endpoint MUST NOT reuse a packet number within the same
    connection (that is, under the same cryptographic keys).  If the
    packet number for sending reaches 2^64 - 1, the sender MUST close the
-   connection by sending a CONNECTION_CLOSE frame with the error code
-   QUIC_SEQUENCE_NUMBER_LIMIT_REACHED (connection termination is
-   described in Section 7.7.)
-
-   To reduce the number of bits required to represent the packet number
-   over the wire, only the least significant bits of the packet number
 
 
 
@@ -1010,6 +1010,12 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 18]
 Internet-Draft           QUIC Transport Protocol               June 2017
 
 
+   connection by sending a CONNECTION_CLOSE frame with the error code
+   QUIC_SEQUENCE_NUMBER_LIMIT_REACHED (connection termination is
+   described in Section 7.7.)
+
+   To reduce the number of bits required to represent the packet number
+   over the wire, only the least significant bits of the packet number
    are transmitted over the wire, up to 32 bits.  The actual packet
    number for each packet is reconstructed at the receiver based on the
    largest packet number received on a successfully authenticated
@@ -1050,14 +1056,8 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    of the packet number are randomized.  [RFC4086] provides guidance on
    the generation of random values.
 
-   The first set of packets sent by an endpoint MUST include the low
-   32-bits of the packet number.  Once any packet has been acknowledged,
-   subsequent packets can use a shorter packet number encoding.
 
-   A client that receives a Version Negotiation (Section 5.3) or Server
-   Stateless Retry packet (Section 5.4.2) MUST generate a new initial
-   packet number.  This ensures that the first transmission attempt for
-   a Client Initial packet (Section 5.4.1) always contains a randomized
+
 
 
 
@@ -1066,6 +1066,14 @@ Iyengar & Thomson       Expires December 8, 2017               [Page 19]
 Internet-Draft           QUIC Transport Protocol               June 2017
 
 
+   The first set of packets sent by an endpoint MUST include the low
+   32-bits of the packet number.  Once any packet has been acknowledged,
+   subsequent packets can use a shorter packet number encoding.
+
+   A client that receives a Version Negotiation (Section 5.3) or Server
+   Stateless Retry packet (Section 5.4.2) MUST generate a new initial
+   packet number.  This ensures that the first transmission attempt for
+   a Client Initial packet (Section 5.4.1) always contains a randomized
    packet number, but packets that contain retransmissions increment the
    packet number.
 
@@ -1099,6 +1107,21 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    of protected payloads consists of a sequence of frames, as shown in
    Figure 4.
 
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson       Expires December 8, 2017               [Page 20]
+
+Internet-Draft           QUIC Transport Protocol               June 2017
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1112,15 +1135,6 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                   Figure 4: Contents of Protected Payload
-
-
-
-
-
-Iyengar & Thomson       Expires December 8, 2017               [Page 20]
-
-Internet-Draft           QUIC Transport Protocol               June 2017
-
 
    Protected payloads MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.
@@ -1142,20 +1156,6 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    For all other frames, the Frame Type byte simply identifies the
    frame.  These frames are explained in more detail as they are
    referenced later in the document.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2692,7 +2692,7 @@ Internet-Draft           QUIC Transport Protocol               June 2017
 
 9.  Packetization and Reliability
 
-   The Path Maximum Transmission Unit (PTMU) is the maximum size of the
+   The Path Maximum Transmission Unit (PMTU) is the maximum size of the
    entire IP header, UDP header, and UDP payload.  The UDP payload
    includes the QUIC public header, protected payload, and any
    authentication fields.

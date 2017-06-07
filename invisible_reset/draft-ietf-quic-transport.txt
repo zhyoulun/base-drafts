@@ -426,7 +426,7 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    This version of the specification is identified by the number
    0x00000001.
 
-   Version 0x000000001 of QUIC uses TLS as a cryptographic handshake
+   Version 0x00000001 of QUIC uses TLS as a cryptographic handshake
    protocol, as described in [QUIC-TLS].
 
    Versions with the most significant 16 bits of the version number
@@ -702,16 +702,16 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    a response to a client packet that contains a version that is not
    supported by the server.
 
-   The connection ID field contains a server-selected connection ID that
-   the client MUST use for subsequent packets, see Section 5.6.
-
-   The packet number and version fields echo corresponding values from
-   the triggering client packet.  This allows clients some assurance
-   that the server received the packet and that the Version Negotiation
-   packet was not carried in a packet with a spoofed source address.
+   The packet number, connection ID and version fields echo
+   corresponding values from the triggering client packet.  This allows
+   clients some assurance that the server received the packet and that
+   the Version Negotiation packet was not carried in a packet with a
+   spoofed source address.
 
    The payload of the Version Negotiation packet is a list of 32-bit
    versions which the server supports, as shown below.
+
+
 
 
 
@@ -776,8 +776,8 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    The payload of a Client Initial packet consists of a STREAM frame (or
    frames) for stream 0 containing a cryptographic handshake message,
    plus any PADDING frames necessary to ensure that the packet is at
-   least the minimum size (see Section 9).  This stream frame always
-   starts at an offset of 0 (see Section 7.4).
+   least the minimum PMTU size (see Section 9).  The stream in this
+   packet always starts at an offset of 0 (see Section 7.4) and the
 
 
 
@@ -785,6 +785,9 @@ Iyengar & Thomson       Expires December 9, 2017               [Page 14]
 
 Internet-Draft           QUIC Transport Protocol               June 2017
 
+
+   complete cyptographic handshake message MUST fit in a single packet
+   (see Section 7.2).
 
    The client uses the Client Initial Packet type for any packet that
    contains an initial cryptographic handshake message.  This includes
@@ -800,12 +803,9 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    acknowledgments.  It is used by a server that wishes to perform a
    stateless retry (see Section 7.4).
 
-   The connection ID field in a Server Stateless Retry packet contains a
-   server selected value, see Section 5.6.
-
-   The packet number field echoes the packet number of the triggering
-   client packet.  This allows a client to verify that the server
-   received its packet.
+   The packet number and connection ID fields echo the corresponding
+   fields from the triggering client packet.  This allows a client to
+   verify that the server received its packet.
 
    After receiving a Server Stateless Retry packet, the client uses a
    new Client Initial packet containing the next cryptographic handshake
@@ -921,22 +921,19 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    balancers, to locate and use it.
 
    The client MUST choose a random connection ID and use it in Client
-   Initial packets (Section 5.4.1).  If the client has received any
-   packet from the server, it uses the connection ID it received from
-   the server.
+   Initial packets (Section 5.4.1) and 0-RTT packets (Section 5.5).  If
+   the client has received any packet from the server, it uses the
+   connection ID it received from the server for all packets other than
+   0-RTT packets.
 
-   When the server receives a Client Initial packet, it chooses a new
-   value for the connection ID and sends that in its response.  The
-   server MUST send a new connection ID in any packet that is sent in
-   response to a Client Initial packet.  This includes Version
-   Negotiation (Section 5.3), Server Stateless Retry (Section 5.4.2),
-   and the first Server Cleartext packet (Section 5.4.3).  The server
-   MAY choose to use the value that the client initially selects.
+   When the server receives a Client Initial packet and decides to
+   proceed with the handshake, it chooses a new value for the connection
+   ID and sends that in a Server Cleartext packet.  The server MAY
+   choose to use the value that the client initially selects.
 
-   A server MUST NOT propose a different connection ID in response to a
-   Client Cleartext packet (Section 5.4.4).  A Client Cleartext packet
-   is only sent after the server has committed to maintaining connection
-   state.
+   Once the client receives the connection ID that the server has
+   chosen, it uses this for all subsequent packets that it sends, except
+   for any 0-RTT packets, which all have the same connection ID.
 
 5.7.  Packet Numbers
 
@@ -946,6 +943,9 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    number for sending MUST increase by at least one after sending any
    packet, unless otherwise specified (see Section 5.7.1).
 
+   A QUIC endpoint MUST NOT reuse a packet number within the same
+   connection (that is, under the same cryptographic keys).  If the
+   packet number for sending reaches 2^64 - 1, the sender MUST close the
 
 
 
@@ -954,9 +954,6 @@ Iyengar & Thomson       Expires December 9, 2017               [Page 17]
 Internet-Draft           QUIC Transport Protocol               June 2017
 
 
-   A QUIC endpoint MUST NOT reuse a packet number within the same
-   connection (that is, under the same cryptographic keys).  If the
-   packet number for sending reaches 2^64 - 1, the sender MUST close the
    connection by sending a CONNECTION_CLOSE frame with the error code
    QUIC_SEQUENCE_NUMBER_LIMIT_REACHED (connection termination is
    described in Section 7.7.)
@@ -1002,6 +999,9 @@ Internet-Draft           QUIC Transport Protocol               June 2017
    random distribution between 0 and 2^31-1.  That is, the lower 31 bits
    of the packet number are randomized.  [RFC4086] provides guidance on
    the generation of random values.
+
+
+
 
 
 
@@ -2773,7 +2773,7 @@ Internet-Draft           QUIC Transport Protocol               June 2017
 
 9.  Packetization and Reliability
 
-   The Path Maximum Transmission Unit (PTMU) is the maximum size of the
+   The Path Maximum Transmission Unit (PMTU) is the maximum size of the
    entire IP header, UDP header, and UDP payload.  The UDP payload
    includes the QUIC packet header, protected payload, and any
    authentication fields.
@@ -3598,7 +3598,7 @@ Internet-Draft           QUIC Transport Protocol               June 2017
 12.2.  Stream Errors
 
    If the error affects a single stream, but otherwise leaves the
-   connection in a recoverable state, the endpoint can sent a RST_STREAM
+   connection in a recoverable state, the endpoint can send a RST_STREAM
    frame (Section 8.9) with an appropriate error code to terminate just
    the affected stream.
 

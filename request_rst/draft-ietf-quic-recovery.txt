@@ -5,7 +5,7 @@
 QUIC                                                     J. Iyengar, Ed.
 Internet-Draft                                             I. Swett, Ed.
 Intended status: Standards Track                                  Google
-Expires: November 3, 2017                                    May 2, 2017
+Expires: December 9, 2017                                   June 7, 2017
 
 
                QUIC Loss Detection and Congestion Control
@@ -41,7 +41,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on November 3, 2017.
+   This Internet-Draft will expire on December 9, 2017.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Iyengar & Swett         Expires November 3, 2017                [Page 1]
+Iyengar & Swett         Expires December 9, 2017                [Page 1]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    (http://trustee.ietf.org/license-info) in effect on the date of
@@ -105,17 +105,18 @@ Table of Contents
      6.2.  Informative References  . . . . . . . . . . . . . . . . .  16
    Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  17
    Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  17
-     B.1.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  17
+     B.1.  Since draft-ietf-quic-recovery-02 . . . . . . . . . . . .  17
 
 
 
-Iyengar & Swett         Expires November 3, 2017                [Page 2]
+Iyengar & Swett         Expires December 9, 2017                [Page 2]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
-     B.2.  Since draft-ietf-quic-recovery-00:  . . . . . . . . . . .  18
-     B.3.  Since draft-iyengar-quic-loss-recovery-01:  . . . . . . .  18
+     B.2.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  18
+     B.3.  Since draft-ietf-quic-recovery-00 . . . . . . . . . . . .  18
+     B.4.  Since draft-iyengar-quic-loss-recovery-01 . . . . . . . .  18
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  18
 
 1.  Introduction
@@ -157,17 +158,16 @@ Internet-Draft             QUIC Loss Detection                  May 2017
       The most common are STREAM frames, which typically contain
       application data.
 
-   o  Crypto handshake data is also sent as STREAM data, and uses the
+   o  Crypto handshake data is sent on stream 0, and uses the
       reliability machinery of QUIC underneath.
 
 
 
 
 
-
-Iyengar & Swett         Expires November 3, 2017                [Page 3]
+Iyengar & Swett         Expires December 9, 2017                [Page 3]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    o  ACK frames contain acknowledgment information.  QUIC uses a SACK-
@@ -221,9 +221,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017                [Page 4]
+Iyengar & Swett         Expires December 9, 2017                [Page 4]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
 2.1.3.  More ACK Ranges
@@ -277,9 +277,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017                [Page 5]
+Iyengar & Swett         Expires December 9, 2017                [Page 5]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    o  Instead of a packet threshold to tolerate reordering, a QUIC
@@ -289,7 +289,8 @@ Internet-Draft             QUIC Loss Detection                  May 2017
       larger than it is acknowledged and a threshold amount of time has
       passed since the packet was sent.
 
-   o  Handshake packets are special in a number of ways, and a separate
+   o  Handshake packets, which contain STREAM frames for stream 0, are
+      critical to QUIC transport and crypto negotiation, so a separate
       alarm period is used for them.
 
 3.2.  Algorithm Details
@@ -332,10 +333,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-
-Iyengar & Swett         Expires November 3, 2017                [Page 6]
+Iyengar & Swett         Expires December 9, 2017                [Page 6]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    handshake_count:  The number of times the handshake packets have been
@@ -350,13 +350,15 @@ Internet-Draft             QUIC Loss Detection                  May 2017
    largest_sent_before_rto:  The last packet number sent prior to the
       first retransmission timeout.
 
+   time_of_last_sent_packet:  The time the most recent packet was sent.
+
+   latest_rtt:  The most recent RTT measurement made when receiving an
+      ack for a previously unacked packet.
+
    smoothed_rtt:  The smoothed RTT of the connection, computed as
       described in [RFC6298]
 
    rttvar:  The RTT variance, computed as described in [RFC6298]
-
-   initial_rtt:  The initial RTT used before any RTT measurements have
-      been made.
 
    reordering_threshold:  The largest delta between the largest acked
       retransmittable packet and a packet containing retransmittable
@@ -387,11 +389,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-
-
-Iyengar & Swett         Expires November 3, 2017                [Page 7]
+Iyengar & Swett         Expires December 9, 2017                [Page 7]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
       loss_detection_alarm.reset()
@@ -407,8 +407,8 @@ Internet-Draft             QUIC Loss Detection                  May 2017
       loss_time = 0
       smoothed_rtt = 0
       rttvar = 0
-      initial_rtt = kDefaultInitialRtt
       largest_sent_before_rto = 0
+      time_of_last_sent_packet = 0
 
 3.2.4.  On Sending a Packet
 
@@ -430,6 +430,7 @@ Internet-Draft             QUIC Loss Detection                  May 2017
    Pseudocode for OnPacketSent follows:
 
     OnPacketSent(packet_number, is_retransmittable, sent_bytes):
+      time_of_last_sent_packet = now;
       sent_packets[packet_number].packet_number = packet_number
       sent_packets[packet_number].time = now
       if is_retransmittable:
@@ -440,28 +441,22 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
    When an ack is received, it may acknowledge 0 or more packets.
 
-   The sender MUST abort the connection if it receives an ACK for a
-   packet it never sent, see [QUIC-TRANSPORT].
-
-
-
-Iyengar & Swett         Expires November 3, 2017                [Page 8]
-
-Internet-Draft             QUIC Loss Detection                  May 2017
-
-
    Pseudocode for OnAckReceived and UpdateRtt follow:
+
+
+
+Iyengar & Swett         Expires December 9, 2017                [Page 8]
+
+Internet-Draft             QUIC Loss Detection                 June 2017
+
 
       OnAckReceived(ack):
         // If the largest acked is newly acked, update the RTT.
         if (sent_packets[ack.largest_acked]):
-          rtt_sample = now - sent_packets[ack.largest_acked].time
-          if (rtt_sample > ack.ack_delay):
-            rtt_sample -= ack.delay
-          UpdateRtt(rtt_sample)
-        // The sender may skip packets for detecting optimistic ACKs
-        if (packets acked that the sender skipped):
-          abortConnection()
+          latest_rtt = now - sent_packets[ack.largest_acked].time
+          if (latest_rtt > ack.ack_delay):
+            latest_rtt -= ack.delay
+          UpdateRtt(latest_rtt)
         // Find all newly acked packets.
         for acked_packet in DetermineNewlyAckedPackets():
           OnPacketAcked(acked_packet.packet_number)
@@ -470,14 +465,14 @@ Internet-Draft             QUIC Loss Detection                  May 2017
         SetLossDetectionAlarm()
 
 
-      UpdateRtt(rtt_sample):
+      UpdateRtt(latest_rtt):
         // Based on {{RFC6298}}.
         if (smoothed_rtt == 0):
-          smoothed_rtt = rtt_sample
-          rttvar = rtt_sample / 2
+          smoothed_rtt = latest_rtt
+          rttvar = latest_rtt / 2
         else:
-          rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - rtt_sample)
-          smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * rtt_sample
+          rttvar = 3/4 * rttvar + 1/4 * (smoothed_rtt - latest_rtt)
+          smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * latest_rtt
 
 3.2.6.  On Packet Acknowledgment
 
@@ -501,9 +496,14 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017                [Page 9]
+
+
+
+
+
+Iyengar & Swett         Expires December 9, 2017                [Page 9]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
       OnPacketAcked(acked_packet_number):
@@ -530,8 +530,7 @@ Internet-Draft             QUIC Loss Detection                  May 2017
    The initial flight has no prior RTT sample.  A client SHOULD remember
    the previous RTT it observed when resumption is attempted and use
    that for an initial RTT value.  If no previous RTT is available, the
-   initial RTT defaults to 200ms.  Once an RTT measurement is taken, it
-   MUST replace initial_rtt.
+   initial RTT defaults to 200ms.
 
    Endpoints MUST retransmit handshake frames if not acknowledged within
    a time limit.  This time limit will start as the largest of twice the
@@ -557,9 +556,10 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 10]
+
+Iyengar & Swett         Expires December 9, 2017               [Page 10]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
 3.2.7.2.  Tail Loss Probe and Retransmission Timeout
@@ -587,11 +587,11 @@ Internet-Draft             QUIC Loss Detection                  May 2017
        if (handshake packets are outstanding):
          // Handshake retransmission alarm.
          if (smoothed_rtt == 0):
-           alarm_duration = 2 * initial_rtt
+           alarm_duration = 2 * kDefaultInitialRtt
          else:
            alarm_duration = 2 * smoothed_rtt
          alarm_duration = max(alarm_duration, kMinTLPTimeout)
-         alarm_duration = alarm_duration << handshake_count
+         alarm_duration = alarm_duration * (2 ^ handshake_count)
        else if (loss_time != 0):
          // Early retransmit timer or time loss detection.
          alarm_duration = loss_time - now
@@ -606,16 +606,16 @@ Internet-Draft             QUIC Loss Detection                  May 2017
          // RTO alarm
          alarm_duration = smoothed_rtt + 4 * rttvar
          alarm_duration = max(alarm_duration, kMinRTOTimeout)
-         alarm_duration = alarm_duration << rto_count
+         alarm_duration = alarm_duration * (2 ^ rto_count)
 
        loss_detection_alarm.set(now + alarm_duration)
 
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 11]
+Iyengar & Swett         Expires December 9, 2017               [Page 11]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
 3.2.8.  On Alarm Firing
@@ -669,9 +669,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 12]
+Iyengar & Swett         Expires December 9, 2017               [Page 12]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    Pseudocode for DetectLostPackets follows:
@@ -725,9 +725,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 13]
+Iyengar & Swett         Expires December 9, 2017               [Page 13]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
 4.  Congestion Control
@@ -781,9 +781,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 14]
+Iyengar & Swett         Expires December 9, 2017               [Page 14]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    end_of_recovery:  The packet number after which QUIC will no longer
@@ -837,9 +837,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 15]
+Iyengar & Swett         Expires December 9, 2017               [Page 15]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
 4.8.  On Retransmission Timeout Verified
@@ -878,7 +878,7 @@ Internet-Draft             QUIC Loss Detection                  May 2017
    [QUIC-TRANSPORT]
               Iyengar, J., Ed. and M. Thomson, Ed., "QUIC: A UDP-Based
               Multiplexed and Secure Transport", draft-ietf-quic-
-              transport (work in progress), May 2017.
+              transport (work in progress), June 2017.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -893,9 +893,9 @@ Internet-Draft             QUIC Loss Detection                  May 2017
 
 
 
-Iyengar & Swett         Expires November 3, 2017               [Page 16]
+Iyengar & Swett         Expires December 9, 2017               [Page 16]
 
-Internet-Draft             QUIC Loss Detection                  May 2017
+Internet-Draft             QUIC Loss Detection                 June 2017
 
 
    [LOSS-PROBE]
@@ -933,7 +933,28 @@ Appendix B.  Change Log
       *RFC Editor's Note:* Please remove this section prior to
       publication of a final version of this document.
 
-B.1.  Since draft-ietf-quic-recovery-01
+B.1.  Since draft-ietf-quic-recovery-02
+
+   o  Integrate F-RTO (#544, #409)
+
+   o  Add congestion control (#545, #395)
+
+   o  Require connection abort if a skipped packet was acknowledged
+      (#415)
+
+   o  Simplify RTO calculations (#142, #417)
+
+
+
+
+
+
+Iyengar & Swett         Expires December 9, 2017               [Page 17]
+
+Internet-Draft             QUIC Loss Detection                 June 2017
+
+
+B.2.  Since draft-ietf-quic-recovery-01
 
    o  Overview added to loss detection
 
@@ -945,26 +966,17 @@ B.1.  Since draft-ietf-quic-recovery-01
 
    o  Fixed references and made TCP references informative
 
-
-
-
-
-Iyengar & Swett         Expires November 3, 2017               [Page 17]
-
-Internet-Draft             QUIC Loss Detection                  May 2017
-
-
-B.2.  Since draft-ietf-quic-recovery-00:
+B.3.  Since draft-ietf-quic-recovery-00
 
    o  Improved description of constants and ACK behavior
 
-B.3.  Since draft-iyengar-quic-loss-recovery-01:
+B.4.  Since draft-iyengar-quic-loss-recovery-01
 
-   o  Adopted as base for draft-ietf-quic-recovery.
+   o  Adopted as base for draft-ietf-quic-recovery
 
-   o  Updated authors/editors list.
+   o  Updated authors/editors list
 
-   o  Added table of contents.
+   o  Added table of contents
 
 Authors' Addresses
 
@@ -993,16 +1005,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Swett         Expires November 3, 2017               [Page 18]
+Iyengar & Swett         Expires December 9, 2017               [Page 18]

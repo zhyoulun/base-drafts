@@ -324,7 +324,7 @@ address {
 <link href="#rfc.section.7.7" rel="Chapter" title="7.7 Connection Termination"/>
 <link href="#rfc.section.7.8" rel="Chapter" title="7.8 Stateless Reset"/>
 <link href="#rfc.section.7.8.1" rel="Chapter" title="7.8.1 Detecting a Stateless Reset"/>
-<link href="#rfc.section.7.8.2" rel="Chapter" title="7.8.2 Selecting a Stateless Reset Token"/>
+<link href="#rfc.section.7.8.2" rel="Chapter" title="7.8.2 Calculating a Stateless Reset Token"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 Frame Types and Formats"/>
 <link href="#rfc.section.8.1" rel="Chapter" title="8.1 STREAM Frame"/>
 <link href="#rfc.section.8.2" rel="Chapter" title="8.2 ACK Frame"/>
@@ -392,7 +392,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-6-7" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-6-10" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -416,12 +416,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: December 9, 2017</td>
+  <td class="left">Expires: December 12, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">June 7, 2017</td>
+  <td class="right">June 10, 2017</td>
 </tr>
 
     	
@@ -446,7 +446,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on December 9, 2017.</p>
+<p>This Internet-Draft will expire on December 12, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -505,7 +505,7 @@ address {
 </ul><li>7.7.   <a href="#rfc.section.7.7">Connection Termination</a></li>
 <li>7.8.   <a href="#rfc.section.7.8">Stateless Reset</a></li>
 <ul><li>7.8.1.   <a href="#rfc.section.7.8.1">Detecting a Stateless Reset</a></li>
-<li>7.8.2.   <a href="#rfc.section.7.8.2">Selecting a Stateless Reset Token</a></li>
+<li>7.8.2.   <a href="#rfc.section.7.8.2">Calculating a Stateless Reset Token</a></li>
 </ul></ul><li>8.   <a href="#rfc.section.8">Frame Types and Formats</a></li>
 <ul><li>8.1.   <a href="#rfc.section.8.1">STREAM Frame</a></li>
 <li>8.2.   <a href="#rfc.section.8.2">ACK Frame</a></li>
@@ -1210,8 +1210,8 @@ address {
 <p id="rfc.section.7.6.p.1">QUIC connections are identified by their 64-bit Connection ID.  QUIC&#8217;s consistent connection ID allows connections to survive changes to the client&#8217;s IP and/or port, such as those caused by client or server migrating to a new network.  Connection migration allows a client to retain any shared state with a connection when they move networks.  This includes state that can be hard to recover such as outstanding requests, which might otherwise be lost with no easy way to retry them.</p>
 <h3 id="rfc.section.7.6.1"><a href="#rfc.section.7.6.1">7.6.1.</a> <a href="#migration-linkability" id="migration-linkability">Privacy Implications of Connection Migration</a></h3>
 <p id="rfc.section.7.6.1.p.1">Using a stable connection ID on multiple network paths allows a passive observer to correlate activity between those paths.  A client that moves between networks might not wish to have their activity correlated by any entity other than a server. The NEW_CONNECTION_ID message can be sent by a server to provide an unlinkable connection ID for use in case the client wishes to explicitly break linkability between two points of network attachment.</p>
-<p id="rfc.section.7.6.1.p.2">A client which wishes to break linkability upon changing networks MUST use the NEW_CONNECTION_ID as well as incrementing the packet sequence number by an externally unpredictable value computed as described in <a href="#packet-number-gap">Section 7.6.1.1</a>. Packet number gaps are cumulative.  A client might skip connection IDs, but it MUST ensure that it applies the associated packet number gaps in addition to the packet number gap associated with the connection ID that it does use.</p>
-<p id="rfc.section.7.6.1.p.3">A client might need to send packets on multiple networks without receiving any response from the server.  To ensure that the client is not linkable across each of these changes, a new connection ID and packet number gap are needed for each network.  To support this, a server sends multiple NEW_CONNECTION_ID messages.  Each NEW_CONNECTION_ID is marked with a sequence number.  Connection IDs MUST be used in the order in which they are numbered.</p>
+<p id="rfc.section.7.6.1.p.2">A client might need to send packets on multiple networks without receiving any response from the server.  To ensure that the client is not linkable across each of these changes, a new connection ID and packet number gap are needed for each network.  To support this, a server sends multiple NEW_CONNECTION_ID messages.  Each NEW_CONNECTION_ID is marked with a sequence number.  Connection IDs MUST be used in the order in which they are numbered.</p>
+<p id="rfc.section.7.6.1.p.3">A client which wishes to break linkability upon changing networks MUST use the connection ID provided by the server as well as incrementing the packet sequence number by an externally unpredictable value computed as described in <a href="#packet-number-gap">Section 7.6.1.1</a>. Packet number gaps are cumulative.  A client might skip connection IDs, but it MUST ensure that it applies the associated packet number gaps for connection IDs that it skips in addition to the packet number gap associated with the connection ID that it does use.</p>
 <p id="rfc.section.7.6.1.p.4">A server that receives a packet that is marked with a new connection ID recovers the packet number by adding the cumulative packet number gap to its expected packet number.  A server SHOULD discard packets that contain a smaller gap than it advertised.</p>
 <p id="rfc.section.7.6.1.p.5">For instance, a server might provide a packet number gap of 7 associated with a new connection ID.  If the server received packet 10 using the previous connection ID, it should expect packets on the new connection ID to start at 18.  A packet with the new connection ID and a packet number of 17 is discarded as being in error.</p>
 <h4 id="rfc.section.7.6.1.1"><a href="#rfc.section.7.6.1.1">7.6.1.1.</a> <a href="#packet-number-gap" id="packet-number-gap">Packet Number Gap</a></h4>
@@ -1261,13 +1261,13 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.7.8.p.4">This packet uses the short header form with the shortest possible packet number encoding.  This minimizes the perceived gap between the last packet that the server sent and this packet.  The leading octet of the Stateless Reset Token will be interpreted as a packet number.  A server MAY use a different short header type, indicating a different packet number length, but this allows for the message to be identified as a stateless reset more easily using heuristics.</p>
 <p id="rfc.section.7.8.p.5">A server copies the connection ID field from the packet that triggers the stateless reset.  A server omits the connection ID if explicitly configured to do so, or if the client packet did not include a connection ID.</p>
 <p id="rfc.section.7.8.p.6">After the first short header octet and optional connection ID, the server includes the value of the Stateless Reset Token that it included in its transport parameters.</p>
-<p id="rfc.section.7.8.p.7">After the Stateless Reset Token, the server pads the message with random octets.</p>
+<p id="rfc.section.7.8.p.7">After the Stateless Reset Token, the endpoint pads the message with an arbitrary number of packets containing random values.</p>
 <p id="rfc.section.7.8.p.8">This design ensures that a stateless reset packet is - to the extent possible - indistinguishable from a regular packet.</p>
-<p id="rfc.section.7.8.p.9">A different stateless reset token is used for each connection ID that is used.  The NEW_CONNECTION_ID includes a new token.</p>
+<p id="rfc.section.7.8.p.9">A stateless reset is not appropriate for signaling error conditions.  An endpoint that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
 <h3 id="rfc.section.7.8.1"><a href="#rfc.section.7.8.1">7.8.1.</a> <a href="#detecting-a-stateless-reset" id="detecting-a-stateless-reset">Detecting a Stateless Reset</a></h3>
 <p id="rfc.section.7.8.1.p.1">A client detects a potential stateless reset when a packet with a short header cannot be decrypted.  The client then performs a constant-time comparison of the 16 octets that follow the Connection ID with the Stateless Reset Token provided by the server in its transport parameters.  If this comparison is successful, the connection MUST be terminated immediately.  Otherwise, the packet can be discarded.</p>
-<h3 id="rfc.section.7.8.2"><a href="#rfc.section.7.8.2">7.8.2.</a> <a href="#selecting-a-stateless-reset-token" id="selecting-a-stateless-reset-token">Selecting a Stateless Reset Token</a></h3>
-<p id="rfc.section.7.8.2.p.1">In order to create a Stateless Reset Token, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
+<h3 id="rfc.section.7.8.2"><a href="#rfc.section.7.8.2">7.8.2.</a> <a href="#calculating-a-stateless-reset-token" id="calculating-a-stateless-reset-token">Calculating a Stateless Reset Token</a></h3>
+<p id="rfc.section.7.8.2.p.1">The stateless reset token MUST be difficult to guess.  In order to create a Stateless Reset Token, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
 <p id="rfc.section.7.8.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Token for that connection.</p>
 <p id="rfc.section.7.8.2.p.3">A server that loses state can use the same method to generate a valid Stateless Reset Secret.  The connection ID comes from the packet that the server receives.</p>
 <p id="rfc.section.7.8.2.p.4">This design relies on the client always sending a connection ID in its packets so that the server can use the connection ID from a packet to reset the connection.  A server that uses this design cannot allow clients to omit a connection ID (that is, it cannot use the truncate_connection_id transport parameter <a href="#transport-parameter-definitions">Section 7.3.1</a>).</p>
@@ -1601,7 +1601,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
   <dt>Connection ID:</dt>
   <dd style="margin-left: 8">A 64-bit connection ID.</dd>
   <dt>Stateless Reset Token:</dt>
-  <dd style="margin-left: 8">A 128-bit value that replaces the token used for stateless reset (<a href="#stateless-reset">Section 7.8</a>).</dd>
+  <dd style="margin-left: 8">A 128-bit value that will be used to for a stateless reset when the associated connection ID is used (see <a href="#stateless-reset">Section 7.8</a>).</dd>
 </dl>
 <h2 id="rfc.section.8.13"><a href="#rfc.section.8.13">8.13.</a> <a href="#frame-connection-close" id="frame-connection-close">CONNECTION_CLOSE frame</a></h2>
 <p id="rfc.section.8.13.p.1">An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its peer that the connection is being closed.  If there are open streams that haven&#8217;t been explicitly closed, they are implicitly closed when the connection is closed.  (Ideally, a GOAWAY frame would be sent with enough time that all streams are torn down.)  The frame is as follows:</p>

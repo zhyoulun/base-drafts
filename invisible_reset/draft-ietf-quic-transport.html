@@ -392,7 +392,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-6-10" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-6-11" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -416,12 +416,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: December 12, 2017</td>
+  <td class="left">Expires: December 13, 2017</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">June 10, 2017</td>
+  <td class="right">June 11, 2017</td>
 </tr>
 
     	
@@ -446,7 +446,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on December 12, 2017.</p>
+<p>This Internet-Draft will expire on December 13, 2017.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -1110,6 +1110,7 @@ address {
       idle_timeout(3),
       truncate_connection_id(4),
       stateless_reset_token(5),
+      max_packet_size(6),
       (65535)
    } TransportParameterId;
 
@@ -1156,6 +1157,8 @@ address {
 <dl>
   <dt>truncate_connection_id (0x0004):</dt>
   <dd style="margin-left: 8">The truncated connection identifier parameter indicates that packets sent to the peer can omit the connection ID.  This can be used by an endpoint where the 5-tuple is sufficient to identify a connection.  This parameter is zero length.  Omitting the parameter indicates that the endpoint relies on the connection ID being present in every packet.</dd>
+  <dt>max_packet_size (0x0005):</dt>
+  <dd style="margin-left: 8">The maximum packet size parameter places a limit on the size of packets that the endpoint is willing to receive, encoded as an unsigned 16-bit integer.  This indicates that packets larger than this limit will be dropped.  The default for this parameter is the maximum permitted UDP payload of 65527.  Values below 1252 are invalid.  This limit only applies to protected packets (<a href="#packet-protected">Section 5.5</a>).</dd>
 </dl>
 <h3 id="rfc.section.7.3.2"><a href="#rfc.section.7.3.2">7.3.2.</a> <a href="#zerortt-parameters" id="zerortt-parameters">Values of Transport Parameters for 0-RTT</a></h3>
 <p id="rfc.section.7.3.2.p.1">Transport parameters from the server MUST be remembered by the client for use with 0-RTT data.  If the TLS NewSessionTicket message includes the quic_transport_parameters extension, then those values are used for the server values when establishing a new connection using that ticket.  Otherwise, the transport parameters that the server advertises during connection establishment are used.</p>
@@ -1282,8 +1285,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
   <li>The first two bits must be set to 11, indicating that this is a STREAM frame.</li>
   <li><samp>F</samp> is the FIN bit, which is used for stream termination.</li>
   <li>The <samp>D</samp> bit indicates whether a Data Length field is present in the STREAM header.  When set to 0, this field indicates that the Stream Data field extends to the end of the packet.  When set to 1, this field indicates that Data Length field contains the length (in bytes) of the Stream Data field.  The option to omit the length should only be used when the packet is a &#8220;full-sized&#8221; packet, to avoid the risk of corruption via padding.</li>
-  <li>The <samp>OO</samp> bits encode the length of the Offset header field as 0, 16, 32, or 64 bits long.</li>
-  <li>The <samp>SS</samp> bits encode the length of the Stream ID header field as 8, 16, 24, or 32 bits.</li>
+  <li>The <samp>SS</samp> bits encode the length of the Stream ID header field.  The values 00, 01, 02, and 03 indicate lengths of 8, 16, 24, and 32 bits long respectively.</li>
+  <li>The <samp>OO</samp> bits encode the length of the Offset header field.  The values 00, 01, 02, and 03 indicate lengths of 0, 16, 32, and 64 bits long respectively.</li>
 </ul>
 <p id="rfc.section.8.1.p.3">A STREAM frame is shown below.</p>
 <div id="rfc.figure.7"/>
@@ -1325,7 +1328,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.8.2.p.4">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.  When this is necessary, the receiver SHOULD acknowledge newly received packets and stop acknowledging packets received in the past.</p>
 <p id="rfc.section.8.2.p.5">Unlike TCP SACKs, QUIC ACK blocks are cumulative and therefore irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it is assumed to be acknowledged.</p>
 <p id="rfc.section.8.2.p.6">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
-<p id="rfc.section.8.2.p.7">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender MUST close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
+<p id="rfc.section.8.2.p.7">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
 <p id="rfc.section.8.2.p.8">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>101NLLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
 
@@ -2042,6 +2045,13 @@ Gap = HKDF-Expand-Label(packet_number_secret,
     <tr>
       <td class="left">0x0005</td>
       <td class="left">stateless_reset_token</td>
+      <td class="left">
+        <a href="#transport-parameter-definitions">Section 7.3.1</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left">0x0006</td>
+      <td class="left">max_packet_size</td>
       <td class="left">
         <a href="#transport-parameter-definitions">Section 7.3.1</a>
       </td>

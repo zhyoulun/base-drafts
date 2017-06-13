@@ -1667,19 +1667,20 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <div id="stream-lifecycle"/>
 <pre>
                             +--------+
+                            |        |
+                            |  idle  |
+                            |        |
+                            +--------+
+                                 |
+                        send/recv STREAM/RST
+                             recv MSD/SB
+                                 |
+                                 v
+                 recv FIN/  +--------+    send FIN/
                  recv RST   |        |    send RST
-              ,-------------|  idle  |---------------.
-             /              |        |                \
-            |               +--------+                 |
-            |                    |                     |
-            |        send STREAM / recv STREAM         |
-            |                    |                     |
-            |                    v                     |
-            |    recv FIN/  +--------+    send FIN/    |
-            |    recv RST   |        |    send RST     |
-            |     ,---------|  open  |-----------.     |
-            |    /          |        |            \    |
-            v   v           +--------+             v   v
+                  ,---------|  open  |-----------.
+                 /          |        |            \
+                v           +--------+             v
          +----------+                          +----------+
          |   half   |                          |   half   |
          |  closed  |                          |  closed  |
@@ -1698,25 +1699,25 @@ Gap = HKDF-Expand-Label(packet_number_secret,
    STREAM: a STREAM frame
    FIN:    FIN flag in a STREAM frame
    RST:    RST_STREAM frame
+   MSD:    MAX_STREAM_DATA frame
+   SB:     STREAM_BLOCKED frame
 </pre>
 <p class="figure">Figure 11: Lifecycle of a stream</p>
-<p id="rfc.section.10.2.p.2">Note that this diagram shows stream state transitions and the frames and flags that affect those transitions only.  For the purpose of state transitions, the FIN flag is processed as a separate event to the frame that bears it; a STREAM frame with the FIN flag set can cause two state transitions.</p>
-<p id="rfc.section.10.2.p.3">The recipient of a frame which changes stream state will have a delayed view of the state of a stream while the frame is in transit.  Endpoints do not coordinate the creation of streams; they are created unilaterally by either endpoint.  Endpoints can use acknowledgments to understand the peer&#8217;s subjective view of stream state at any given time.</p>
+<p id="rfc.section.10.2.p.2">Note that this diagram shows stream state transitions and the frames and flags that affect those transitions only.  It is possible for a single frame to cause two transitions: receiving a RST_STREAM frame, or a STREAM frame with the FIN flag cause the stream state to move from &#8220;idle&#8221; to &#8220;open&#8221; and then immediately to one of the &#8220;half-closed&#8221; states.</p>
+<p id="rfc.section.10.2.p.3">The recipient of a frame that changes stream state will have a delayed view of the state of a stream while the frame is in transit.  Endpoints do not coordinate the creation of streams; they are created unilaterally by either endpoint.  Endpoints can use acknowledgments to understand the peer&#8217;s subjective view of stream state at any given time.</p>
 <p id="rfc.section.10.2.p.4">In the absence of more specific guidance elsewhere in this document, implementations SHOULD treat the receipt of a frame that is not expressly permitted in the description of a state as a connection error (see <a href="#error-handling">Section 12</a>).</p>
 <h3 id="rfc.section.10.2.1"><a href="#rfc.section.10.2.1">10.2.1.</a> <a href="#idle" id="idle">idle</a></h3>
 <p id="rfc.section.10.2.1.p.1">All streams start in the &#8220;idle&#8221; state.</p>
 <p id="rfc.section.10.2.1.p.2">The following transitions are valid from this state:</p>
-<p id="rfc.section.10.2.1.p.3">Sending or receiving a STREAM frame causes the identified stream to become &#8220;open&#8221;.  The stream identifier for a new stream is selected as described in <a href="#stream-id">Section 10.1</a>.  The same STREAM frame can also cause a stream to immediately become &#8220;half-closed&#8221; if the FIN flag is set.</p>
-<p id="rfc.section.10.2.1.p.4">Receiving a STREAM frame on a peer-initiated stream (that is, a packet sent by a server on an even-numbered stream or a client packet on an odd-numbered stream) also causes all lower-numbered &#8220;idle&#8221; streams in the same direction to become &#8220;open&#8221;.  This could occur if a peer begins sending on streams in a different order to their creation, or it could happen if packets are lost or reordered in transit.</p>
-<p id="rfc.section.10.2.1.p.5">A RST_STREAM frame on an &#8220;idle&#8221; stream causes the stream to become &#8220;half-closed&#8221;.  Sending a RST_STREAM frame causes the stream to become &#8220;half-closed (local)&#8221;; receiving RST_STREAM causes the stream to become &#8220;half-closed (remote)&#8221;.</p>
-<p id="rfc.section.10.2.1.p.6">An endpoint might receive MAX_STREAM_DATA frames on peer-initiated streams that are &#8220;idle&#8221; if there is loss or reordering of packets.</p>
-<p id="rfc.section.10.2.1.p.7">Receiving any frame other than STREAM, MAX_STREAM_DATA, STREAM_BLOCKED, or RST_STREAM on a stream in this state MUST be treated as a connection error (<a href="#error-handling">Section 12</a>) of type YYYY.</p>
-<p id="rfc.section.10.2.1.p.8">An endpoint MUST NOT send a STREAM or RST_STREAM frame for a stream ID that is higher than the peers advertised maximum stream ID (see <a href="#frame-max-stream-id">Section 8.5</a>).</p>
+<p id="rfc.section.10.2.1.p.3">Sending or receiving a STREAM or RST_STREAM frame causes the identified stream to become &#8220;open&#8221;.  The stream identifier for a new stream is selected as described in <a href="#stream-id">Section 10.1</a>.  A RST_STREAM frame, or a STREAM frame with the FIN flag set also causes a stream to become &#8220;half-closed&#8221;.</p>
+<p id="rfc.section.10.2.1.p.4">An endpoint might receive MAX_STREAM_DATA or STREAM_BLOCKED frames on peer-initiated streams that are &#8220;idle&#8221; if there is loss or reordering of packets.  Receiving these frames also causes the stream to become &#8220;open&#8221;.</p>
+<p id="rfc.section.10.2.1.p.5">An endpoint MUST NOT send a STREAM or RST_STREAM frame for a stream ID that is higher than the peers advertised maximum stream ID (see <a href="#frame-max-stream-id">Section 8.5</a>).</p>
 <h3 id="rfc.section.10.2.2"><a href="#rfc.section.10.2.2">10.2.2.</a> <a href="#open" id="open">open</a></h3>
 <p id="rfc.section.10.2.2.p.1">A stream in the &#8220;open&#8221; state may be used by both peers to send frames of any type.  In this state, endpoints can send MAX_STREAM_DATA and MUST observe the value advertised by its receiving peer (see <a href="#flow-control">Section 11</a>).</p>
-<p id="rfc.section.10.2.2.p.2">From this state, either endpoint can send a frame with the FIN flag set, which causes the stream to transition into one of the &#8220;half-closed&#8221; states.  An endpoint sending an FIN flag causes the stream state to become &#8220;half-closed (local)&#8221;.  An endpoint receiving a FIN flag causes the stream state to become &#8220;half-closed (remote)&#8221; once all preceding data has arrived.  The receiving endpoint MUST NOT consider the stream state to have changed until all data has arrived.</p>
-<p id="rfc.section.10.2.2.p.3">A RST_STREAM frame on an &#8220;open&#8221; stream causes the stream to become &#8220;half-closed&#8221;.  Sending a RST_STREAM frame causes the stream to become &#8220;half-closed (local)&#8221;; receiving RST_STREAM causes the stream to become &#8220;half-closed (remote)&#8221;.</p>
-<p id="rfc.section.10.2.2.p.4">Any frame type that mentions a stream ID can be sent in this state.</p>
+<p id="rfc.section.10.2.2.p.2">Opening a stream causes all lower-numbered streams in the same direction to become open.  Thus, opening an odd-numbered stream causes all &#8220;idle&#8221;, odd-numbered streams with a lower identifier to become open and the same applies to even numbered streams.  Endpoints open streams in increasing numeric order, but loss or reordering can cause packets that open streams to arrive out of order.</p>
+<p id="rfc.section.10.2.2.p.3">From the &#8220;open&#8221; state, either endpoint can send a frame with the FIN flag set, which causes the stream to transition into one of the &#8220;half-closed&#8221; states.  This flag can be set on the frame that opens the stream, which causes the stream to immediately become &#8220;half-closed&#8221;.  Once an endpoint has completed sending all stream data and a STREAM frame with a FIN flag, the stream state becomes &#8220;half-closed (local)&#8221;.  When an endpoint receives all stream data a FIN flag the stream state becomes &#8220;half-closed (remote)&#8221;.  An endpoint MUST NOT consider the stream state to have changed until all data has been sent, received or discarded.</p>
+<p id="rfc.section.10.2.2.p.4">A RST_STREAM frame on an &#8220;open&#8221; stream causes the stream to become &#8220;half-closed&#8221;.  A stream that becomes &#8220;open&#8221; as a result of sending or receiving RST_STREAM immediately becomes &#8220;half-closed&#8221;.  Sending a RST_STREAM frame causes the stream to become &#8220;half-closed (local)&#8221;; receiving RST_STREAM causes the stream to become &#8220;half-closed (remote)&#8221;.</p>
+<p id="rfc.section.10.2.2.p.5">Any frame type that mentions a stream ID can be sent in this state.</p>
 <h3 id="rfc.section.10.2.3"><a href="#rfc.section.10.2.3">10.2.3.</a> <a href="#half-closed-local" id="half-closed-local">half-closed (local)</a></h3>
 <p id="rfc.section.10.2.3.p.1">A stream that is in the &#8220;half-closed (local)&#8221; state MUST NOT be used for sending on new STREAM frames.  Retransmission of data that has already been sent on STREAM frames is permitted.  An endpoint MAY also send MAX_STREAM_DATA and RST_STREAM in this state.</p>
 <p id="rfc.section.10.2.3.p.2">An endpoint that closes a stream MUST NOT send data beyond the final offset that it has chosen, see <a href="#state-closed">Section 10.2.5</a> for details.</p>
@@ -1729,7 +1730,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.10.2.4.p.4">Due to reordering, an endpoint could continue receiving frames for the stream even after the stream is closed for sending.  Frames received after a peer closes a stream SHOULD be discarded.  An endpoint MAY choose to limit the period over which it ignores frames and treat frames that arrive after this time as being in error.</p>
 <p id="rfc.section.10.2.4.p.5">An endpoint will know the final offset of the data it receives on a stream when it reaches the &#8220;half-closed (remote)&#8221; state, see <a href="#final-offset">Section 11.3</a> for details.</p>
 <p id="rfc.section.10.2.4.p.6">A stream in this state can be used by the endpoint to send any frame that mentions a stream ID.  In this state, the endpoint MUST observe advertised stream and connection data limits (see <a href="#flow-control">Section 11</a>).</p>
-<p id="rfc.section.10.2.4.p.7">A stream can transition from this state to &#8220;closed&#8221; by completing transmission of all data.  This includes sending all data carried in STREAM frames up including the terminal STREAM frame that contains a FIN flag and receiving acknowledgment from the peer for all data.</p>
+<p id="rfc.section.10.2.4.p.7">A stream transitions from this state to &#8220;closed&#8221; by completing transmission of all data.  This includes sending all data carried in STREAM frames up including the terminal STREAM frame that contains a FIN flag.</p>
 <p id="rfc.section.10.2.4.p.8">A stream becomes &#8220;closed&#8221; when the endpoint sends and receives acknowledgment of a RST_STREAM frame.</p>
 <h3 id="rfc.section.10.2.5"><a href="#rfc.section.10.2.5">10.2.5.</a> <a href="#state-closed" id="state-closed">closed</a></h3>
 <p id="rfc.section.10.2.5.p.1">The &#8220;closed&#8221; state is the terminal state for a stream.</p>

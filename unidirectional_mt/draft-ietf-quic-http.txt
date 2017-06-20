@@ -91,21 +91,21 @@ Table of Contents
        4.2.5.  Push Streams  . . . . . . . . . . . . . . . . . . . .   9
      4.3.  HTTP Message Exchanges  . . . . . . . . . . . . . . . . .  10
        4.3.1.  Header Compression  . . . . . . . . . . . . . . . . .  11
-       4.3.2.  The CONNECT Method  . . . . . . . . . . . . . . . . .  12
-     4.4.  Request Prioritization  . . . . . . . . . . . . . . . . .  13
+       4.3.2.  The CONNECT Method  . . . . . . . . . . . . . . . . .  11
+     4.4.  Request Prioritization  . . . . . . . . . . . . . . . . .  12
      4.5.  Server Push . . . . . . . . . . . . . . . . . . . . . . .  13
-   5.  HTTP Framing Layer  . . . . . . . . . . . . . . . . . . . . .  14
-     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  14
+   5.  HTTP Framing Layer  . . . . . . . . . . . . . . . . . . . . .  13
+     5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  13
      5.2.  Frame Definitions . . . . . . . . . . . . . . . . . . . .  14
        5.2.1.  HAS_BODY  . . . . . . . . . . . . . . . . . . . . . .  14
        5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .  14
        5.2.3.  PRIORITY  . . . . . . . . . . . . . . . . . . . . . .  15
        5.2.4.  RST_PUSH  . . . . . . . . . . . . . . . . . . . . . .  17
-       5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  18
-       5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  21
-   6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  21
+       5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  17
+       5.2.6.  PUSH_PROMISE  . . . . . . . . . . . . . . . . . . . .  20
+   6.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  20
      6.1.  HTTP-Defined QUIC Error Codes . . . . . . . . . . . . . .  21
-   7.  Considerations for Transitioning from HTTP/2  . . . . . . . .  23
+   7.  Considerations for Transitioning from HTTP/2  . . . . . . . .  22
 
 
 
@@ -114,12 +114,12 @@ Bishop                  Expires December 22, 2017               [Page 2]
 Internet-Draft               HTTP over QUIC                    June 2017
 
 
-     7.1.  HTTP Frame Types  . . . . . . . . . . . . . . . . . . . .  23
-     7.2.  HTTP/2 SETTINGS Parameters  . . . . . . . . . . . . . . .  25
+     7.1.  HTTP Frame Types  . . . . . . . . . . . . . . . . . . . .  22
+     7.2.  HTTP/2 SETTINGS Parameters  . . . . . . . . . . . . . . .  24
      7.3.  HTTP/2 Error Codes  . . . . . . . . . . . . . . . . . . .  25
    8.  Security Considerations . . . . . . . . . . . . . . . . . . .  26
-   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  27
-     9.1.  Registration of HTTP/QUIC Identification String . . . . .  27
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  26
+     9.1.  Registration of HTTP/QUIC Identification String . . . . .  26
      9.2.  Registration of QUIC Version Hint Alt-Svc Parameter . . .  27
      9.3.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  27
      9.4.  Settings Parameters . . . . . . . . . . . . . . . . . . .  28
@@ -489,15 +489,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
    +-+-+-+-+-+-+-+-+
    |   Type (8)    |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Stream ID (32)                         |
+   |                         Push ID (32)                          |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |       Push Index (16)         |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   After the stream header, push streams contain frames.
+   After the stream header, push streams contain a sequence of frames
+   (see Section 5).
 
-   A push stream MUST reference a response stream and a PUSH_PROMISE
-   frame on that stream.  PUSH_PROMISE frames are identified by the
+   A push stream references a server push request by including the Push
+   ID field from a PUSH_PROMISE frame that was sent on a response
+   stream, see Section 5.2.6 for details.  Note that due to reordering
 
 
 
@@ -506,22 +506,15 @@ Bishop                  Expires December 22, 2017               [Page 9]
 Internet-Draft               HTTP over QUIC                    June 2017
 
 
-   order in which they are sent on the response stream, with the first
-   PUSH_PROMISE frame starting at an index of 0.  If a data stream is
-   received that references a stream that is not a response stream, or
-   the referenced request or response stream does not PUSH_PROMISE frame
-   at the given index, or another push stream already references that
-   PUSH_PROMISE frame, the connection MUST be terminated with a
-   HTTP_UNMATCHED_PUSH error.  Note that due to reordering of packets,
-   the referenced stream or PUSH_PROMISE frame might not have been
-   received when the data stream is opened.
+   of packets, the PUSH_PROMISE frame might not have been received when
+   the push stream is opened.
 
 4.3.  HTTP Message Exchanges
 
    A client sends an HTTP request on a new QUIC request stream
-   (Section 4.2.2).  A server sends an HTTP response on a
-   (Section 4.2.3), including the stream ID of the request stream in the
-   stream header.
+   (Section 4.2.2).  A server sends an HTTP response on a response
+   stream (Section 4.2.3).  The response stream header includes the
+   stream ID of the request stream.
 
    An HTTP message (request or response) consists of:
 
@@ -553,6 +546,13 @@ Internet-Draft               HTTP over QUIC                    June 2017
    MUST NOT be sent.  The "chunked" transfer encoding defined in
    Section 4.1 of [RFC7230] MUST NOT be used.
 
+   Trailing header fields are carried in an additional header block on
+   the message control stream.  Such a header block is a sequence of
+   HEADERS frames with End Header Block set on the last frame.  Senders
+   MUST send only one header block in the trailers section; receivers
+   MUST decode any subsequent header blocks in order to maintain HPACK
+   decoder state, but the resulting output MUST be discarded.
+
 
 
 
@@ -561,13 +561,6 @@ Bishop                  Expires December 22, 2017              [Page 10]
 
 Internet-Draft               HTTP over QUIC                    June 2017
 
-
-   Trailing header fields are carried in an additional header block on
-   the message control stream.  Such a header block is a sequence of
-   HEADERS frames with End Header Block set on the last frame.  Senders
-   MUST send only one header block in the trailers section; receivers
-   MUST decode any subsequent header blocks in order to maintain HPACK
-   decoder state, but the resulting output MUST be discarded.
 
    An HTTP request/response exchange fully consumes a request stream and
    response stream.  The exchange also consumes a stream for each
@@ -608,16 +601,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
       invariant?  How much do we need to retain compatibility with
       HTTP/2's HPACK?
 
-
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 11]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
 4.3.2.  The CONNECT Method
 
    The pseudo-method CONNECT ([RFC7231], Section 4.3.6) is primarily
@@ -627,6 +610,13 @@ Internet-Draft               HTTP over QUIC                    June 2017
    tunnel to a remote host.  In HTTP/2, the CONNECT method is used to
    establish a tunnel over a single HTTP/2 stream to a remote host for
    similar purposes.
+
+
+
+Bishop                  Expires December 22, 2017              [Page 11]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    A CONNECT request in HTTP/QUIC functions in the same manner as in
    HTTP/2.  The request MUST be formatted as described in [RFC7540],
@@ -665,15 +655,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    a TCP segment with the RST bit set if it detects an error with the
    stream or the QUIC connection.
 
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 12]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
 4.4.  Request Prioritization
 
    HTTP/QUIC uses the priority scheme described in [RFC7540]
@@ -686,12 +667,19 @@ Internet-Draft               HTTP over QUIC                    June 2017
    PRIORITY frames add, remove, or change the dependency links between
    request.
 
+
+
+Bishop                  Expires December 22, 2017              [Page 12]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
    HTTP/2 defines its priorities in terms of streams whereas HTTP over
-   QUIC identifies requests.  The PRIORITY frame Section 5.2.3 either
-   identifies a request stream (Section 4.2.2) or the index of a
-   PUSH_PROMISE frame on a response stream (Section 5.2.6,
-   Section 4.2.3).  Other than the means of identifying requests, the
-   prioritization system is identical to that in HTTP/2.
+   QUIC identifies requests.  The PRIORITY frame Section 5.2.3
+   identifies a request either by identifying a request stream
+   (Section 4.2.2) or by using a Push ID (Section 5.2.6).  Other than
+   the means of identifying requests, the prioritization system is
+   identical to that in HTTP/2.
 
    Only a client can prioritize requests.  A server MUST NOT send a
    PRIORITY frame.
@@ -719,17 +707,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    response body (if any) indicated with a HAS_BODY frame and associated
    data stream.
 
-
-
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 13]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
 5.  HTTP Framing Layer
 
    Frames are used only on the connection (stream 1) and request,
@@ -743,6 +720,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
 5.1.  Frame Layout
 
    All frames have the following format:
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 13]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -776,16 +762,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    A HEADERS frame with any other flags set MUST be treated as a
    connection error of type HTTP_MALFORMED_HEADERS.
 
-
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 14]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -802,6 +778,14 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    The next frame on the same stream after a HEADERS frame without the
    EHB flag set MUST be another HEADERS frame.  A receiver MUST treat
+
+
+
+Bishop                  Expires December 22, 2017              [Page 14]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
    the receipt of any other type of frame as a stream error of type
    HTTP_INTERRUPTED_HEADERS.  (Note that QUIC can intersperse data from
    other streams between frames, or even during transmission of frames,
@@ -834,14 +818,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    ID space of QUIC.  The semantics of the Stream Dependency, Weight,
    and E flag are the same as in HTTP/2.
 
-
-
-
-Bishop                  Expires December 22, 2017              [Page 15]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
    The flags defined are:
 
    PUSH (0x04):  Indicates that the Prioritized Stream is a server push
@@ -857,17 +833,22 @@ Internet-Draft               HTTP over QUIC                    June 2017
    E (0x01):  Indicates that the stream dependency is exclusive (see
       [RFC7540] Section 5.3).
 
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 15]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |                   Prioritized Stream (32)                     |
+      |                   Prioritized Request (32)                    |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |      [Promise Index(16)]      |
+      |                    Dependent Request (32)                     |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |                    Dependent Stream (32)                      |
-      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      | [Dependent Promise Index(16)] |
-      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
       |   Weight (8)  |
       +-+-+-+-+-+-+-+-+
 
@@ -875,33 +856,16 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    The PRIORITY frame payload has the following fields:
 
-   Prioritized Stream:  A 32-bit stream identifier for stream that
-      carries the request that is being prioritized; either a request
-      stream if the PUSH flag is clear, or a response stream if the PUSH
-      flag is set.
+   Prioritized Request:  A 32-bit identifier for a request.  This
+      contains the stream ID of a request stream when the PUSH flag is
+      clear, or a push ID when the PUSH flag is set.
 
-   Promise Index:  If the PUSH flag is set, then the Promise Index
-      identifies a PUSH_PROMISE on the Prioritized Stream as a 16-bit
-      value, see Section 4.2.5 for a definition of how to identify a
-      PUSH_PROMISE.
-
-   Stream Dependency:  A 32-bit stream identifier for the stream that
-      carries the request that this request depends on; either a request
-      stream if the PUSH flag is clear, or a response stream if the PUSH
-      flag is set.  For details of dependencies, seeSection 4.4 and
-      {!RFC7540}} Section 5.3).
-
-
-
-Bishop                  Expires December 22, 2017              [Page 16]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
-   Dependent Promise Index:  If the PUSH_DEPENDENT flag is set, then the
-      Promise Index identifies a PUSH_PROMISE on the Stream Dependency
-      as a 16-bit value, see Section 4.2.5 for a definition of how to
-      identify a PUSH_PROMISE.
+   Stream Dependency:  A 32-bit stream identifier for a dependent
+      request.  This contains the stream ID of a request stream when the
+      PUSH flag is clear, or a push ID when the PUSH flag is set.  A
+      request stream ID of 0 indicates a dependency on the root stream.
+      For details of dependencies, seeSection 4.4 and {!RFC7540}}
+      Section 5.3).
 
    Weight:  An unsigned 8-bit integer representing a priority weight for
       the stream (see [RFC7540] Section 5.3).  Add one to the value to
@@ -910,25 +874,33 @@ Internet-Draft               HTTP over QUIC                    June 2017
    A PRIORITY frame identifies a request to priotize, and a request upon
    which that request is dependent.  A request is identified by the
    stream ID of a request when the corresponding PUSH or PUSH_DEPENDENT
-   flags are cleared.  Setting the PUSH or PUSH_DEPENDENT flag causes
-   the frame to identify a PUSH_PROMISE that is carried on a response
-   stream (see Section 4.2.5 for details).
+   flag is not set.  Setting the PUSH or PUSH_DEPENDENT flag causes the
+   frame to identify a PUSH_PROMISE using a Push ID (see Section 5.2.6
+   for details).
 
-   A PRIORITY frame MAY identify no request by using a stream ID of 0.
-   The corresponding PUSH or PUSH_DEPENDENT flag MUST be cleared if a
-   stream ID of 0 is used.
+   A PRIORITY frame MAY identify no request by using a stream ID of 0;
+   as in [RFC7540], this makes the request dependent on the root of the
+   dependency tree.
 
    A PRIORITY frame that does not reference a request MUST be treated as
    a HTTP_MALFORMED_PRIORITY error, unless it references stream ID 0.  A
    PRIORITY that sets a PUSH or PUSH_DEPENDENT flag, but then references
-   stream ID 0 in the corresponding field MUST be treated as a
-   HTTP_MALFORMED_PRIORITY error.
+   a non-existent Push ID MUST be treated as a HTTP_MALFORMED_PRIORITY
+   error.
 
-   The length of a PRIORITY frame is determined by its flags.  A
-   PRIORITY frame is nine octets in length, plus two for each of the
-   PUSH and PUSH_DEPENDENT flags that are set.  A PRIORITY frame with a
-   length that doesn't match its flags MUST be treated as a connection
-   error of type HTTP_MALFORMED_PRIORITY.
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 16]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
+   The length of a PRIORITY frame is 9 octets.  A PRIORITY frame with
+   any other length MUST be treated as a connection error of type
+   HTTP_MALFORMED_PRIORITY.
 
 5.2.4.  RST_PUSH
 
@@ -947,19 +919,10 @@ Internet-Draft               HTTP over QUIC                    June 2017
    Sending a RST_PUSH frame on a stream other than the connection
    control stream MUST be treated as a HTTP_WRONG_STREAM error.
 
-
-
-Bishop                  Expires December 22, 2017              [Page 17]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |                    Response Stream (32)                       |
-      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |       Promise Index(16)       |
+      |                          Push ID (32)                         |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
       |                      Error Code (32)                          |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -968,12 +931,8 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    The RST_PUSH frame payload has the following fields:
 
-   Response Stream:  A 32-bit stream identifier for the response stream
-      that carries the PUSH_PROMISE frame.
-
-   Promise Index:  The 16-bit index of the PUSH_PROMISE frame on the
-      response stream.  See Section 4.2.5 for a definition of how to
-      identify a PUSH_PROMISE.
+   Push ID:  A 32-bit Push ID from a PUSH_PROMISE frame (see
+      Section 5.2.6).
 
    Error Code:  A 32-bit error code indicating why the response is not
       desired.
@@ -985,6 +944,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
    on peer behavior, and is substantially different from [RFC7540].
    Individually, a SETTINGS parameter can also be referred to as a
    "setting".
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 17]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    SETTINGS parameters are not negotiated; they describe characteristics
    of the sending peer, which can be used by the receiving peer.
@@ -1002,13 +970,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    Parameters MUST NOT occur more than once.  A receiver MAY treat the
    presence of the same parameter more than once as a connection error
    of type HTTP_MALFORMED_SETTINGS.
-
-
-
-Bishop                  Expires December 22, 2017              [Page 18]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
 
    The SETTINGS frame defines no flags.
 
@@ -1041,6 +1002,14 @@ Internet-Draft               HTTP over QUIC                    June 2017
    A SETTINGS frame MUST be sent as the first frame of the connection
    control stream (see Section 4) by each peer, and MUST NOT be sent
    subsequently or on any other stream.  If an endpoint receives an
+
+
+
+Bishop                  Expires December 22, 2017              [Page 18]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
    SETTINGS frame on a different stream, the endpoint MUST respond with
    a connection error of type HTTP_SETTINGS_ON_WRONG_STREAM.  If an
    endpoint receives a second SETTINGS frame, the endpoint MUST respond
@@ -1057,14 +1026,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    only as many bytes as are needed to represent the value.  An integer
    MUST NOT be represented in more bytes than would be used to transfer
    the maximum permitted value.
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 19]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
 
 5.2.5.2.  Defined SETTINGS Parameters
 
@@ -1098,6 +1059,13 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    o  SETTINGS_MAX_HEADER_LIST_SIZE: 16,384 octets
 
+
+
+Bishop                  Expires December 22, 2017              [Page 19]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
    Servers MAY continue processing data from clients which exceed its
    current configuration during the initial flight.  In this case, the
    client MUST apply the new settings immediately upon receipt.
@@ -1112,7 +1080,39 @@ Internet-Draft               HTTP over QUIC                    June 2017
    SHOULD discard any cached values and use the defaults above on the
    next connection.
 
+5.2.6.  PUSH_PROMISE
 
+   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
+   set from server to client, as in HTTP/2.  It defines no flags.
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                          Push ID (32)                         |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |       Sequence? (16)          |         Header Block (*)    ...
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                   Figure 6: PUSH_PROMISE frame payload
+
+   The payload consists of:
+
+   Push ID:  A 32-bit identifier for the server push request.  This
+      identifier is used in push stream headers (Section 4.2.5),
+      RST_PUSH frames (Section 5.2.4), and PRIORITY frames
+      (Section 5.2.3) to identify this request.  A server MUST create a
+      unique value for each PUSH_PROMISE frame that it generates on the
+      same connection.
+
+   HPACK Sequence:  A 16-bit counter, equivalent to the Sequence field
+      in HEADERS
+
+   Payload:  HPACK-compressed request headers for the promised response.
+
+6.  Error Handling
+
+   QUIC allows the application to abruptly terminate individual streams
+   or the entire connection when an error is encountered.  These are
 
 
 
@@ -1122,30 +1122,6 @@ Bishop                  Expires December 22, 2017              [Page 20]
 Internet-Draft               HTTP over QUIC                    June 2017
 
 
-5.2.6.  PUSH_PROMISE
-
-   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
-   set from server to client, as in HTTP/2.  It defines no flags.
-
-       0                   1                   2                   3
-       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |       Sequence? (16)          |         Header Block (*)    ...
-      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-                   Figure 6: PUSH_PROMISE frame payload
-
-   The payload consists of:
-
-   HPACK Sequence:  A sixteen-bit counter, equivalent to the Sequence
-      field in HEADERS
-
-   Payload:  HPACK-compressed request headers for the promised response.
-
-6.  Error Handling
-
-   QUIC allows the application to abruptly terminate individual streams
-   or the entire connection when an error is encountered.  These are
    referred to as "stream errors" or "connection errors" and are
    described in more detail in [QUIC-TRANSPORT].
 
@@ -1168,15 +1144,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    HTTP_INTERNAL_ERROR (0x02):  An internal error has occurred in the
       HTTP stack.
-
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 21]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
 
    HTTP_PUSH_ALREADY_IN_CACHE (0x03):  The server has attempted to push
       content which the client has cached.
@@ -1202,6 +1169,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
    HTTP_MALFORMED_PRIORITY (0x0A):  A PRIORITY frame has been received
       with an invalid format.
 
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 21]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
+
    HTTP_MALFORMED_SETTINGS (0x0B):  A SETTINGS frame has been received
       with an invalid format.
 
@@ -1226,19 +1202,13 @@ Internet-Draft               HTTP over QUIC                    June 2017
    HTTP_UNMATCHED_RESPONSE (0x13):  A response stream referenced an
       invalid stream.
 
-
-
-
-Bishop                  Expires December 22, 2017              [Page 22]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
    HTTP_UNMATCHED_DATA (0x14):  A data stream referenced an invalid
       stream.
 
-   HTTP_UNMATCHED_PUSH (0x15):  A push stream referenced an invalid
-      stream.
+   HTTP_UNMATCHED_PUSH (0x15):  A push stream referenced an server push
+      request.
+
+   HTTP_WRONG_STREAM (0x16):  A frame was sent on the wrong stream.
 
 7.  Considerations for Transitioning from HTTP/2
 
@@ -1255,6 +1225,14 @@ Internet-Draft               HTTP over QUIC                    June 2017
    support for variable-maximum-length packets can be removed.  Because
    stream termination is handled by QUIC, an END_STREAM flag is not
    required.
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 22]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    Frame payloads are largely drawn from [RFC7540].  However, QUIC
    includes many features (e.g. flow control) which are also present in
@@ -1282,14 +1260,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    QUIC, PRIORITY frames are sent on the connection control stream and
    the PRIORITY section is removed from the HEADERS frame.
 
-
-
-
-Bishop                  Expires December 22, 2017              [Page 23]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
    Other than this issue, frame type HTTP/2 extensions are typically
    portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 1
    in HTTP/QUIC.
@@ -1310,6 +1280,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
    RST_STREAM (0x3):  RST_STREAM frames do not exist, since QUIC
       provides stream lifecycle management.  The same code point is used
       for the RST_PUSH frame (Section 5.2.4).
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 23]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    SETTINGS (0x4):  SETTINGS frames are sent only at the beginning of
       the connection.  See Section 5.2.5 and Section 7.2.
@@ -1336,16 +1315,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
    and in HTTP/QUIC.  Frames not defined as available in HTTP/QUIC
    SHOULD NOT be sent and SHOULD be ignored as unknown on receipt.
 
-
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 24]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
 7.2.  HTTP/2 SETTINGS Parameters
 
    An important difference from HTTP/2 is that settings are sent once,
@@ -1367,6 +1336,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
       incoming streams per connection to be specified in the initial
       transport handshake.  Specifying SETTINGS_MAX_CONCURRENT_STREAMS
       in the SETTINGS frame is an error.
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 24]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    SETTINGS_INITIAL_WINDOW_SIZE:  QUIC requires both stream and
       connection flow control window sizes to be specified in the
@@ -1395,13 +1373,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    NO_ERROR (0x0):  QUIC_NO_ERROR
 
-
-
-Bishop                  Expires December 22, 2017              [Page 25]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
    PROTOCOL_ERROR (0x1):  No single mapping.  See new HTTP_MALFORMED_*
       error codes defined in Section 6.1.
 
@@ -1420,6 +1391,16 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    FRAME_SIZE_ERROR (0x6)  No single mapping.  See new error codes
       defined in Section 6.1.
+
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 25]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
    REFUSED_STREAM (0x7):  Not applicable, since QUIC handles stream
       management.  Would provoke a QUIC_TOO_MANY_OPEN_STREAMS from the
@@ -1449,15 +1430,6 @@ Internet-Draft               HTTP over QUIC                    June 2017
 
    The modified SETTINGS format contains nested length elements, which
    could pose a security risk to an uncautious implementer.  A SETTINGS
-
-
-
-
-Bishop                  Expires December 22, 2017              [Page 26]
-
-Internet-Draft               HTTP over QUIC                    June 2017
-
-
    frame parser MUST ensure that the length of the frame exactly matches
    the length of the settings it contains.
 
@@ -1476,6 +1448,15 @@ Internet-Draft               HTTP over QUIC                    June 2017
    Identification Sequence:  0x68 0x71 ("hq")
 
    Specification:  This document
+
+
+
+
+
+Bishop                  Expires December 22, 2017              [Page 26]
+
+Internet-Draft               HTTP over QUIC                    June 2017
+
 
 9.2.  Registration of QUIC Version Hint Alt-Svc Parameter
 
@@ -1505,6 +1486,25 @@ Internet-Draft               HTTP over QUIC                    June 2017
       QUIC is defined; required if the frame is supported over QUIC.
 
    Values for existing registrations are assigned by this document:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1724,11 +1724,11 @@ Internet-Draft               HTTP over QUIC                    June 2017
    | HTTP_UNMATCHED_PUSH          | 0x1 | Push stream  | Section 6.1   |
    |                              | 5   | header was   |               |
    |                              |     | invalid      |               |
+   |                              |     |              |               |
+   | HTTP_WRONG_STREAM            | 0x1 | A frame was  | Section 6.1   |
+   |                              | 6   | sent on the  |               |
+   |                              |     | wrong stream |               |
    +------------------------------+-----+--------------+---------------+
-
-
-
-
 
 
 
@@ -1782,7 +1782,7 @@ Internet-Draft               HTTP over QUIC                    June 2017
 10.2.  Informative References
 
    [RFC5226]  Narten, T. and H. Alvestrand, "Guidelines for Writing an
-              IANA Considerations Section in RFCs", BCP 26, RFC 5226,
+              IANA Considerations Section in RFCs", RFC 5226,
               DOI 10.17487/RFC5226, May 2008,
               <http://www.rfc-editor.org/info/rfc5226>.
 

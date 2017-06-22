@@ -493,7 +493,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.4.p.1">A QUIC stream provides reliable in-order delivery of bytes, but makes no guarantees about order of delivery with regard to bytes on other streams. On the wire, data is framed into QUIC STREAM frames, but this framing is invisible to the HTTP framing layer. A QUIC receiver buffers and orders received STREAM frames, exposing the data contained within as a reliable byte stream to the application.</p>
 <p id="rfc.section.4.p.2">QUIC reserves Stream 0 for crypto operations (the handshake, crypto config updates). Stream 1 in both directions is reserved for sending and receiving HTTP control frames.  The resulting bidirectional channel is analogous to HTTP/2&#8217;s Stream 0.  This connection control stream pair is considered critical to the HTTP connection.  If either connection control stream is closed for any reason, this MUST be treated as a connection error of type QUIC_CLOSED_CRITICAL_STREAM.</p>
 <p id="rfc.section.4.p.3">When HTTP headers and data are sent over QUIC, the QUIC layer handles most of the stream management. An HTTP request/response consumes a pair of streams in each direction.</p>
-<p id="rfc.section.4.p.4">Aside from the connection control streams, the beginning of each stream starts with a short stream header.  This stream header is used to identify the type of stream and to link the stream to another stream as necessary.  See <a href="#stream-header">Section 4.1</a> for more details on the stream header.</p>
+<p id="rfc.section.4.p.4">Aside from the connection control stream, the beginning of each stream starts with a short stream header.  This stream header is used to identify the type of stream and to link the stream to another stream as necessary.  See <a href="#stream-header">Section 4.1</a> for more details on the stream header.</p>
 <p id="rfc.section.4.p.5">[Editor&#8217;s Note: the following is clearly busted.  Requests and responses can&#8217;t reliably be cancelled as a result of this change.  We will need QPACK/QCRAM for this to work.] Request, response and push streams contain HPACK data which manipulates connection-level state.  Therefore, these streams MUST NOT be closed with a stream-level error.</p>
 <p id="rfc.section.4.p.6">Streams must be opened sequentially, with no gaps.  Data streams SHOULD be opened after the request, response or push stream is opened.  Data streams are closed after transferring the body.  Data streams are not opened for messages that contain no body and messages that contain an empty body.</p>
 <p id="rfc.section.4.p.7">HTTP does not need to do any separate multiplexing when using QUIC - data sent over a QUIC stream always maps to a particular HTTP transaction. Requests and responses are considered complete when the corresponding QUIC streams are closed.</p>
@@ -516,7 +516,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <tbody>
     <tr>
       <td class="left">Connection Control</td>
-      <td class="right">0xff</td>
+      <td class="right">n/a</td>
       <td class="left">
         <a href="#stream-control">Section 4.2.1</a>
       </td>
@@ -554,14 +554,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.4.2.p.2">An endpoint MUST terminate the connection with an HTTP_INVALID_STREAM_HEADER error if it receives a stream header that uses an unknown or unsupported type.</p>
 <h3 id="rfc.section.4.2.1"><a href="#rfc.section.4.2.1">4.2.1.</a> <a href="#stream-control" id="stream-control">Stream 1: Connection Control Stream</a></h3>
 <p id="rfc.section.4.2.1.p.1">Stream 1 is opened by both client and server and is used for the SETTINGS frame immediately after the connection opens.  After the SETTINGS frame has been sent, this stream is used for PRIORITY frames.</p>
-<pre>
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+
-|   Type (8)    |
-+-+-+-+-+-+-+-+-+
-</pre>
-<p id="rfc.section.4.2.1.p.2">The stream header for a connection control stream contains only the type octet, which is set to 0xff.  After the stream header, the connection control stream contains a sequence of frames, starting with the SETTINGS frame.</p>
+<p id="rfc.section.4.2.1.p.2">There is no stream header for a connection control stream; the stream is identified by its stream number.  The connection control stream contains a sequence of frames, starting with the SETTINGS frame.</p>
 <p id="rfc.section.4.2.1.p.3">If an endpoint receives a stream type of 0xff on any stream other than stream 1, it MUST terminate the connection with an HTTP_INVALID_STREAM_HEADER error.</p>
 <h3 id="rfc.section.4.2.2"><a href="#rfc.section.4.2.2">4.2.2.</a> <a href="#stream-request" id="stream-request">Request Streams</a></h3>
 <p id="rfc.section.4.2.2.p.1">Request streams are opened by the client.  Request streams carry the headers and any trailers of requests.</p>
@@ -603,7 +596,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.4.2.4.p.4">Data streams MUST reference a request or response stream.  The referenced stream MUST include a HAS_BODY frame.  If a data stream is received that references a stream of a different type, the referenced stream does not include a HAS_BODY frame, or another data stream already references the identified steam, then the connection MUST be terminated with a HTTP_UNMATCHED_BODY error.  Note that due to reordering of packets, the referenced stream or HAS_BODY frame might not have been received when the data stream is opened.</p>
 <h3 id="rfc.section.4.2.5"><a href="#rfc.section.4.2.5">4.2.5.</a> <a href="#stream-push" id="stream-push">Push Streams</a></h3>
 <p id="rfc.section.4.2.5.p.1">Push streams are opened by servers.  Push streams carry headers of responses for use with server push.</p>
-<p id="rfc.section.4.2.5.p.2">The stream header for a push stream contains the type octet, which is set to 0x03, the stream ID of a response stream as a 32-bit value, and an index for a PUSH_PROMISE frame on the response stream as a 16-bit value.</p>
+<p id="rfc.section.4.2.5.p.2">The stream header for a push stream contains the type octet, which is set to 0x03, and the push ID from a PUSH_PROMISE frame (see <a href="#frame-push-promise">Section 5.2.6</a>).</p>
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -627,7 +620,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 </ol>
 <p id="rfc.section.4.3.p.4">In addition, prior to sending the message header block indicated above, a response may contain zero or more header blocks on the response stream containing the message headers of informational (1xx) HTTP responses (see <a href="#RFC7230">[RFC7230]</a>, Section 3.2 and <a href="#RFC7231">[RFC7231]</a>, Section 6.2).</p>
 <p id="rfc.section.4.3.p.5">A message that contains a payload body includes a HAS_BODY frame immediately after the first header block.  This indicates that another stream will include the payload body.  A data stream is opened to carry the payload body.  The data stream MUST be closed immediately after sending the body.  If the message does not contain a body, a data stream MUST NOT be opened and the HAS_BODY message MUST NOT be sent.  The &#8220;chunked&#8221; transfer encoding defined in Section 4.1 of <a href="#RFC7230">[RFC7230]</a> MUST NOT be used.</p>
-<p id="rfc.section.4.3.p.6">Trailing header fields are carried in an additional header block on the message control stream. Such a header block is a sequence of HEADERS frames with End Header Block set on the last frame. Senders MUST send only one header block in the trailers section; receivers MUST decode any subsequent header blocks in order to maintain HPACK decoder state, but the resulting output MUST be discarded.</p>
+<p id="rfc.section.4.3.p.6">Trailing header fields are carried in an additional header block on the request, response or push stream. Such a header block is a sequence of HEADERS frames with End Header Block set on the last frame. Senders MUST send only one header block in the trailers section; receivers MUST decode any subsequent header blocks in order to maintain HPACK decoder state, but the resulting output MUST be discarded.</p>
 <p id="rfc.section.4.3.p.7">An HTTP request/response exchange fully consumes a request stream and response stream.  The exchange also consumes a stream for each payload body that is present.  After sending a request, a client closes the streams it used for sending the request and any request body; after sending a response, the server closes the stream it used for sending the request and any payload body.</p>
 <p id="rfc.section.4.3.p.8">A server can send a complete response prior to the client sending an entire request if the response does not depend on any portion of the request that has not been sent and received.  A server can request that the client cease transmission and retransmission of stream data on the stream or streams that carry the request by sending a REQUEST_RST frame on those streams (TBD).</p>
 <h3 id="rfc.section.4.3.1"><a href="#rfc.section.4.3.1">4.3.1.</a> <a href="#header-compression" id="header-compression">Header Compression</a></h3>
@@ -643,12 +636,12 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <h3 id="rfc.section.4.3.2"><a href="#rfc.section.4.3.2">4.3.2.</a> <a href="#the-connect-method" id="the-connect-method">The CONNECT Method</a></h3>
 <p id="rfc.section.4.3.2.p.1">The pseudo-method CONNECT (<a href="#RFC7231">[RFC7231]</a>, Section 4.3.6) is primarily used with HTTP proxies to establish a TLS session with an origin server for the purposes of interacting with &#8220;https&#8221; resources. In HTTP/1.x, CONNECT is used to convert an entire HTTP connection into a tunnel to a remote host. In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream to a remote host for similar purposes.</p>
 <p id="rfc.section.4.3.2.p.2">A CONNECT request in HTTP/QUIC functions in the same manner as in HTTP/2. The request MUST be formatted as described in <a href="#RFC7540">[RFC7540]</a>, Section 8.3. A CONNECT request that does not conform to these restrictions is malformed. The message data stream MUST NOT be closed at the end of the request.</p>
-<p id="rfc.section.4.3.2.p.3">A proxy that supports CONNECT establishes a TCP connection (<a href="#RFC0793">[RFC0793]</a>) to the server identified in the &#8220;:authority&#8221; pseudo-header field. Once this connection is successfully established, the proxy sends a HEADERS frame containing a 2xx series status code to the client, as defined in <a href="#RFC7231">[RFC7231]</a>, Section 4.3.6, on the message control stream.</p>
+<p id="rfc.section.4.3.2.p.3">A proxy that supports CONNECT establishes a TCP connection (<a href="#RFC0793">[RFC0793]</a>) to the server identified in the &#8220;:authority&#8221; pseudo-header field. Once this connection is successfully established, the proxy sends a HEADERS frame containing a 2xx series status code to the client, as defined in <a href="#RFC7231">[RFC7231]</a>, Section 4.3.6, on the response stream.</p>
 <p id="rfc.section.4.3.2.p.4">The data received on the data streams associated with this exchange after the stream header correspond directly to data sent on the TCP connection. Any QUIC STREAM frame sent by the client is transmitted by the proxy to the TCP server; data received from the TCP server is written to the data stream by the proxy. Note that the size and number of TCP segments is not guaranteed to map predictably to the size and number of QUIC STREAM frames.</p>
 <p id="rfc.section.4.3.2.p.5">The TCP connection can be closed by either peer. When the client closes the data stream, the proxy will set the FIN bit on its connection to the TCP server.  When the proxy receives a packet with the FIN bit set, it will close the corresponding data stream. TCP connections which remain closed in a single direction are not invalid, but are often handled poorly by servers, so clients SHOULD NOT close streams for connections on which they are still expecting data.</p>
 <p id="rfc.section.4.3.2.p.6">A TCP connection error is signaled with RST_STREAM. A proxy treats any error in the TCP connection, which includes receiving a TCP segment with the RST bit set, as a stream error of type HTTP_CONNECT_ERROR (<a href="#http-error-codes">Section 6.1</a>).  Correspondingly, a proxy MUST send a TCP segment with the RST bit set if it detects an error with the stream or the QUIC connection.</p>
 <h2 id="rfc.section.4.4"><a href="#rfc.section.4.4">4.4.</a> <a href="#priority" id="priority">Request Prioritization</a></h2>
-<p id="rfc.section.4.4.p.1">HTTP/QUIC uses the priority scheme described in <a href="#RFC7540">[RFC7540]</a> Section 5.3. In this priority scheme, a given request can be designated as dependent upon another request, which expresses the preference that the latter stream (the &#8220;parent&#8221; request) be allocated resources before the former stream (the &#8220;dependent&#8221; request). Taken together, the dependencies across all request in a connection form a dependency tree. The structure of the dependency tree changes as PRIORITY frames add, remove, or change the dependency links between request.</p>
+<p id="rfc.section.4.4.p.1">HTTP/QUIC uses the priority scheme described in <a href="#RFC7540">[RFC7540]</a> Section 5.3. In this priority scheme, a given request can be designated as dependent upon another request, which expresses the preference that the latter stream (the &#8220;parent&#8221; request) be allocated resources before the former stream (the &#8220;dependent&#8221; request). Taken together, the dependencies across all requests in a connection form a dependency tree. The structure of the dependency tree changes as PRIORITY frames add, remove, or change the dependency links between requests.</p>
 <p id="rfc.section.4.4.p.2">HTTP/2 defines its priorities in terms of streams whereas HTTP over QUIC identifies requests.  The PRIORITY frame <a href="#frame-priority">Section 5.2.3</a> identifies a request either by identifying a request stream (<a href="#stream-request">Section 4.2.2</a>) or by using a Push ID (<a href="#frame-push-promise">Section 5.2.6</a>).  Other than the means of identifying requests, the prioritization system is identical to that in HTTP/2.</p>
 <p id="rfc.section.4.4.p.3">Only a client can prioritize requests.  A server MUST NOT send a PRIORITY frame.</p>
 <h2 id="rfc.section.4.5"><a href="#rfc.section.4.5">4.5.</a> <a href="#server-push" id="server-push">Server Push</a></h2>
@@ -674,7 +667,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p class="figure">Figure 1: HTTP/QUIC frame format</p>
 <h2 id="rfc.section.5.2"><a href="#rfc.section.5.2">5.2.</a> <a href="#frames" id="frames">Frame Definitions</a></h2>
 <h3 id="rfc.section.5.2.1"><a href="#rfc.section.5.2.1">5.2.1.</a> <a href="#frame-has-body" id="frame-has-body">HAS_BODY</a></h3>
-<p id="rfc.section.5.2.1.p.1">The HAS_BODY frame indicates that the HTTP message contains a payload body.  It is sent after the initial header block on a request, response, or push stream.</p>
+<p id="rfc.section.5.2.1.p.1">The HAS_BODY frame (type=0x0) indicates that the HTTP message contains a payload body.  It is sent after the initial header block on a request, response, or push stream.</p>
 <p id="rfc.section.5.2.1.p.2">The HAS_BODY frame has no flags and is always empty.  A HAS_BODY frame with a non-empty payload or flags that are set MUST be treated as a HTTP_MALFORMED_HAS_BODY error.</p>
 <h3 id="rfc.section.5.2.2"><a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#frame-headers" id="frame-headers">HEADERS</a></h3>
 <p id="rfc.section.5.2.2.p.1">The HEADERS frame (type=0x1) is used to carry part of a header set, compressed using HPACK <a href="#RFC7541">[RFC7541]</a>.</p>
@@ -867,7 +860,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 </dl>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#errors" id="errors">Error Handling</a></h1>
 <p id="rfc.section.6.p.1">QUIC allows the application to abruptly terminate individual streams or the entire connection when an error is encountered.  These are referred to as &#8220;stream errors&#8221; or &#8220;connection errors&#8221; and are described in more detail in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
-<p id="rfc.section.6.p.2">HTTP/QUIC requires that only data streams be terminated abruptly.  Terminating a message control stream will result in an error of type HTTP_RST_CONTROL_STREAM.  [Editor&#8217;s note: this is clearly busted right now, because data streams don&#8217;t always exist.]</p>
+<p id="rfc.section.6.p.2">HTTP/QUIC requires that only data streams be terminated abruptly.  Terminating a request, response or push stream will result in an error of type HTTP_RST_CONTROL_STREAM.  [Editor&#8217;s note: this is clearly busted right now, because data streams don&#8217;t always exist.]</p>
 <p id="rfc.section.6.p.3">This section describes HTTP-specific error codes which can be used to express the cause of a connection or stream error.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#http-error-codes" id="http-error-codes">HTTP-Defined QUIC Error Codes</a></h2>
 <p id="rfc.section.6.1.p.1">QUIC allocates error codes 0x0000-0x3FFF to application protocol definition.  The following error codes are defined by HTTP for use in QUIC RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.</p>
@@ -907,7 +900,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>HTTP_MULTIPLE_SETTINGS (0x10):</dt>
   <dd style="margin-left: 8">More than one SETTINGS frame was received.</dd>
   <dt>HTTP_RST_CONTROL_STREAM (0x11):</dt>
-  <dd style="margin-left: 8">A message control stream closed abruptly.</dd>
+  <dd style="margin-left: 8">A request, response or push stream was reset.</dd>
   <dt>HTTP_INVALID_STREAM_HEADER (0x12):</dt>
   <dd style="margin-left: 8">A stream header contained an unknown type or referenced an invalid stream.</dd>
   <dt>HTTP_UNMATCHED_RESPONSE (0x13):</dt>
@@ -915,7 +908,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>HTTP_UNMATCHED_DATA (0x14):</dt>
   <dd style="margin-left: 8">A data stream referenced an invalid stream.</dd>
   <dt>HTTP_UNMATCHED_PUSH (0x15):</dt>
-  <dd style="margin-left: 8">A push stream referenced an server push request.</dd>
+  <dd style="margin-left: 8">A push stream referenced a server push request.</dd>
   <dt>HTTP_WRONG_STREAM (0x16):</dt>
   <dd style="margin-left: 8">A frame was sent on the wrong stream.</dd>
 </dl>
@@ -1349,7 +1342,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
     <tr>
       <td class="left">HTTP_RST_CONTROL_STREAM</td>
       <td class="left">0x11</td>
-      <td class="left">Message control stream was RST</td>
+      <td class="left">A stream containing headers was RST</td>
       <td class="left">
         <a href="#http-error-codes">Section 6.1</a>
       </td>

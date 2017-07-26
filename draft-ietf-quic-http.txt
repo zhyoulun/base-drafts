@@ -100,11 +100,11 @@ Table of Contents
      6.1.  HTTP-Defined QUIC Error Codes . . . . . . . . . . . . . .  14
    7.  Considerations for Transitioning from HTTP/2  . . . . . . . .  16
      7.1.  HTTP Frame Types  . . . . . . . . . . . . . . . . . . . .  16
-     7.2.  HTTP/2 SETTINGS Parameters  . . . . . . . . . . . . . . .  17
+     7.2.  HTTP/2 SETTINGS Parameters  . . . . . . . . . . . . . . .  18
      7.3.  HTTP/2 Error Codes  . . . . . . . . . . . . . . . . . . .  18
    8.  Security Considerations . . . . . . . . . . . . . . . . . . .  19
-   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  19
-     9.1.  Registration of HTTP/QUIC Identification String . . . . .  19
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  20
+     9.1.  Registration of HTTP/QUIC Identification String . . . . .  20
      9.2.  Registration of QUIC Version Hint Alt-Svc Parameter . . .  20
 
 
@@ -114,19 +114,19 @@ Bishop                  Expires January 27, 2018                [Page 2]
 Internet-Draft               HTTP over QUIC                    July 2017
 
 
-     9.3.  Existing Frame Types  . . . . . . . . . . . . . . . . . .  20
+     9.3.  Frame Types . . . . . . . . . . . . . . . . . . . . . . .  20
      9.4.  Settings Parameters . . . . . . . . . . . . . . . . . . .  21
      9.5.  Error Codes . . . . . . . . . . . . . . . . . . . . . . .  22
    10. References  . . . . . . . . . . . . . . . . . . . . . . . . .  24
      10.1.  Normative References . . . . . . . . . . . . . . . . . .  24
      10.2.  Informative References . . . . . . . . . . . . . . . . .  25
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  25
-   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  25
-     B.1.  Since draft-ietf-quic-http-04 . . . . . . . . . . . . . .  25
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  26
+     B.1.  Since draft-ietf-quic-http-04 . . . . . . . . . . . . . .  26
      B.2.  Since draft-ietf-quic-http-03 . . . . . . . . . . . . . .  26
      B.3.  Since draft-ietf-quic-http-02 . . . . . . . . . . . . . .  26
      B.4.  Since draft-ietf-quic-http-01 . . . . . . . . . . . . . .  26
-     B.5.  Since draft-ietf-quic-http-00 . . . . . . . . . . . . . .  26
+     B.5.  Since draft-ietf-quic-http-00 . . . . . . . . . . . . . .  27
      B.6.  Since draft-shade-quic-http2-mapping-00 . . . . . . . . .  27
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  27
 
@@ -845,8 +845,19 @@ Internet-Draft               HTTP over QUIC                    July 2017
 7.  Considerations for Transitioning from HTTP/2
 
    HTTP/QUIC is strongly informed by HTTP/2, and bears many
-   similarities.  This section points out important differences from
-   HTTP/2 and describes how to map HTTP/2 extensions into HTTP/QUIC.
+   similarities.  This section describes the approach taken to design
+   HTTP/QUIC, points out important differences from HTTP/2, and
+   describes how to map HTTP/2 extensions into HTTP/QUIC.
+
+   HTTP/QUIC begins from the premise that HTTP/2 code reuse is a useful
+   feature, but not a hard requirement.  HTTP/QUIC departs from HTTP/2
+   primarily where necessary to accommodate the differences in behavior
+   between QUIC and TCP (lack of ordering, support for streams).  We
+   intend to avoid gratuitous changes which make it difficult or
+   impossible to build extensions with the same semantics applicable to
+   both protocols at once.
+
+   These departures are noted in this section.
 
 7.1.  HTTP Frame Types
 
@@ -879,17 +890,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
    reparenting a subtree are not commutative, both sender and receiver
    must apply them in the same order to ensure that both sides have a
    consistent view of the stream dependency tree.  HTTP/2 specifies
-   priority assignments in PRIORITY frames and (optionally) in HEADERS
-   frames.  To achieve in-order delivery of priority changes in HTTP/
-   QUIC, PRIORITY frames are sent on the control stream and the PRIORITY
-   section is removed from the HEADERS frame.
-
-   Other than this issue, frame type HTTP/2 extensions are typically
-   portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 1
-   in HTTP/QUIC.
-
-   Below is a listing of how each HTTP/2 frame type is mapped:
-
 
 
 
@@ -897,6 +897,19 @@ Bishop                  Expires January 27, 2018               [Page 16]
 
 Internet-Draft               HTTP over QUIC                    July 2017
 
+
+   priority assignments in PRIORITY frames and (optionally) in HEADERS
+   frames.  To achieve in-order delivery of priority changes in HTTP/
+   QUIC, PRIORITY frames are sent on the control stream and the PRIORITY
+   section is removed from the HEADERS frame.
+
+   Other than this issue, frame type HTTP/2 extensions are typically
+   portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 1
+   in HTTP/QUIC.  HTTP/QUIC extensions will not assume ordering, but
+   would not be harmed by ordering, and would be portable to HTTP/2 in
+   the same manner.
+
+   Below is a listing of how each HTTP/2 frame type is mapped:
 
    DATA (0x0):  Padding is not defined in HTTP/QUIC frames.  See
       Section 5.2.1.
@@ -929,10 +942,17 @@ Internet-Draft               HTTP over QUIC                    July 2017
       larger HEADERS/PUSH_PROMISE frames than HTTP/2 are permitted, and
       HEADERS frames can be used in series.
 
-   The IANA registry of frame types has been updated in Section 9.3 to
-   include references to the definition for each frame type in HTTP/2
-   and in HTTP/QUIC.  Frames not defined as available in HTTP/QUIC
-   SHOULD NOT be sent and SHOULD be ignored as unknown on receipt.
+   Frame types defined by extensions to HTTP/2 need to be separately
+   registered for HTTP/QUIC if still applicable.  The IDs of frames
+   defined in [RFC7540] have been reserved for simplicity.  See
+   Section 9.3.
+
+
+
+Bishop                  Expires January 27, 2018               [Page 17]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
 
 7.2.  HTTP/2 SETTINGS Parameters
 
@@ -947,21 +967,13 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    Below is a listing of how each HTTP/2 SETTINGS parameter is mapped:
 
-
-
-Bishop                  Expires January 27, 2018               [Page 17]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
-
    SETTINGS_HEADER_TABLE_SIZE:  See Section 5.2.4.2.
 
    SETTINGS_ENABLE_PUSH:  See SETTINGS_DISABLE_PUSH in Section 5.2.4.2.
 
-   SETTINGS_MAX_CONCURRENT_STREAMS:  QUIC requires the maximum number of
-      incoming streams per connection to be specified in the initial
-      transport handshake.  Specifying SETTINGS_MAX_CONCURRENT_STREAMS
-      in the SETTINGS frame is an error.
+   SETTINGS_MAX_CONCURRENT_STREAMS:  QUIC controls the largest open
+      stream ID as part of its flow control logic.  Specifying
+      SETTINGS_MAX_CONCURRENT_STREAMS in the SETTINGS frame is an error.
 
    SETTINGS_INITIAL_WINDOW_SIZE:  QUIC requires both stream and
       connection flow control window sizes to be specified in the
@@ -973,10 +985,9 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    SETTINGS_MAX_HEADER_LIST_SIZE:  See Section 5.2.4.2.
 
-   Settings defined by extensions to HTTP/2 MAY be expressed as integers
-   with a maximum value of 2^32-1, if they are applicable to HTTP/QUIC,
-   but SHOULD have a specification describing their usage.  Fields for
-   this purpose have been added to the IANA registry in Section 9.4.
+   Settings need to be defined separately for HTTP/2 and HTTP/QUIC.  The
+   IDs of settings defined in [RFC7540] have been reserved for
+   simplicity.  See Section 9.4.
 
 7.3.  HTTP/2 Error Codes
 
@@ -990,6 +1001,15 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    NO_ERROR (0x0):  QUIC_NO_ERROR
 
+
+
+
+
+Bishop                  Expires January 27, 2018               [Page 18]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
+
    PROTOCOL_ERROR (0x1):  No single mapping.  See new HTTP_MALFORMED_*
       error codes defined in Section 6.1.
 
@@ -1001,14 +1021,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    SETTINGS_TIMEOUT (0x4):  Not applicable, since no acknowledgement of
       SETTINGS is defined.
-
-
-
-
-Bishop                  Expires January 27, 2018               [Page 18]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
 
    STREAM_CLOSED (0x5):  Not applicable, since QUIC handles stream
       management.  Would provoke a QUIC_STREAM_DATA_AFTER_TERMINATION
@@ -1035,8 +1047,8 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    HTTP_1_1_REQUIRED (0xd):  HTTP_VERSION_FALLBACK in Section 6.1.
 
-   Error codes defined by HTTP/2 extensions need to be re-registered for
-   HTTP/QUIC if still applicable.  See Section 9.5.
+   Error codes need to be defined for HTTP/2 and HTTP/QUIC separately.
+   See Section 9.5.
 
 8.  Security Considerations
 
@@ -1045,6 +1057,15 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    The modified SETTINGS format contains nested length elements, which
    could pose a security risk to an uncautious implementer.  A SETTINGS
+
+
+
+
+Bishop                  Expires January 27, 2018               [Page 19]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
+
    frame parser MUST ensure that the length of the frame exactly matches
    the length of the settings it contains.
 
@@ -1057,14 +1078,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
    Protocol IDs" registry established in [RFC7301].
 
    The "hq" string identifies HTTP/QUIC:
-
-
-
-
-Bishop                  Expires January 27, 2018               [Page 19]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
 
    Protocol:  HTTP over QUIC
 
@@ -1082,37 +1095,24 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    Specification:  This document, Section 2.1
 
-9.3.  Existing Frame Types
+9.3.  Frame Types
 
-   This document adds two new columns to the "HTTP/2 Frame Type"
-   registry defined in [RFC7540]:
+   This document establishes a registry for HTTP/QUIC frame type codes.
+   The "HTTP/QUIC Frame Type" registry manages an 8-bit space.  The
+   "HTTP/QUIC Frame Type" registry operates under either of the "IETF
+   Review" or "IESG Approval" policies [RFC5226] for values between 0x00
+   and 0xef, with values between 0xf0 and 0xff being reserved for
+   Experimental Use.
 
-   Supported Protocols:  Indicates which associated protocols use the
-      frame type.  Values MUST be one of:
+   While this registry is separate from the "HTTP/2 Frame Type" registry
+   defined in [RFC7540], it is preferable that the assignments parallel
+   each other.  If an entry is present in only one registry, every
+   effort SHOULD be made to avoid assigning the corresponding value to
+   an unrelated operation.
 
-      *  "HTTP/2 only"
+   New entries in this registry require the following information:
 
-      *  "HTTP/QUIC only"
-
-      *  "Both"
-
-   HTTP/QUIC Specification:  Indicates where this frame's behavior over
-      QUIC is defined; required if the frame is supported over QUIC.
-
-   Values for existing registrations are assigned by this document:
-
-
-
-
-
-
-
-
-
-
-
-
-
+   Frame Type:  A name or label for the frame type.
 
 
 
@@ -1122,54 +1122,54 @@ Bishop                  Expires January 27, 2018               [Page 20]
 Internet-Draft               HTTP over QUIC                    July 2017
 
 
-     +---------------+---------------------+-------------------------+
-     | Frame Type    | Supported Protocols | HTTP/QUIC Specification |
-     +---------------+---------------------+-------------------------+
-     | DATA          |         Both        | Section 5.2.1           |
-     |               |                     |                         |
-     | HEADERS       |         Both        | Section 5.2.2           |
-     |               |                     |                         |
-     | PRIORITY      |         Both        | Section 5.2.3           |
-     |               |                     |                         |
-     | RST_STREAM    |     HTTP/2 only     | N/A                     |
-     |               |                     |                         |
-     | SETTINGS      |         Both        | Section 5.2.4           |
-     |               |                     |                         |
-     | PUSH_PROMISE  |         Both        | Section 5.2.5           |
-     |               |                     |                         |
-     | PING          |     HTTP/2 only     | N/A                     |
-     |               |                     |                         |
-     | GOAWAY        |     HTTP/2 only     | N/A                     |
-     |               |                     |                         |
-     | WINDOW_UPDATE |     HTTP/2 only     | N/A                     |
-     |               |                     |                         |
-     | CONTINUATION  |     HTTP/2 only     | N/A                     |
-     +---------------+---------------------+-------------------------+
+   Code:  The 8-bit code assigned to the frame type.
 
-   The "Specification" column is renamed to "HTTP/2 specification" and
-   is only required if the frame is supported over HTTP/2.
+   Specification:  A reference to a specification that includes a
+      description of the frame layout, its semantics, and flags that the
+      frame type uses, including any parts of the frame that are
+      conditionally present based on the value of flags.
+
+   The entries in the following table are registered by this document.
+
+                  +--------------+------+---------------+
+                  | Frame Type   | Code | Specification |
+                  +--------------+------+---------------+
+                  | Reserved     | 0x0  | N/A           |
+                  |              |      |               |
+                  | HEADERS      | 0x1  | Section 5.2.2 |
+                  |              |      |               |
+                  | PRIORITY     | 0x2  | Section 5.2.3 |
+                  |              |      |               |
+                  | Reserved     | 0x3  | N/A           |
+                  |              |      |               |
+                  | SETTINGS     | 0x4  | Section 5.2.4 |
+                  |              |      |               |
+                  | PUSH_PROMISE | 0x5  | Section 5.2.5 |
+                  |              |      |               |
+                  | Reserved     | 0x6  | N/A           |
+                  |              |      |               |
+                  | Reserved     | 0x7  | N/A           |
+                  |              |      |               |
+                  | Reserved     | 0x8  | N/A           |
+                  |              |      |               |
+                  | Reserved     | 0x9  | N/A           |
+                  +--------------+------+---------------+
 
 9.4.  Settings Parameters
 
-   This document adds two new columns to the "HTTP/2 Settings" registry
-   defined in [RFC7540]:
+   This document establishes a registry for HTTP/QUIC settings.  The
+   "HTTP/QUIC Settings" registry manages a 16-bit space.  The "HTTP/QUIC
+   Settings" registry operates under the "Expert Review" policy
+   [RFC5226] for values in the range from 0x0000 to 0xefff, with values
+   between and 0xf000 and 0xffff being reserved for Experimental Use.
+   The designated experts are the same as those for the "HTTP/2
+   Settings" registry defined in [RFC7540].
 
-   Supported Protocols:  Indicates which associated protocols use the
-      setting.  Values MUST be one of:
-
-      *  "HTTP/2 only"
-
-      *  "HTTP/QUIC only"
-
-      *  "Both"
-
-   HTTP/QUIC Specification:  Indicates where this setting's behavior
-      over QUIC is defined; required if the frame is supported over
-      QUIC.
-
-   Values for existing registrations are assigned by this document:
-
-
+   While this registry is separate from the "HTTP/2 Settings" registry
+   defined in [RFC7540], it is preferable that the assignments parallel
+   each other.  If an entry is present in only one registry, every
+   effort SHOULD be made to avoid assigning the corresponding value to
+   an unrelated operation.
 
 
 
@@ -1178,26 +1178,33 @@ Bishop                  Expires January 27, 2018               [Page 21]
 Internet-Draft               HTTP over QUIC                    July 2017
 
 
-   +-------------------------+------------------+----------------------+
-   | Setting Name            |    Supported     | HTTP/QUIC            |
-   |                         |    Protocols     | Specification        |
-   +-------------------------+------------------+----------------------+
-   | HEADER_TABLE_SIZE       |       Both       | Section 5.2.4.2      |
-   |                         |                  |                      |
-   | ENABLE_PUSH /           |       Both       | Section 5.2.4.2      |
-   | DISABLE_PUSH            |                  |                      |
-   |                         |                  |                      |
-   | MAX_CONCURRENT_STREAMS  |   HTTP/2 Only    | N/A                  |
-   |                         |                  |                      |
-   | INITIAL_WINDOW_SIZE     |   HTTP/2 Only    | N/A                  |
-   |                         |                  |                      |
-   | MAX_FRAME_SIZE          |   HTTP/2 Only    | N/A                  |
-   |                         |                  |                      |
-   | MAX_HEADER_LIST_SIZE    |       Both       | Section 5.2.4.2      |
-   +-------------------------+------------------+----------------------+
+   New registrations are advised to provide the following information:
 
-   The "Specification" column is renamed to "HTTP/2 Specification" and
-   is only required if the setting is supported over HTTP/2.
+   Name:  A symbolic name for the setting.  Specifying a setting name is
+      optional.
+
+   Code:  The 16-bit code assigned to the setting.
+
+   Specification:  An optional reference to a specification that
+      describes the use of the setting.
+
+   The entries in the following table are registered by this document.
+
+             +----------------------+------+-----------------+
+             | Setting Name         | Code | Specification   |
+             +----------------------+------+-----------------+
+             | HEADER_TABLE_SIZE    | 0x1  | Section 5.2.4.2 |
+             |                      |      |                 |
+             | DISABLE_PUSH         | 0x2  | Section 5.2.4.2 |
+             |                      |      |                 |
+             | Reserved             | 0x3  | N/A             |
+             |                      |      |                 |
+             | Reserved             | 0x4  | N/A             |
+             |                      |      |                 |
+             | Reserved             | 0x5  | N/A             |
+             |                      |      |                 |
+             | MAX_HEADER_LIST_SIZE | 0x6  | Section 5.2.4.2 |
+             +----------------------+------+-----------------+
 
 9.5.  Error Codes
 
@@ -1218,13 +1225,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
 
    Code:  The 30-bit error code value.
 
-   Description:  A brief description of the error code semantics, longer
-      if no detailed specification is provided.
-
-   Specification:  An optional reference for a specification that
-      defines the error code.
-
-   The entries in the following table are registered by this document.
 
 
 
@@ -1233,6 +1233,14 @@ Bishop                  Expires January 27, 2018               [Page 22]
 
 Internet-Draft               HTTP over QUIC                    July 2017
 
+
+   Description:  A brief description of the error code semantics, longer
+      if no detailed specification is provided.
+
+   Specification:  An optional reference for a specification that
+      defines the error code.
+
+   The entries in the following table are registered by this document.
 
    +------------------------------+-----+--------------+---------------+
    | Name                         | Cod | Description  | Specification |
@@ -1274,14 +1282,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
    | HTTP_MALFORMED_HEADERS       | 0x0 | Invalid      | Section 6.1   |
    |                              | 9   | HEADERS      |               |
    |                              |     | frame        |               |
-   |                              |     |              |               |
-   | HTTP_MALFORMED_PRIORITY      | 0x0 | Invalid      | Section 6.1   |
-   |                              | A   | PRIORITY     |               |
-   |                              |     | frame        |               |
-   |                              |     |              |               |
-   | HTTP_MALFORMED_SETTINGS      | 0x0 | Invalid      | Section 6.1   |
-   |                              | B   | SETTINGS     |               |
-   |                              |     | frame        |               |
 
 
 
@@ -1290,6 +1290,14 @@ Bishop                  Expires January 27, 2018               [Page 23]
 Internet-Draft               HTTP over QUIC                    July 2017
 
 
+   |                              |     |              |               |
+   | HTTP_MALFORMED_PRIORITY      | 0x0 | Invalid      | Section 6.1   |
+   |                              | A   | PRIORITY     |               |
+   |                              |     | frame        |               |
+   |                              |     |              |               |
+   | HTTP_MALFORMED_SETTINGS      | 0x0 | Invalid      | Section 6.1   |
+   |                              | B   | SETTINGS     |               |
+   |                              |     | frame        |               |
    |                              |     |              |               |
    | HTTP_MALFORMED_PUSH_PROMISE  | 0x0 | Invalid      | Section 6.1   |
    |                              | C   | PUSH_PROMISE |               |
@@ -1328,6 +1336,16 @@ Internet-Draft               HTTP over QUIC                    July 2017
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
 
+
+
+
+
+
+Bishop                  Expires January 27, 2018               [Page 24]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
+
    [RFC5234]  Crocker, D., Ed. and P. Overell, "Augmented BNF for Syntax
               Specifications: ABNF", STD 68, RFC 5234,
               DOI 10.17487/RFC5234, January 2008,
@@ -1337,14 +1355,6 @@ Internet-Draft               HTTP over QUIC                    July 2017
               Protocol (HTTP/1.1): Message Syntax and Routing",
               RFC 7230, DOI 10.17487/RFC7230, June 2014,
               <http://www.rfc-editor.org/info/rfc7230>.
-
-
-
-
-Bishop                  Expires January 27, 2018               [Page 24]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
 
    [RFC7231]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
               Protocol (HTTP/1.1): Semantics and Content", RFC 7231,
@@ -1381,6 +1391,17 @@ Appendix A.  Contributors
    The original authors of this specification were Robbie Shade and Mike
    Warres.
 
+
+
+
+
+
+
+Bishop                  Expires January 27, 2018               [Page 25]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
+
 Appendix B.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
@@ -1392,15 +1413,7 @@ B.1.  Since draft-ietf-quic-http-04
 
    o  Return to a single stream per request (#245,#557)
 
-
-
-
-
-
-Bishop                  Expires January 27, 2018               [Page 25]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
+   o  Use separate frame type and settings registries from HTTP/2 (#81)
 
 B.2.  Since draft-ietf-quic-http-03
 
@@ -1436,6 +1449,15 @@ B.4.  Since draft-ietf-quic-http-01
    o  Guide to differences from HTTP/2 and porting HTTP/2 extensions
       added (#127,#242)
 
+
+
+
+
+Bishop                  Expires January 27, 2018               [Page 26]
+
+Internet-Draft               HTTP over QUIC                    July 2017
+
+
 B.5.  Since draft-ietf-quic-http-00
 
    o  Changed "HTTP/2-over-QUIC" to "HTTP/QUIC" throughout (#11,#29)
@@ -1450,13 +1472,6 @@ B.5.  Since draft-ietf-quic-http-00
       order (#75)
 
    o  Described CONNECT pseudo-method (#95)
-
-
-
-Bishop                  Expires January 27, 2018               [Page 26]
-
-Internet-Draft               HTTP over QUIC                    July 2017
-
 
    o  Updated ALPN token and Alt-Svc guidance (#13,#87)
 
@@ -1474,21 +1489,6 @@ Author's Address
    Microsoft
 
    Email: Michael.Bishop@microsoft.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

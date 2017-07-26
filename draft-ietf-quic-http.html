@@ -306,7 +306,7 @@ address {
 <link href="#rfc.section.9" rel="Chapter" title="9 IANA Considerations"/>
 <link href="#rfc.section.9.1" rel="Chapter" title="9.1 Registration of HTTP/QUIC Identification String"/>
 <link href="#rfc.section.9.2" rel="Chapter" title="9.2 Registration of QUIC Version Hint Alt-Svc Parameter"/>
-<link href="#rfc.section.9.3" rel="Chapter" title="9.3 Existing Frame Types"/>
+<link href="#rfc.section.9.3" rel="Chapter" title="9.3 Frame Types"/>
 <link href="#rfc.section.9.4" rel="Chapter" title="9.4 Settings Parameters"/>
 <link href="#rfc.section.9.5" rel="Chapter" title="9.5 Error Codes"/>
 <link href="#rfc.references" rel="Chapter" title="10 References"/>
@@ -421,7 +421,7 @@ address {
 <li>9.   <a href="#rfc.section.9">IANA Considerations</a></li>
 <ul><li>9.1.   <a href="#rfc.section.9.1">Registration of HTTP/QUIC Identification String</a></li>
 <li>9.2.   <a href="#rfc.section.9.2">Registration of QUIC Version Hint Alt-Svc Parameter</a></li>
-<li>9.3.   <a href="#rfc.section.9.3">Existing Frame Types</a></li>
+<li>9.3.   <a href="#rfc.section.9.3">Frame Types</a></li>
 <li>9.4.   <a href="#rfc.section.9.4">Settings Parameters</a></li>
 <li>9.5.   <a href="#rfc.section.9.5">Error Codes</a></li>
 </ul><li>10.   <a href="#rfc.references">References</a></li>
@@ -707,13 +707,15 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dd style="margin-left: 8">More than one SETTINGS frame was received.</dd>
 </dl>
 <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a> <a href="#considerations-for-transitioning-from-http2" id="considerations-for-transitioning-from-http2">Considerations for Transitioning from HTTP/2</a></h1>
-<p id="rfc.section.7.p.1">HTTP/QUIC is strongly informed by HTTP/2, and bears many similarities.  This section points out important differences from HTTP/2 and describes how to map HTTP/2 extensions into HTTP/QUIC.</p>
+<p id="rfc.section.7.p.1">HTTP/QUIC is strongly informed by HTTP/2, and bears many similarities.  This section describes the approach taken to design HTTP/QUIC, points out important differences from HTTP/2, and describes how to map HTTP/2 extensions into HTTP/QUIC.</p>
+<p id="rfc.section.7.p.2">HTTP/QUIC begins from the premise that HTTP/2 code reuse is a useful feature, but not a hard requirement.  HTTP/QUIC departs from HTTP/2 primarily where necessary to accommodate the differences in behavior between QUIC and TCP (lack of ordering, support for streams).  We intend to avoid gratuitous changes which make it difficult or impossible to build extensions with the same semantics applicable to both protocols at once.</p>
+<p id="rfc.section.7.p.3">These departures are noted in this section.</p>
 <h2 id="rfc.section.7.1"><a href="#rfc.section.7.1">7.1.</a> <a href="#h2-frames" id="h2-frames">HTTP Frame Types</a></h2>
 <p id="rfc.section.7.1.p.1">Many framing concepts from HTTP/2 can be elided away on QUIC, because the transport deals with them. Because frames are already on a stream, they can omit the stream number. Because frames do not block multiplexing (QUIC&#8217;s multiplexing occurs below this layer), the support for variable-maximum-length packets can be removed. Because stream termination is handled by QUIC, an END_STREAM flag is not required.</p>
 <p id="rfc.section.7.1.p.2">Frame payloads are largely drawn from <a href="#RFC7540">[RFC7540]</a>. However, QUIC includes many features (e.g. flow control) which are also present in HTTP/2. In these cases, the HTTP mapping does not re-implement them. As a result, several HTTP/2 frame types are not required in HTTP/QUIC. Where an HTTP/2-defined frame is no longer used, the frame ID has been reserved in order to maximize portability between HTTP/2 and HTTP/QUIC implementations. However, even equivalent frames between the two mappings are not identical.</p>
 <p id="rfc.section.7.1.p.3">Many of the differences arise from the fact that HTTP/2 provides an absolute ordering between frames across all streams, while QUIC provides this guarantee on each stream only.  As a result, if a frame type makes assumptions that frames from different streams will still be received in the order sent, HTTP/QUIC will break them.</p>
 <p id="rfc.section.7.1.p.4">For example, implicit in the HTTP/2 prioritization scheme is the notion of in-order delivery of priority changes (i.e., dependency tree mutations): since operations on the dependency tree such as reparenting a subtree are not commutative, both sender and receiver must apply them in the same order to ensure that both sides have a consistent view of the stream dependency tree.  HTTP/2 specifies priority assignments in PRIORITY frames and (optionally) in HEADERS frames. To achieve in-order delivery of priority changes in HTTP/QUIC, PRIORITY frames are sent on the control stream and the PRIORITY section is removed from the HEADERS frame.</p>
-<p id="rfc.section.7.1.p.5">Other than this issue, frame type HTTP/2 extensions are typically portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 1 in HTTP/QUIC.</p>
+<p id="rfc.section.7.1.p.5">Other than this issue, frame type HTTP/2 extensions are typically portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 1 in HTTP/QUIC.  HTTP/QUIC extensions will not assume ordering, but would not be harmed by ordering, and would be portable to HTTP/2 in the same manner.</p>
 <p id="rfc.section.7.1.p.6">Below is a listing of how each HTTP/2 frame type is mapped:</p>
 <p/>
 
@@ -739,7 +741,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>CONTINUATION (0x9):</dt>
   <dd style="margin-left: 8">CONTINUATION frames do not exist; instead, larger HEADERS/PUSH_PROMISE frames than HTTP/2 are permitted, and HEADERS frames can be used in series.</dd>
 </dl>
-<p id="rfc.section.7.1.p.8">The IANA registry of frame types has been updated in <a href="#iana-frames">Section 9.3</a> to include references to the definition for each frame type in HTTP/2 and in HTTP/QUIC.  Frames not defined as available in HTTP/QUIC SHOULD NOT be sent and SHOULD be ignored as unknown on receipt.</p>
+<p id="rfc.section.7.1.p.8">Frame types defined by extensions to HTTP/2 need to be separately registered for HTTP/QUIC if still applicable.  The IDs of frames defined in <a href="#RFC7540">[RFC7540]</a> have been reserved for simplicity.  See <a href="#iana-frames">Section 9.3</a>.</p>
 <h2 id="rfc.section.7.2"><a href="#rfc.section.7.2">7.2.</a> <a href="#h2-settings" id="h2-settings">HTTP/2 SETTINGS Parameters</a></h2>
 <p id="rfc.section.7.2.p.1">An important difference from HTTP/2 is that settings are sent once, at the beginning of the connection, and thereafter cannot change.  This eliminates many corner cases around synchronization of changes.</p>
 <p id="rfc.section.7.2.p.2">Some transport-level options that HTTP/2 specifies via the SETTINGS frame are superseded by QUIC transport parameters in HTTP/QUIC. The HTTP-level options that are retained in HTTP/QUIC have the same value as in HTTP/2.</p>
@@ -752,7 +754,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>SETTINGS_ENABLE_PUSH:</dt>
   <dd style="margin-left: 8">See SETTINGS_DISABLE_PUSH in <a href="#settings-parameters">Section 5.2.4.2</a>.</dd>
   <dt>SETTINGS_MAX_CONCURRENT_STREAMS:</dt>
-  <dd style="margin-left: 8">QUIC requires the maximum number of incoming streams per connection to be specified in the initial transport handshake.  Specifying SETTINGS_MAX_CONCURRENT_STREAMS in the SETTINGS frame is an error.</dd>
+  <dd style="margin-left: 8">QUIC controls the largest open stream ID as part of its flow control logic.  Specifying SETTINGS_MAX_CONCURRENT_STREAMS in the SETTINGS frame is an error.</dd>
   <dt>SETTINGS_INITIAL_WINDOW_SIZE:</dt>
   <dd style="margin-left: 8">QUIC requires both stream and connection flow control window sizes to be specified in the initial transport handshake.  Specifying SETTINGS_INITIAL_WINDOW_SIZE in the SETTINGS frame is an error.</dd>
   <dt>SETTINGS_MAX_FRAME_SIZE:</dt>
@@ -760,7 +762,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>SETTINGS_MAX_HEADER_LIST_SIZE:</dt>
   <dd style="margin-left: 8">See <a href="#settings-parameters">Section 5.2.4.2</a>.</dd>
 </dl>
-<p id="rfc.section.7.2.p.5">Settings defined by extensions to HTTP/2 MAY be expressed as integers with a maximum value of 2^32-1, if they are applicable to HTTP/QUIC, but SHOULD have a specification describing their usage.  Fields for this purpose have been added to the IANA registry in <a href="#iana-settings">Section 9.4</a>.</p>
+<p id="rfc.section.7.2.p.5">Settings need to be defined separately for HTTP/2 and  HTTP/QUIC.  The IDs of settings defined in <a href="#RFC7540">[RFC7540]</a> have been reserved for simplicity.  See <a href="#iana-settings">Section 9.4</a>.</p>
 <h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3.</a> <a href="#http2-error-codes" id="http2-error-codes">HTTP/2 Error Codes</a></h2>
 <p id="rfc.section.7.3.p.1">QUIC has the same concepts of &#8220;stream&#8221; and &#8220;connection&#8221; errors that HTTP/2 provides. However, because the error code space is shared between multiple components, there is no direct portability of HTTP/2 error codes.</p>
 <p id="rfc.section.7.3.p.2">The HTTP/2 error codes defined in Section 7 of <a href="#RFC7540">[RFC7540]</a> map to QUIC error codes as follows:</p>
@@ -796,7 +798,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>HTTP_1_1_REQUIRED (0xd):</dt>
   <dd style="margin-left: 8">HTTP_VERSION_FALLBACK in <a href="#http-error-codes">Section 6.1</a>.</dd>
 </dl>
-<p id="rfc.section.7.3.p.4">Error codes defined by HTTP/2 extensions need to be re-registered for HTTP/QUIC if still applicable.  See <a href="#iana-error-codes">Section 9.5</a>.</p>
+<p id="rfc.section.7.3.p.4">Error codes need to be defined for HTTP/2 and HTTP/QUIC separately.  See <a href="#iana-error-codes">Section 9.5</a>.</p>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#security-considerations" id="security-considerations">Security Considerations</a></h1>
 <p id="rfc.section.8.p.1">The security considerations of HTTP over QUIC should be comparable to those of HTTP/2.</p>
 <p id="rfc.section.8.p.2">The modified SETTINGS format contains nested length elements, which could pose a security risk to an uncautious implementer.  A SETTINGS frame parser MUST ensure that the length of the frame exactly matches the length of the settings it contains.</p>
@@ -824,148 +826,152 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>Specification:</dt>
   <dd style="margin-left: 8">This document, <a href="#alt-svc-version-hint">Section 2.1</a></dd>
 </dl>
-<h2 id="rfc.section.9.3"><a href="#rfc.section.9.3">9.3.</a> <a href="#iana-frames" id="iana-frames">Existing Frame Types</a></h2>
-<p id="rfc.section.9.3.p.1">This document adds two new columns to the &#8220;HTTP/2 Frame Type&#8221; registry defined in <a href="#RFC7540">[RFC7540]</a>:</p>
+<h2 id="rfc.section.9.3"><a href="#rfc.section.9.3">9.3.</a> <a href="#iana-frames" id="iana-frames">Frame Types</a></h2>
+<p id="rfc.section.9.3.p.1">This document establishes a registry for HTTP/QUIC frame type codes. The &#8220;HTTP/QUIC Frame Type&#8221; registry manages an 8-bit space.  The &#8220;HTTP/QUIC Frame Type&#8221; registry operates under either of the &#8220;IETF Review&#8221; or &#8220;IESG Approval&#8221; policies <a href="#RFC5226">[RFC5226]</a> for values between 0x00 and 0xef, with values between 0xf0 and 0xff being reserved for Experimental Use.</p>
+<p id="rfc.section.9.3.p.2">While this registry is separate from the &#8220;HTTP/2 Frame Type&#8221; registry defined in <a href="#RFC7540">[RFC7540]</a>, it is preferable that the assignments parallel each other.  If an entry is present in only one registry, every effort SHOULD be made to avoid assigning the corresponding value to an unrelated operation.</p>
+<p id="rfc.section.9.3.p.3">New entries in this registry require the following information:</p>
 <p/>
 
 <dl>
-  <dt>Supported Protocols:</dt>
-  <dd style="margin-left: 8">Indicates which associated protocols use the frame type.  Values MUST be one of: <ul><li>&#8220;HTTP/2 only&#8221;</li><li>&#8220;HTTP/QUIC only&#8221;</li><li>&#8220;Both&#8221;</li></ul><p> </p></dd>
-  <dt>HTTP/QUIC Specification:</dt>
-  <dd style="margin-left: 8">Indicates where this frame&#8217;s behavior over QUIC is defined; required if the frame is supported over QUIC.</dd>
+  <dt>Frame Type:</dt>
+  <dd style="margin-left: 8">A name or label for the frame type.</dd>
+  <dt>Code:</dt>
+  <dd style="margin-left: 8">The 8-bit code assigned to the frame type.</dd>
+  <dt>Specification:</dt>
+  <dd style="margin-left: 8">A reference to a specification that includes a description of the frame layout, its semantics, and flags that the frame type uses, including any parts of the frame that are conditionally present based on the value of flags.</dd>
 </dl>
-<p id="rfc.section.9.3.p.3">Values for existing registrations are assigned by this document:</p>
+<p id="rfc.section.9.3.p.5">The entries in the following table are registered by this document.</p>
 <table cellpadding="3" cellspacing="0" class="tt full center">
   <thead>
     <tr>
       <th class="left">Frame Type</th>
-      <th class="center">Supported Protocols</th>
-      <th class="left">HTTP/QUIC Specification</th>
+      <th class="center">Code</th>
+      <th class="left">Specification</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td class="left">DATA</td>
-      <td class="center">Both</td>
-      <td class="left">
-        <a href="#frame-data">Section 5.2.1</a>
-      </td>
+      <td class="left">Reserved</td>
+      <td class="center">0x0</td>
+      <td class="left">N/A</td>
     </tr>
     <tr>
       <td class="left">HEADERS</td>
-      <td class="center">Both</td>
+      <td class="center">0x1</td>
       <td class="left">
         <a href="#frame-headers">Section 5.2.2</a>
       </td>
     </tr>
     <tr>
       <td class="left">PRIORITY</td>
-      <td class="center">Both</td>
+      <td class="center">0x2</td>
       <td class="left">
         <a href="#frame-priority">Section 5.2.3</a>
       </td>
     </tr>
     <tr>
-      <td class="left">RST_STREAM</td>
-      <td class="center">HTTP/2 only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x3</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
       <td class="left">SETTINGS</td>
-      <td class="center">Both</td>
+      <td class="center">0x4</td>
       <td class="left">
         <a href="#frame-settings">Section 5.2.4</a>
       </td>
     </tr>
     <tr>
       <td class="left">PUSH_PROMISE</td>
-      <td class="center">Both</td>
+      <td class="center">0x5</td>
       <td class="left">
         <a href="#frame-push-promise">Section 5.2.5</a>
       </td>
     </tr>
     <tr>
-      <td class="left">PING</td>
-      <td class="center">HTTP/2 only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x6</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">GOAWAY</td>
-      <td class="center">HTTP/2 only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x7</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">WINDOW_UPDATE</td>
-      <td class="center">HTTP/2 only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x8</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">CONTINUATION</td>
-      <td class="center">HTTP/2 only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x9</td>
       <td class="left">N/A</td>
     </tr>
   </tbody>
 </table>
-<p id="rfc.section.9.3.p.4">The &#8220;Specification&#8221; column is renamed to &#8220;HTTP/2 specification&#8221; and is only required if the frame is supported over HTTP/2.</p>
 <h2 id="rfc.section.9.4"><a href="#rfc.section.9.4">9.4.</a> <a href="#iana-settings" id="iana-settings">Settings Parameters</a></h2>
-<p id="rfc.section.9.4.p.1">This document adds two new columns to the &#8220;HTTP/2 Settings&#8221; registry defined in <a href="#RFC7540">[RFC7540]</a>:</p>
+<p id="rfc.section.9.4.p.1">This document establishes a registry for HTTP/QUIC settings.  The &#8220;HTTP/QUIC Settings&#8221; registry manages a 16-bit space.  The &#8220;HTTP/QUIC Settings&#8221; registry operates under the &#8220;Expert Review&#8221; policy <a href="#RFC5226">[RFC5226]</a> for values in the range from 0x0000 to 0xefff, with values between and 0xf000 and 0xffff being reserved for Experimental Use.  The designated experts are the same as those for the &#8220;HTTP/2 Settings&#8221; registry defined in <a href="#RFC7540">[RFC7540]</a>.</p>
+<p id="rfc.section.9.4.p.2">While this registry is separate from the &#8220;HTTP/2 Settings&#8221; registry defined in <a href="#RFC7540">[RFC7540]</a>, it is preferable that the assignments parallel each other.  If an entry is present in only one registry, every effort SHOULD be made to avoid assigning the corresponding value to an unrelated operation.</p>
+<p id="rfc.section.9.4.p.3">New registrations are advised to provide the following information:</p>
 <p/>
 
 <dl>
-  <dt>Supported Protocols:</dt>
-  <dd style="margin-left: 8">Indicates which associated protocols use the setting.  Values MUST be one of: <ul><li>&#8220;HTTP/2 only&#8221;</li><li>&#8220;HTTP/QUIC only&#8221;</li><li>&#8220;Both&#8221;</li></ul><p> </p></dd>
-  <dt>HTTP/QUIC Specification:</dt>
-  <dd style="margin-left: 8">Indicates where this setting&#8217;s behavior over QUIC is defined; required if the frame is supported over QUIC.</dd>
+  <dt>Name:</dt>
+  <dd style="margin-left: 8">A symbolic name for the setting.  Specifying a setting name is optional.</dd>
+  <dt>Code:</dt>
+  <dd style="margin-left: 8">The 16-bit code assigned to the setting.</dd>
+  <dt>Specification:</dt>
+  <dd style="margin-left: 8">An optional reference to a specification that describes the use of the setting.</dd>
 </dl>
-<p id="rfc.section.9.4.p.3">Values for existing registrations are assigned by this document:</p>
+<p id="rfc.section.9.4.p.5">The entries in the following table are registered by this document.</p>
 <table cellpadding="3" cellspacing="0" class="tt full center">
   <thead>
     <tr>
       <th class="left">Setting Name</th>
-      <th class="center">Supported Protocols</th>
-      <th class="left">HTTP/QUIC Specification</th>
+      <th class="center">Code</th>
+      <th class="left">Specification</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td class="left">HEADER_TABLE_SIZE</td>
-      <td class="center">Both</td>
+      <td class="center">0x1</td>
       <td class="left">
         <a href="#settings-parameters">Section 5.2.4.2</a>
       </td>
     </tr>
     <tr>
-      <td class="left">ENABLE_PUSH / DISABLE_PUSH</td>
-      <td class="center">Both</td>
+      <td class="left">DISABLE_PUSH</td>
+      <td class="center">0x2</td>
       <td class="left">
         <a href="#settings-parameters">Section 5.2.4.2</a>
       </td>
     </tr>
     <tr>
-      <td class="left">MAX_CONCURRENT_STREAMS</td>
-      <td class="center">HTTP/2 Only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x3</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">INITIAL_WINDOW_SIZE</td>
-      <td class="center">HTTP/2 Only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x4</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">MAX_FRAME_SIZE</td>
-      <td class="center">HTTP/2 Only</td>
+      <td class="left">Reserved</td>
+      <td class="center">0x5</td>
       <td class="left">N/A</td>
     </tr>
     <tr>
       <td class="left">MAX_HEADER_LIST_SIZE</td>
-      <td class="center">Both</td>
+      <td class="center">0x6</td>
       <td class="left">
         <a href="#settings-parameters">Section 5.2.4.2</a>
       </td>
     </tr>
   </tbody>
 </table>
-<p id="rfc.section.9.4.p.4">The &#8220;Specification&#8221; column is renamed to &#8220;HTTP/2 Specification&#8221; and is only required if the setting is supported over HTTP/2.</p>
 <h2 id="rfc.section.9.5"><a href="#rfc.section.9.5">9.5.</a> <a href="#iana-error-codes" id="iana-error-codes">Error Codes</a></h2>
 <p id="rfc.section.9.5.p.1">This document establishes a registry for HTTP/QUIC error codes.  The &#8220;HTTP/QUIC Error Code&#8221; registry manages a 30-bit space.  The &#8220;HTTP/QUIC Error Code&#8221; registry operates under the &#8220;Expert Review&#8221; policy <a href="#RFC5226">[RFC5226]</a>.</p>
 <p id="rfc.section.9.5.p.2">Registrations for error codes are required to include a description of the error code.  An expert reviewer is advised to examine new registrations for possible duplication with existing error codes.  Use of existing registrations is to be encouraged, but not mandated.</p>
@@ -1206,6 +1212,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <ul>
   <li>Cite RFC 5234 (#404)</li>
   <li>Return to a single stream per request (#245,#557)</li>
+  <li>Use separate frame type and settings registries from HTTP/2 (#81)</li>
 </ul>
 <h2 id="rfc.appendix.B.2"><a href="#rfc.appendix.B.2">B.2.</a> <a href="#since-draft-ietf-quic-http-03" id="since-draft-ietf-quic-http-03">Since draft-ietf-quic-http-03</a></h2>
 <p id="rfc.section.B.2.p.1">None.</p>

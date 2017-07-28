@@ -131,15 +131,15 @@ Internet-Draft           QUIC Transport Protocol               July 2017
        7.6.2.  Address Validation for Migrated Connections . . . . .  34
      7.7.  Connection Termination  . . . . . . . . . . . . . . . . .  34
    8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  35
-     8.1.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  35
+     8.1.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  36
      8.2.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  36
-     8.3.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  36
+     8.3.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  37
      8.4.  GOAWAY Frame  . . . . . . . . . . . . . . . . . . . . . .  37
      8.5.  MAX_DATA Frame  . . . . . . . . . . . . . . . . . . . . .  38
      8.6.  MAX_STREAM_DATA Frame . . . . . . . . . . . . . . . . . .  39
      8.7.  MAX_STREAM_ID Frame . . . . . . . . . . . . . . . . . . .  40
      8.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  40
-     8.9.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  40
+     8.9.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  41
      8.10. STREAM_BLOCKED Frame  . . . . . . . . . . . . . . . . . .  41
      8.11. STREAM_ID_NEEDED Frame  . . . . . . . . . . . . . . . . .  41
      8.12. NEW_CONNECTION_ID Frame . . . . . . . . . . . . . . . . .  41
@@ -1887,13 +1887,13 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    be terminated in one of three ways:
 
    1.  Explicit Shutdown: An endpoint sends a CONNECTION_CLOSE frame to
-       initiate a connection termination.  An endpoint may send a GOAWAY
-       frame to the peer prior to a CONNECTION_CLOSE to indicate that
-       the connection will soon be terminated.  A GOAWAY frame signals
-       to the peer that any active streams will continue to be
-       processed, but the sender of the GOAWAY will not initiate any
-       additional streams and will not accept any new incoming streams.
-       On termination of the active streams, a CONNECTION_CLOSE may be
+       terminate the connection.  An endpoint may send a GOAWAY frame to
+       the peer prior to a CONNECTION_CLOSE to indicate that the
+       connection will soon be terminated.  A GOAWAY frame signals to
+       the peer that any active streams will continue to be processed,
+       but the sender of the GOAWAY will not initiate any additional
+       streams and will not accept any new incoming streams.  On
+       termination of the active streams, a CONNECTION_CLOSE may be
        sent.  If an endpoint sends a CONNECTION_CLOSE frame while
        unterminated streams are active (no FIN bit or RST_STREAM frames
        have been sent or received for one or more streams), then the
@@ -1929,9 +1929,19 @@ Internet-Draft           QUIC Transport Protocol               July 2017
        return.  (TODO: articulate rules around when a public reset
        should be sent.)
 
-   TODO: Connections that are terminated are added to a TIME_WAIT list
-   at the server, so as to absorb any straggler packets in the network.
-   Discuss TIME_WAIT list.
+   After receiving either a CONNECTION_CLOSE frame or a Public Reset, an
+   endpoint MUST NOT send additional packets on that connection.  After
+   sending either a CONNECTION_CLOSE frame or a Public Reset packet,
+   implementations MUST NOT send any non-closing packets on that
+   connection.  If additional packets are received after this time and
+   before idle_timeout seconds has passed, implementations SHOULD
+   respond to them by sending a CONNECTION_CLOSE (which MAY just be a
+   duplicate of the previous CONNECTION_CLOSE packet) but MAY also send
+   a Public Reset packet.  Implementations SHOULD throttle these
+   responses, for instance by exponentially backing off the number of
+   packets which are received before sending a response.  After this
+   time, implementations SHOULD respond to unexpected packets with a
+   Public Reset packet.
 
 8.  Frame Types and Formats
 
@@ -1939,16 +1949,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    frames.  We now describe the various QUIC frame types that can be
    present in a Regular packet.  The use of these frames and various
    frame header bits are described in subsequent sections.
-
-8.1.  PADDING Frame
-
-   The PADDING frame (type=0x00) has no semantic value.  PADDING frames
-   can be used to increase the size of a packet.  Padding can be used to
-   increase an initial client packet to the minimum required size, or to
-   provide protection against traffic analysis for protected packets.
-
-   A PADDING frame has no content.  That is, a PADDING frame consists of
-   the single octet that identifies the frame as a PADDING frame.
 
 
 
@@ -1961,6 +1961,16 @@ Iyengar & Thomson       Expires January 29, 2018               [Page 35]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+8.1.  PADDING Frame
+
+   The PADDING frame (type=0x00) has no semantic value.  PADDING frames
+   can be used to increase the size of a packet.  Padding can be used to
+   increase an initial client packet to the minimum required size, or to
+   provide protection against traffic analysis for protected packets.
+
+   A PADDING frame has no content.  That is, a PADDING frame consists of
+   the single octet that identifies the frame as a PADDING frame.
 
 8.2.  RST_STREAM Frame
 
@@ -1998,16 +2008,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
       offset of the end of data written on this stream by the RST_STREAM
       sender.
 
-8.3.  CONNECTION_CLOSE frame
-
-   An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
-   peer that the connection is being closed.  If there are open streams
-   that haven't been explicitly closed, they are implicitly closed when
-   the connection is closed.  (Ideally, a GOAWAY frame would be sent
-   with enough time that all streams are torn down.)  The frame is as
-   follows:
-
-
 
 
 
@@ -2017,6 +2017,15 @@ Iyengar & Thomson       Expires January 29, 2018               [Page 36]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+8.3.  CONNECTION_CLOSE frame
+
+   An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
+   peer that the connection is being closed.  If there are open streams
+   that haven't been explicitly closed, they are implicitly closed when
+   the connection is closed.  (Ideally, a GOAWAY frame would be sent
+   with enough time that all streams are torn down.)  The frame is as
+   follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2058,6 +2067,13 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    |                  Largest Server Stream ID (32)                |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+
+
+Iyengar & Thomson       Expires January 29, 2018               [Page 37]
+
+Internet-Draft           QUIC Transport Protocol               July 2017
+
+
    The fields of a GOAWAY frame are:
 
    Largest Client Stream ID:  The highest-numbered, client-initiated
@@ -2065,14 +2081,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
       data, or received and delivered data.  All higher-numbered,
       client-initiated streams (that is, odd-numbered streams) are
       implicitly reset by sending or receiving the GOAWAY frame.
-
-
-
-
-Iyengar & Thomson       Expires January 29, 2018               [Page 37]
-
-Internet-Draft           QUIC Transport Protocol               July 2017
-
 
    Largest Server Stream ID:  The highest-numbered, server-initiated
       stream on which the endpoint sending the GOAWAY frame either sent
@@ -2115,20 +2123,19 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   The fields in the MAX_DATA frame are as follows:
-
-   Maximum Data:  A 64-bit unsigned integer indicating the maximum
-      amount of data that can be sent on the entire connection, in units
-      of 1024 octets.  That is, the updated connection-level data limit
-      is determined by multiplying the encoded value by 1024.
-
-
 
 
 Iyengar & Thomson       Expires January 29, 2018               [Page 38]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+   The fields in the MAX_DATA frame are as follows:
+
+   Maximum Data:  A 64-bit unsigned integer indicating the maximum
+      amount of data that can be sent on the entire connection, in units
+      of 1024 octets.  That is, the updated connection-level data limit
+      is determined by multiplying the encoded value by 1024.
 
    All data sent in STREAM frames counts toward this limit, with the
    exception of data on stream 0.  The sum of the largest received
@@ -2172,19 +2179,19 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    that stream.  Receiving STREAM frames might not increase the largest
    received offset.
 
-   The data sent on a stream MUST NOT exceed the largest maximum stream
-   data value advertised by the receiver.  An endpoint MUST terminate a
-   connection with a FLOW_CONTROL_ERROR error if it receives more data
-   than the largest maximum stream data that it has sent for the
-   affected stream, unless this is a result of a change in the initial
-   limits (see Section 7.3.2).
-
 
 
 Iyengar & Thomson       Expires January 29, 2018               [Page 39]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+   The data sent on a stream MUST NOT exceed the largest maximum stream
+   data value advertised by the receiver.  An endpoint MUST terminate a
+   connection with a FLOW_CONTROL_ERROR error if it receives more data
+   than the largest maximum stream data that it has sent for the
+   affected stream, unless this is a result of a change in the initial
+   limits (see Section 7.3.2).
 
 8.7.  MAX_STREAM_ID Frame
 
@@ -2226,6 +2233,15 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    open.  The default is to send a PING frame after 15 seconds of
    quiescence.  A PING frame has no additional fields.
 
+
+
+
+
+Iyengar & Thomson       Expires January 29, 2018               [Page 40]
+
+Internet-Draft           QUIC Transport Protocol               July 2017
+
+
 8.9.  BLOCKED Frame
 
    A sender sends a BLOCKED frame (type=0x08) when it wishes to send
@@ -2234,13 +2250,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    flow control algorithms (see Section 11.1.2).
 
    The BLOCKED frame does not contain a payload.
-
-
-
-Iyengar & Thomson       Expires January 29, 2018               [Page 40]
-
-Internet-Draft           QUIC Transport Protocol               July 2017
-
 
 8.10.  STREAM_BLOCKED Frame
 
@@ -2281,6 +2290,14 @@ Internet-Draft           QUIC Transport Protocol               July 2017
 
    The NEW_CONNECTION_ID is as follows:
 
+
+
+
+Iyengar & Thomson       Expires January 29, 2018               [Page 41]
+
+Internet-Draft           QUIC Transport Protocol               July 2017
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -2290,13 +2307,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    +                        Connection ID (64)                     +
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-
-
-Iyengar & Thomson       Expires January 29, 2018               [Page 41]
-
-Internet-Draft           QUIC Transport Protocol               July 2017
-
 
    The fields are:
 
@@ -2336,6 +2346,14 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    without receiving acknowledgment of its ACK frames, with the
    knowledge this could cause the sender to unnecessarily retransmit
    some data.  When this is necessary, the receiver SHOULD acknowledge
+
+
+
+Iyengar & Thomson       Expires January 29, 2018               [Page 42]
+
+Internet-Draft           QUIC Transport Protocol               July 2017
+
+
    newly received packets and stop acknowledging packets received in the
    past.
 
@@ -2346,14 +2364,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    QUIC ACK frames contain a timestamp section with up to 255
    timestamps.  Timestamps enable better congestion control, but are not
    required for correct loss recovery, and old timestamps are less
-
-
-
-Iyengar & Thomson       Expires January 29, 2018               [Page 42]
-
-Internet-Draft           QUIC Transport Protocol               July 2017
-
-
    valuable, so it is not guaranteed every timestamp will be received by
    the sender.  A receiver SHOULD send a timestamp exactly once for each
    received packet containing retransmittable frames.  A receiver MAY
@@ -2387,16 +2397,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
       32, and 64 bits respectively.
 
    An ACK frame is shown below.
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1876,10 +1876,10 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    be terminated in one of three ways:
 
    1.  Explicit Shutdown: An endpoint sends a CONNECTION_CLOSE frame to
-       initiate a connection termination.  An endpoint MAY use
-       application-layer mechanisms to gracefully close activity on the
-       connection.  On termination of the active streams, a
-       CONNECTION_CLOSE may be sent.  If an endpoint sends a
+       terminate the connection.  An endpoint MAY use application-layer
+       mechanisms prior to a CONNECTION_CLOSE to indicate that the
+       connection will soon be terminated.  On termination of the active
+       streams, a CONNECTION_CLOSE may be sent.  If an endpoint sends a
        CONNECTION_CLOSE frame while unterminated streams are active (no
        FIN bit or RST_STREAM frames have been sent or received for one
        or more streams), then the peer must assume that the streams were
@@ -1913,9 +1913,19 @@ Internet-Draft           QUIC Transport Protocol               July 2017
        return.  (TODO: articulate rules around when a public reset
        should be sent.)
 
-   TODO: Connections that are terminated are added to a TIME_WAIT list
-   at the server, so as to absorb any straggler packets in the network.
-   Discuss TIME_WAIT list.
+   After receiving either a CONNECTION_CLOSE frame or a Public Reset, an
+   endpoint MUST NOT send additional packets on that connection.  After
+   sending either a CONNECTION_CLOSE frame or a Public Reset packet,
+   implementations MUST NOT send any non-closing packets on that
+   connection.  If additional packets are received after this time and
+   before idle_timeout seconds has passed, implementations SHOULD
+   respond to them by sending a CONNECTION_CLOSE (which MAY just be a
+   duplicate of the previous CONNECTION_CLOSE packet) but MAY also send
+   a Public Reset packet.  Implementations SHOULD throttle these
+   responses, for instance by exponentially backing off the number of
+   packets which are received before sending a response.  After this
+   time, implementations SHOULD respond to unexpected packets with a
+   Public Reset packet.
 
 8.  Frame Types and Formats
 
@@ -1945,22 +1955,14 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    endpoint sends a RST_STREAM in response to a RST_STREAM unless the
    stream is already closed.
 
-   The RST_STREAM frame is as follows:
-
-
-
-
-
-
-
-
-
 
 
 Iyengar & Thomson       Expires January 29, 2018               [Page 35]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+   The RST_STREAM frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2008,8 +2010,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    Reason Phrase Length:  A 16-bit unsigned number specifying the length
       of the reason phrase in bytes.  Note that a CONNECTION_CLOSE frame
       cannot be split between packets, so in practice any limits on
-      packet size will also limit the space available for a reason
-      phrase.
 
 
 
@@ -2017,6 +2017,9 @@ Iyengar & Thomson       Expires January 29, 2018               [Page 36]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
+
+      packet size will also limit the space available for a reason
+      phrase.
 
    Reason Phrase:  A human-readable explanation for why the connection
       was closed.  This can be zero length if the sender chooses to not
@@ -2062,9 +2065,6 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    stream.
 
    The frame is as follows:
-
-
-
 
 
 

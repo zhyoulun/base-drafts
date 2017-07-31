@@ -23,13 +23,12 @@
     position: fixed;
     bottom: 0;
     right: 0;
-    right: calc(50vw - 500px);
+    right: calc(50vw - 525px);
     width: 300px;
-    padding: 0 1em;
     z-index: 1;
   }
   #rfc\.toc {
-    top: 16px;
+    top: 15px;
   }
   ul.toc {
     top: 80px;
@@ -37,8 +36,7 @@
   }
 
   body {
-    padding-left: 1.5em;
-    padding-right: 29em;
+    padding-right: 350px;
   }
 }
 
@@ -47,7 +45,7 @@ body {
   color: #333;
   font-size-adjust: 0.5;
   line-height: 130%;
-  margin: 2.5em auto;
+  margin: 25px auto;
   max-width: 724px;
 }
 
@@ -326,7 +324,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-6-11" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-7-31" />
   <meta name="dct.abstract" content="This document describes loss detection and congestion control mechanisms for QUIC." />
   <meta name="description" content="This document describes loss detection and congestion control mechanisms for QUIC." />
 
@@ -350,8 +348,8 @@ address {
   <td class="right">Google</td>
 </tr>
 <tr>
-  <td class="left">Expires: December 13, 2017</td>
-  <td class="right">June 11, 2017</td>
+  <td class="left">Expires: February 1, 2018</td>
+  <td class="right">July 31, 2017</td>
 </tr>
 
     	
@@ -376,7 +374,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on December 13, 2017.</p>
+<p>This Internet-Draft will expire on February 1, 2018.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -512,6 +510,10 @@ address {
   <dd style="margin-left: 8">The last packet number sent prior to the first retransmission timeout.</dd>
   <dt>time_of_last_sent_packet:</dt>
   <dd style="margin-left: 8">The time the most recent packet was sent.</dd>
+  <dt>largest_sent_packet:</dt>
+  <dd style="margin-left: 8">The packet number of the most recently sent packet.</dd>
+  <dt>largest_acked_packet:</dt>
+  <dd style="margin-left: 8">The largest packet number acknowledged in an ack frame.</dd>
   <dt>latest_rtt:</dt>
   <dd style="margin-left: 8">The most recent RTT measurement made when receiving an ack for a previously unacked packet.</dd>
   <dt>smoothed_rtt:</dt>
@@ -545,6 +547,7 @@ address {
    rttvar = 0
    largest_sent_before_rto = 0
    time_of_last_sent_packet = 0
+   largest_sent_packet = 0
 </pre>
 <h3 id="rfc.section.3.2.4"><a href="#rfc.section.3.2.4">3.2.4.</a> <a href="#on-sending-a-packet" id="on-sending-a-packet">On Sending a Packet</a></h3>
 <p id="rfc.section.3.2.4.p.1">After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called.  The parameters to OnPacketSent are as follows:</p>
@@ -558,7 +561,8 @@ address {
 <p id="rfc.section.3.2.4.p.3">Pseudocode for OnPacketSent follows:</p>
 <pre>
  OnPacketSent(packet_number, is_retransmittable, sent_bytes):
-   time_of_last_sent_packet = now;
+   time_of_last_sent_packet = now
+   largest_sent_packet = packet_number
    sent_packets[packet_number].packet_number = packet_number
    sent_packets[packet_number].time = now
    if is_retransmittable:
@@ -570,6 +574,7 @@ address {
 <p id="rfc.section.3.2.5.p.2">Pseudocode for OnAckReceived and UpdateRtt follow:</p>
 <pre>
    OnAckReceived(ack):
+     largest_acked_packet = ack.largest_acked
      // If the largest acked is newly acked, update the RTT.
      if (sent_packets[ack.largest_acked]):
        latest_rtt = now - sent_packets[ack.largest_acked].time
@@ -600,6 +605,7 @@ address {
 <p id="rfc.section.3.2.6.p.4">Pseudocode for OnPacketAcked follows:</p>
 <pre>
    OnPacketAcked(acked_packet_number):
+     OnPacketAckedCC(acked_packet_number)
      // If a packet sent prior to RTO was acked, then the RTO
      // was spurious.  Otherwise, inform congestion control.
      if (rto_count &gt; 0 &amp;&amp;
@@ -613,11 +619,11 @@ address {
 <h3 id="rfc.section.3.2.7"><a href="#rfc.section.3.2.7">3.2.7.</a> <a href="#setting-the-loss-detection-alarm" id="setting-the-loss-detection-alarm">Setting the Loss Detection Alarm</a></h3>
 <p id="rfc.section.3.2.7.p.1">QUIC loss detection uses a single alarm for all timer-based loss detection.  The duration of the alarm is based on the alarm&#8217;s mode, which is set in the packet and timer events further below.  The function SetLossDetectionAlarm defined below shows how the single timer is set based on the alarm mode.</p>
 <h4 id="rfc.section.3.2.7.1"><a href="#rfc.section.3.2.7.1">3.2.7.1.</a> <a href="#handshake-packets" id="handshake-packets">Handshake Packets</a></h4>
-<p id="rfc.section.3.2.7.1.p.1">The initial flight has no prior RTT sample.  A client SHOULD remember the previous RTT it observed when resumption is attempted and use that for an initial RTT value.  If no previous RTT is available, the initial RTT defaults to 200ms.</p>
-<p id="rfc.section.3.2.7.1.p.2">Endpoints MUST retransmit handshake frames if not acknowledged within a time limit. This time limit will start as the largest of twice the rtt value and MinTLPTimeout.  Each consecutive handshake retransmission doubles the time limit, until an acknowledgement is received.</p>
+<p id="rfc.section.3.2.7.1.p.1">The initial flight has no prior RTT sample.  A client SHOULD remember the previous RTT it observed when resumption is attempted and use that for an initial RTT value.  If no previous RTT is available, the initial RTT defaults to 100ms.</p>
+<p id="rfc.section.3.2.7.1.p.2">Endpoints MUST retransmit handshake frames if not acknowledged within a time limit. This time limit will start as the largest of twice the RTT value and MinTLPTimeout.  Each consecutive handshake retransmission doubles the time limit, until an acknowledgement is received.</p>
 <p id="rfc.section.3.2.7.1.p.3">Handshake frames may be cancelled by handshake state transitions.  In particular, all non-protected frames SHOULD be no longer be transmitted once packet protection is available.</p>
 <p id="rfc.section.3.2.7.1.p.4">When stateless rejects are in use, the connection is considered immediately closed once a reject is sent, so no timer is set to retransmit the reject.</p>
-<p id="rfc.section.3.2.7.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
+<p id="rfc.section.3.2.7.1.p.5">Version negotiation packets are always stateless, and MUST be sent once per handshake packet that uses an unsupported QUIC version, and MAY be sent in response to 0RTT packets.</p>
 <h4 id="rfc.section.3.2.7.2"><a href="#rfc.section.3.2.7.2">3.2.7.2.</a> <a href="#tail-loss-probe-and-retransmission-timeout" id="tail-loss-probe-and-retransmission-timeout">Tail Loss Probe and Retransmission Timeout</a></h4>
 <p id="rfc.section.3.2.7.2.p.1">Tail loss probes <a href="#LOSS-PROBE">[LOSS-PROBE]</a> and retransmission timeouts <a href="#RFC6298">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
 <h4 id="rfc.section.3.2.7.3"><a href="#rfc.section.3.2.7.3">3.2.7.3.</a> <a href="#early-retransmit" id="early-retransmit">Early Retransmit</a></h4>
@@ -746,7 +752,7 @@ address {
 
 <dl>
   <dt>bytes_in_flight:</dt>
-  <dd style="margin-left: 8">The sum of the size in bytes of all sent packets that contain at least one retransmittable frame, and have not been acked or declared lost.</dd>
+  <dd style="margin-left: 8">The sum of the size in bytes of all sent packets that contain at least one retransmittable or PADDING frame, and have not been acked or declared lost. The size does not include IP or UDP overhead.  Ack only frames do not count towards byte_in_flight.</dd>
   <dt>congestion_window:</dt>
   <dd style="margin-left: 8">Maximum number of bytes in flight that may be sent.</dd>
   <dt>end_of_recovery:</dt>
@@ -763,10 +769,10 @@ address {
    ssthresh = infinite
 </pre>
 <h2 id="rfc.section.4.6"><a href="#rfc.section.4.6">4.6.</a> <a href="#on-packet-acknowledgement" id="on-packet-acknowledgement">On Packet Acknowledgement</a></h2>
-<p id="rfc.section.4.6.p.1">Invoked at the same time loss detection&#8217;s OnPacketAcked is called and supplied with the acked_packet from sent_packets.</p>
-<p id="rfc.section.4.6.p.2">Pseudocode for OnPacketAcked follows:</p>
+<p id="rfc.section.4.6.p.1">Invoked from loss detection&#8217;s OnPacketAcked and is supplied with acked_packet from sent_packets.</p>
+<p id="rfc.section.4.6.p.2">Pseudocode for OnPacketAckedCC follows:</p>
 <pre>
-   OnPacketAcked(acked_packet):
+   OnPacketAckedCC(acked_packet):
      if (acked_packet.packet_number &lt; end_of_recovery):
        return
      if (congestion_window &lt; ssthresh):
@@ -814,7 +820,7 @@ address {
       <td class="reference">
         <b id="QUIC-TRANSPORT">[QUIC-TRANSPORT]</b>
       </td>
-      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-transport">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport, June 2017.</td>
+      <td class="top"><a title="Google">Iyengar, J.</a> and <a title="Mozilla">M. Thomson</a>, "<a href="http://tools.ietf.org/html/draft-ietf-quic-transport">QUIC: A UDP-Based Multiplexed and Secure Transport</a>", Internet-Draft draft-ietf-quic-transport, July 2017.</td>
     </tr>
     <tr>
       <td class="reference">

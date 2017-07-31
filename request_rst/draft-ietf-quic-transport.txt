@@ -173,7 +173,7 @@ Internet-Draft           QUIC Transport Protocol               July 2017
      10.6.  Stream Prioritization  . . . . . . . . . . . . . . . . .  59
    11. Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .  60
      11.1.  Edge Cases and Other Considerations  . . . . . . . . . .  61
-       11.1.1.  Response to a RST_STREAM . . . . . . . . . . . . . .  62
+       11.1.1.  Response to a RST_STREAM . . . . . . . . . . . . . .  61
        11.1.2.  Data Limit Increments  . . . . . . . . . . . . . . .  62
      11.2.  Stream Limit Increment . . . . . . . . . . . . . . . . .  62
        11.2.1.  Blocking on Flow Control . . . . . . . . . . . . . .  62
@@ -3178,14 +3178,14 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    guarantee that incoming data will be ignored.
 
    STREAM frames received after sending STOP_SENDING are still counted
-   toward the connection and stream flow-control windows.  Even though
-   these frames will be discarded, because they are sent before their
-   sender receives the STOP_SENDING, the sender will consider the frames
-   to count against its flow-control windows.
+   toward the connection and stream flow-control windows, even though
+   these frames will be discarded upon receipt.  This avoids potential
+   ambiguity about which STREAM frames count toward flow control.
 
    Upon receipt of a STOP_SENDING frame on a stream in the "open" or
    "half-closed (remote)" states, an endpoint SHOULD send a RST_STREAM
    with an error code of QUIC_RECEIVED_RST.  If the STOP_SENDING frame
+   is received on a stream that is already in the "half-closed (local)"
 
 
 
@@ -3194,7 +3194,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 57]
 Internet-Draft           QUIC Transport Protocol               July 2017
 
 
-   is received on a stream that is already in the "half-closed (local)"
    or "closed" states, a RST_STREAM frame MAY still be sent in order to
    cancel retransmission of previously-sent STREAM frames.
 
@@ -3241,7 +3240,8 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    stream MUST be less than 2^64.  A receiver MUST ensure that received
    stream data is delivered to the application as an ordered byte-
    stream.  Data received out of order MUST be buffered for later
-
+   delivery, as long as it is not in violation of the receiver's flow
+   control limits.
 
 
 
@@ -3249,9 +3249,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 58]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
-
-   delivery, as long as it is not in violation of the receiver's flow
-   control limits.
 
    An endpoint MUST NOT send data on any stream without ensuring that it
    is within the data limits set by its peer.  The cryptographic
@@ -3297,6 +3294,9 @@ Internet-Draft           QUIC Transport Protocol               July 2017
 
    Stream 0 MUST be prioritized over other streams prior to the
    completion of the cryptographic handshake.  This includes the
+   retransmission of the second flight of client handshake messages,
+   that is, the TLS Finished and any client authentication messages.
+
 
 
 
@@ -3305,9 +3305,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 59]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
-
-   retransmission of the second flight of client handshake messages,
-   that is, the TLS Finished and any client authentication messages.
 
    STREAM frames that are determined to be lost SHOULD be retransmitted
    before sending new data, unless application priorities indicate
@@ -3353,7 +3350,10 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    BLOCKED frames are expected to be sent infrequently in common cases,
    but they are considered useful for debugging and monitoring purposes.
 
-
+   A receiver advertises credit for a stream by sending a
+   MAX_STREAM_DATA frame with the Stream ID set appropriately.  A
+   receiver could use the current offset of data consumed to determine
+   the flow control offset to be advertised.  A receiver MAY send
 
 
 
@@ -3362,10 +3362,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 60]
 Internet-Draft           QUIC Transport Protocol               July 2017
 
 
-   A receiver advertises credit for a stream by sending a
-   MAX_STREAM_DATA frame with the Stream ID set appropriately.  A
-   receiver could use the current offset of data consumed to determine
-   the flow control offset to be advertised.  A receiver MAY send
    MAX_STREAM_DATA frames in multiple packets in order to make sure that
    the sender receives an update before running out of flow control
    credit, even if one of the packets is lost.
@@ -3409,7 +3405,11 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    receiver MUST use the final offset to account for all bytes sent on
    the stream in its connection level flow controller.
 
+11.1.1.  Response to a RST_STREAM
 
+   RST_STREAM terminates one direction of a stream abruptly.  Whether
+   any action or response can or should be taken on the data already
+   received is an application-specific issue, but it will often be the
 
 
 
@@ -3418,11 +3418,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 61]
 Internet-Draft           QUIC Transport Protocol               July 2017
 
 
-11.1.1.  Response to a RST_STREAM
-
-   RST_STREAM terminates one direction of a stream abruptly.  Whether
-   any action or response can or should be taken on the data already
-   received is an application-specific issue, but it will often be the
    case that upon receipt of a RST_STREAM an endpoint will choose to
    stop sending data in its own direction.  If the sender of a
    RST_STREAM wishes to explicitly state that no future data will be
@@ -3466,6 +3461,11 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    MUST send a BLOCKED or STREAM_BLOCKED frame.  These frames are
    expected to be useful for debugging at the receiver; they do not
    require any other action.  A receiver SHOULD NOT wait for a BLOCKED
+   or STREAM_BLOCKED frame before sending MAX_DATA or MAX_STREAM_DATA,
+   since doing so will mean that a sender is unable to send for an
+   entire round trip.
+
+
 
 
 
@@ -3473,10 +3473,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 62]
 
 Internet-Draft           QUIC Transport Protocol               July 2017
 
-
-   or STREAM_BLOCKED frame before sending MAX_DATA or MAX_STREAM_DATA,
-   since doing so will mean that a sender is unable to send for an
-   entire round trip.
 
    For smooth operation of the congestion controller, it is generally
    considered best to not let the sender go into quiescence if
@@ -3523,6 +3519,10 @@ Internet-Draft           QUIC Transport Protocol               July 2017
    error to its peer.  Errors can affect an entire connection (see
    Section 12.1), or a single stream (see Section 12.2).
 
+   The most appropriate error code (Section 12.3) SHOULD be included in
+   the frame that signals the error.  Where this specification
+
+
 
 
 Iyengar & Thomson       Expires February 1, 2018               [Page 63]
@@ -3530,8 +3530,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 63]
 Internet-Draft           QUIC Transport Protocol               July 2017
 
 
-   The most appropriate error code (Section 12.3) SHOULD be included in
-   the frame that signals the error.  Where this specification
    identifies error conditions, it also identifies the error code that
    is used.
 
@@ -3578,6 +3576,8 @@ Internet-Draft           QUIC Transport Protocol               July 2017
 
    Some application protocols make other streams critical to that
    protocol.  An application protocol does not need to inform the
+   transport that a stream is critical; it can instead generate
+
 
 
 
@@ -3586,7 +3586,6 @@ Iyengar & Thomson       Expires February 1, 2018               [Page 64]
 Internet-Draft           QUIC Transport Protocol               July 2017
 
 
-   transport that a stream is critical; it can instead generate
    appropriate errors in response to being notified that the critical
    stream is closed.
 
@@ -3633,6 +3632,7 @@ Internet-Draft           QUIC Transport Protocol               July 2017
 
    FLOW_CONTROL_ERROR (0x80000003):  An endpoint received more data than
       it permitted in its advertised data limits (see Section 11).
+
 
 
 

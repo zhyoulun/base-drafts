@@ -151,17 +151,17 @@ Internet-Draft           QUIC Transport Protocol             August 2017
      8.15. STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  48
    9.  Packetization and Reliability . . . . . . . . . . . . . . . .  50
      9.1.  Special Considerations for PMTU Discovery . . . . . . . .  52
-   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  53
+   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  52
      10.1.  Stream Identifiers . . . . . . . . . . . . . . . . . . .  53
-     10.2.  Life of a Stream . . . . . . . . . . . . . . . . . . . .  54
+     10.2.  Life of a Stream . . . . . . . . . . . . . . . . . . . .  53
        10.2.1.  idle . . . . . . . . . . . . . . . . . . . . . . . .  55
        10.2.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  55
        10.2.3.  half-closed (local)  . . . . . . . . . . . . . . . .  56
-       10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  57
+       10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  56
        10.2.5.  closed . . . . . . . . . . . . . . . . . . . . . . .  57
      10.3.  Solicited State Transitions  . . . . . . . . . . . . . .  57
      10.4.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  58
-     10.5.  Sending and Receiving Data . . . . . . . . . . . . . . .  59
+     10.5.  Sending and Receiving Data . . . . . . . . . . . . . . .  58
 
 
 
@@ -180,7 +180,7 @@ Internet-Draft           QUIC Transport Protocol             August 2017
      11.3.  Stream Final Offset  . . . . . . . . . . . . . . . . . .  63
    12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  64
      12.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  64
-     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  65
+     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  64
      12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  65
    13. Security and Privacy Considerations . . . . . . . . . . . . .  67
      13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  67
@@ -2839,9 +2839,8 @@ Internet-Draft           QUIC Transport Protocol             August 2017
       containing updated information will be sent as described in
       Section 8.14.
 
-   o  STOP_SENDING frames SHOULD be retransmitted, unless the stream has
-      been closed in the appropriate direction since the frame was first
-      generated.  See Section 10.3.
+   o  STOP_SENDING frames MUST be retransmitted, unless the stream has
+      become closed in the appropriate direction.  See Section 10.3.
 
    o  All other frames MUST be retransmitted.
 
@@ -2849,7 +2848,8 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    control action.  The details of loss detection and congestion control
    are described in [QUIC-RECOVERY].
 
-
+   A packet MUST NOT be acknowledged until packet protection has been
+   successfully removed and all frames contained in the packet have been
 
 
 
@@ -2858,8 +2858,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 51]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
-   A packet MUST NOT be acknowledged until packet protection has been
-   successfully removed and all frames contained in the packet have been
    processed.  For STREAM frames, this means the data has been queued
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
@@ -2902,8 +2900,10 @@ Internet-Draft           QUIC Transport Protocol             August 2017
       is provisional until QUIC's loss detection algorithm determines
       that the packet is actually lost.
 
+10.  Streams: QUIC's Data Structuring Abstraction
 
-
+   Streams in QUIC provide a lightweight, ordered, and bidirectional
+   byte-stream abstraction modeled closely on HTTP/2 streams [RFC7540].
 
 
 
@@ -2913,11 +2913,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 52]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-10.  Streams: QUIC's Data Structuring Abstraction
-
-   Streams in QUIC provide a lightweight, ordered, and bidirectional
-   byte-stream abstraction modeled closely on HTTP/2 streams [RFC7540].
 
    Streams can be created either by the client or the server, can
    concurrently send data interleaved with other streams, and can be
@@ -2962,6 +2957,11 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    frame (Section 8.15) permits a shorter encoding when the leading bits
    of the stream ID are zero.
 
+10.2.  Life of a Stream
+
+   The semantics of QUIC streams is based on HTTP/2 streams, and the
+   lifecycle of a QUIC stream therefore closely follows that of an
+   HTTP/2 stream [RFC7540], with some differences to accommodate the
 
 
 
@@ -2970,11 +2970,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 53]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
-10.2.  Life of a Stream
-
-   The semantics of QUIC streams is based on HTTP/2 streams, and the
-   lifecycle of a QUIC stream therefore closely follows that of an
-   HTTP/2 stream [RFC7540], with some differences to accommodate the
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
@@ -3017,7 +3012,12 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
                      Figure 11: Lifecycle of a stream
 
-
+   Note that this diagram shows stream state transitions and the frames
+   and flags that affect those transitions only.  It is possible for a
+   single frame to cause two transitions: receiving a RST_STREAM frame,
+   or a STREAM frame with the FIN flag cause the stream state to move
+   from "idle" to "open" and then immediately to one of the "half-
+   closed" states.
 
 
 
@@ -3025,13 +3025,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 54]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   Note that this diagram shows stream state transitions and the frames
-   and flags that affect those transitions only.  It is possible for a
-   single frame to cause two transitions: receiving a RST_STREAM frame,
-   or a STREAM frame with the FIN flag cause the stream state to move
-   from "idle" to "open" and then immediately to one of the "half-
-   closed" states.
 
    The recipient of a frame that changes stream state will have a
    delayed view of the state of a stream while the frame is in transit.
@@ -3073,6 +3066,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    MUST observe the value advertised by its receiving peer (see
    Section 11).
 
+   Opening a stream causes all lower-numbered streams in the same
+   direction to become open.  Thus, opening an odd-numbered stream
+   causes all "idle", odd-numbered streams with a lower identifier to
+   become open and the same applies to even numbered streams.  Endpoints
+   open streams in increasing numeric order, but loss or reordering can
+   cause packets that open streams to arrive out of order.
+
 
 
 
@@ -3081,13 +3081,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 55]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   Opening a stream causes all lower-numbered streams in the same
-   direction to become open.  Thus, opening an odd-numbered stream
-   causes all "idle", odd-numbered streams with a lower identifier to
-   become open and the same applies to even numbered streams.  Endpoints
-   open streams in increasing numeric order, but loss or reordering can
-   cause packets that open streams to arrive out of order.
 
    From the "open" state, either endpoint can send a frame with the FIN
    flag set, which causes the stream to transition into one of the
@@ -3130,6 +3123,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    which might arrive for a short period after a frame bearing the FIN
    flag is sent.
 
+10.2.4.  half-closed (remote)
+
+   A stream is "half-closed (remote)" when the stream is no longer being
+   used by the peer to send any data.  An endpoint will have either
+   received all data that a peer has sent or will have received a
+   RST_STREAM frame and discarded any received data.
+
 
 
 
@@ -3137,13 +3137,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 56]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-10.2.4.  half-closed (remote)
-
-   A stream is "half-closed (remote)" when the stream is no longer being
-   used by the peer to send any data.  An endpoint will have either
-   received all data that a peer has sent or will have received a
-   RST_STREAM frame and discarded any received data.
 
    Once all data has been either received or discarded, a sender is no
    longer obligated to update the maximum received data for the
@@ -3185,6 +3178,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    MAY send a STOP_SENDING frame on a stream in the "open" or "half-
    closed (local)" state to request closure of the stream in the
    opposite direction.  This typically indicates that the receiving
+   application is no longer reading from the stream, but is not a
+   guarantee that incoming data will be ignored.
+
+   STREAM frames received after sending STOP_SENDING are still counted
+   toward the connection and stream flow-control windows, even though
+   these frames will be discarded upon receipt.  This avoids potential
+   ambiguity about which STREAM frames count toward flow control.
 
 
 
@@ -3193,14 +3193,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 57]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   application is no longer reading from the stream, but is not a
-   guarantee that incoming data will be ignored.
-
-   STREAM frames received after sending STOP_SENDING are still counted
-   toward the connection and stream flow-control windows, even though
-   these frames will be discarded upon receipt.  This avoids potential
-   ambiguity about which STREAM frames count toward flow control.
 
    Upon receipt of a STOP_SENDING frame on a stream in the "open" or
    "half-closed (remote)" states, an endpoint MUST send a RST_STREAM
@@ -3240,16 +3232,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    receive MAX_STREAM_ID frames out of order; a sender MUST therefore
    ignore any MAX_STREAM_ID that does not increase the maximum.
 
-
-
-
-
-
-Iyengar & Thomson       Expires February 2, 2018               [Page 58]
-
-Internet-Draft           QUIC Transport Protocol             August 2017
-
-
 10.5.  Sending and Receiving Data
 
    Once a stream is created, endpoints may use the stream to send and
@@ -3259,6 +3241,14 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    have no other structure within them.  STREAM frame boundaries are not
    expected to be preserved in retransmissions from the sender or during
    delivery to the application at the receiver.
+
+
+
+
+Iyengar & Thomson       Expires February 2, 2018               [Page 58]
+
+Internet-Draft           QUIC Transport Protocol             August 2017
+
 
    When new data is to be sent on a stream, a sender MUST set the
    encapsulating STREAM frame's offset field to the stream offset of the
@@ -3298,14 +3288,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    A QUIC implementation SHOULD provide ways in which an application can
    indicate the relative priority of streams.  When deciding which
-
-
-
-Iyengar & Thomson       Expires February 2, 2018               [Page 59]
-
-Internet-Draft           QUIC Transport Protocol             August 2017
-
-
    streams to dedicate resources to, QUIC SHOULD use the information
    provided by the application.  Failure to account for priority of
    streams can result in suboptimal performance.
@@ -3314,6 +3296,15 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    be transmitted.  Often, there will be limits on what can be
    transmitted as a result of connection flow control or the current
    congestion controller state.
+
+
+
+
+
+Iyengar & Thomson       Expires February 2, 2018               [Page 59]
+
+Internet-Draft           QUIC Transport Protocol             August 2017
+
 
    Giving preference to the transmission of its own management frames
    ensures that the protocol functions efficiently.  That is,
@@ -3354,14 +3345,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    A receiver MAY advertise a larger offset at any point by sending
    MAX_DATA or MAX_STREAM_DATA frames.  A receiver MUST NOT renege on an
-
-
-
-Iyengar & Thomson       Expires February 2, 2018               [Page 60]
-
-Internet-Draft           QUIC Transport Protocol             August 2017
-
-
    advertisement; that is, once a receiver advertises an offset, it MUST
    NOT subsequently advertise a smaller offset.  A sender could receive
    MAX_DATA or MAX_STREAM_DATA frames out of order; a sender MUST
@@ -3371,6 +3354,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    A receiver MUST close the connection with a FLOW_CONTROL_ERROR error
    (Section 12) if the peer violates the advertised connection or stream
    data limits.
+
+
+
+Iyengar & Thomson       Expires February 2, 2018               [Page 60]
+
+Internet-Draft           QUIC Transport Protocol             August 2017
+
 
    A sender MUST send BLOCKED frames to indicate it has data to write
    but is blocked by lack of connection or stream flow control credit.
@@ -3410,14 +3400,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    for the matching stream and ignore further data arriving on that
    stream.  This could result in the endpoints getting out of sync,
    since the RST_STREAM frame may have arrived out of order and there
-
-
-
-Iyengar & Thomson       Expires February 2, 2018               [Page 61]
-
-Internet-Draft           QUIC Transport Protocol             August 2017
-
-
    may be further bytes in flight.  The data sender would have counted
    the data against its connection level flow control budget, but a
    receiver that has not received these bytes would not know to include
@@ -3428,6 +3410,14 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    To avoid this de-synchronization, a RST_STREAM sender MUST include
    the final byte offset sent on the stream in the RST_STREAM frame.  On
    receiving a RST_STREAM frame, a receiver definitively knows how many
+
+
+
+Iyengar & Thomson       Expires February 2, 2018               [Page 61]
+
+Internet-Draft           QUIC Transport Protocol             August 2017
+
+
    bytes were sent on that stream before the RST_STREAM frame, and the
    receiver MUST use the final offset to account for all bytes sent on
    the stream in its connection level flow controller.
@@ -3465,6 +3455,16 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    As with flow control, this document leaves when and how many streams
    to make available to a peer via MAX_STREAM_ID to implementations, but
    offers a few considerations.  MAX_STREAM_ID frames constitute minimal
+   overhead, while withholding MAX_STREAM_ID frames can prevent the peer
+   from using the available parallelism.
+
+   Implementations will likely want to increase the maximum stream ID as
+   peer-initiated streams close.  A receiver MAY also advance the
+   maximum stream ID based on current activity, system conditions, and
+   other environmental factors.
+
+
+
 
 
 
@@ -3473,14 +3473,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 62]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   overhead, while withholding MAX_STREAM_ID frames can prevent the peer
-   from using the available parallelism.
-
-   Implementations will likely want to increase the maximum stream ID as
-   peer-initiated streams close.  A receiver MAY also advance the
-   maximum stream ID based on current activity, system conditions, and
-   other environmental factors.
 
 11.2.1.  Blocking on Flow Control
 
@@ -3522,6 +3514,14 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    An endpoint MUST NOT send data on a stream at or beyond the final
    offset.
 
+   Once a final offset for a stream is known, it cannot change.  If a
+   RST_STREAM or STREAM frame causes the final offset to change for a
+   stream, an endpoint SHOULD respond with a FINAL_OFFSET_ERROR error
+   (see Section 12).  A receiver SHOULD treat receipt of data at or
+   beyond the final offset as a FINAL_OFFSET_ERROR error, even after a
+   stream is closed.  Generating these errors is not mandatory, but only
+   because requiring that an endpoint generate these errors also means
+
 
 
 
@@ -3530,13 +3530,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 63]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
-   Once a final offset for a stream is known, it cannot change.  If a
-   RST_STREAM or STREAM frame causes the final offset to change for a
-   stream, an endpoint SHOULD respond with a FINAL_OFFSET_ERROR error
-   (see Section 12).  A receiver SHOULD treat receipt of data at or
-   beyond the final offset as a FINAL_OFFSET_ERROR error, even after a
-   stream is closed.  Generating these errors is not mandatory, but only
-   because requiring that an endpoint generate these errors also means
    that the endpoint needs to maintain the final offset state for closed
    streams, which could mean a significant state commitment.
 
@@ -3577,6 +3570,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    only mechanism available to an endpoint that continues to receive
    data for a terminated connection is to send a Public Reset packet.
 
+   An endpoint that receives an invalid CONNECTION_CLOSE frame MUST NOT
+   signal the existence of the error to its peer.
+
+12.2.  Stream Errors
+
+   If the error affects a single stream, but otherwise leaves the
+   connection in a recoverable state, the endpoint can send a RST_STREAM
 
 
 
@@ -3586,13 +3586,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 64]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
-   An endpoint that receives an invalid CONNECTION_CLOSE frame MUST NOT
-   signal the existence of the error to its peer.
-
-12.2.  Stream Errors
-
-   If the error affects a single stream, but otherwise leaves the
-   connection in a recoverable state, the endpoint can send a RST_STREAM
    frame (Section 8.2) with an appropriate error code to terminate just
    the affected stream.
 
@@ -3634,6 +3627,13 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    the entire connection and have no defined semantics in the other
    context.
 
+   NO_ERROR (0x80000000):  An endpoint uses this with CONNECTION_CLOSE
+      to signal that the connection is being closed abruptly in the
+      absence of any error.  An endpoint uses this with RST_STREAM to
+      signal that the stream is no longer wanted or in response to the
+      receipt of a RST_STREAM for that stream.
+
+
 
 
 
@@ -3641,12 +3641,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 65]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   NO_ERROR (0x80000000):  An endpoint uses this with CONNECTION_CLOSE
-      to signal that the connection is being closed abruptly in the
-      absence of any error.  An endpoint uses this with RST_STREAM to
-      signal that the stream is no longer wanted or in response to the
-      receipt of a RST_STREAM for that stream.
 
    INTERNAL_ERROR (0x80000001):  The endpoint encountered an internal
       error and cannot continue with the connection.
@@ -3691,16 +3685,18 @@ Internet-Draft           QUIC Transport Protocol             August 2017
       that disagreed with the version negotiation that it performed.
       This error code indicates a potential version downgrade attack.
 
+   PROTOCOL_VIOLATION (0x8000000A):  An endpoint detected an error with
+      protocol compliance that was not covered by more specific error
+      codes.
+
+
+
 
 
 Iyengar & Thomson       Expires February 2, 2018               [Page 66]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   PROTOCOL_VIOLATION (0x8000000A):  An endpoint detected an error with
-      protocol compliance that was not covered by more specific error
-      codes.
 
    QUIC_RECEIVED_RST (0x80000035):  Terminating stream because peer sent
       a RST_STREAM or STOP_SENDING.
@@ -3746,6 +3742,10 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    connections to the target endpoint open and hold them open as long as
    possible.  These attacks can be executed against a QUIC endpoint by
    generating the minimum amount of activity necessary to avoid being
+   closed for inactivity.  This might involve sending small amounts of
+   data, gradually opening flow control windows in order to control the
+   sender rate, or manufacturing ACK frames that simulate a high loss
+   rate.
 
 
 
@@ -3753,11 +3753,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 67]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   closed for inactivity.  This might involve sending small amounts of
-   data, gradually opening flow control windows in order to control the
-   sender rate, or manufacturing ACK frames that simulate a high loss
-   rate.
 
    QUIC deployments SHOULD provide mitigations for the Slowloris
    attacks, such as increasing the maximum number of clients the server
@@ -3801,6 +3796,11 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    Thus, on a new connection, opening stream 2000001 opens 1 million
    streams, as required by the specification.
 
+   The number of active streams is limited by the concurrent stream
+   limit transport parameter, as explained in Section 10.4.  If chosen
+   judisciously, this limit mitigates the effect of the stream
+   commitment attack.  However, setting the limit too low could affect
+   performance when applications expect to open large number of streams.
 
 
 
@@ -3809,12 +3809,6 @@ Iyengar & Thomson       Expires February 2, 2018               [Page 68]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
-
-   The number of active streams is limited by the concurrent stream
-   limit transport parameter, as explained in Section 10.4.  If chosen
-   judisciously, this limit mitigates the effect of the stream
-   commitment attack.  However, setting the limit too low could affect
-   performance when applications expect to open large number of streams.
 
 14.  IANA Considerations
 
@@ -3847,6 +3841,12 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    architecturally dubious).
 
    The initial contents of this registry are shown in Table 4.
+
+
+
+
+
+
 
 
 

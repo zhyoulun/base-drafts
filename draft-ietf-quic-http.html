@@ -296,6 +296,7 @@ address {
 <link href="#rfc.section.5.2.3" rel="Chapter" title="5.2.3 PRIORITY"/>
 <link href="#rfc.section.5.2.4" rel="Chapter" title="5.2.4 SETTINGS"/>
 <link href="#rfc.section.5.2.5" rel="Chapter" title="5.2.5 PUSH_PROMISE"/>
+<link href="#rfc.section.5.2.6" rel="Chapter" title="5.2.6 GOAWAY"/>
 <link href="#rfc.section.6" rel="Chapter" title="6 Error Handling"/>
 <link href="#rfc.section.6.1" rel="Chapter" title="6.1 HTTP-Defined QUIC Error Codes"/>
 <link href="#rfc.section.7" rel="Chapter" title="7 Considerations for Transitioning from HTTP/2"/>
@@ -411,6 +412,7 @@ address {
 <li>5.2.3.   <a href="#rfc.section.5.2.3">PRIORITY</a></li>
 <li>5.2.4.   <a href="#rfc.section.5.2.4">SETTINGS</a></li>
 <li>5.2.5.   <a href="#rfc.section.5.2.5">PUSH_PROMISE</a></li>
+<li>5.2.6.   <a href="#rfc.section.5.2.6">GOAWAY</a></li>
 </ul></ul><li>6.   <a href="#rfc.section.6">Error Handling</a></li>
 <ul><li>6.1.   <a href="#rfc.section.6.1">HTTP-Defined QUIC Error Codes</a></li>
 </ul><li>7.   <a href="#rfc.section.7">Considerations for Transitioning from HTTP/2</a></li>
@@ -666,11 +668,28 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>Payload:</dt>
   <dd style="margin-left: 8">HPACK-compressed request headers for the promised response.</dd>
 </dl>
+<h3 id="rfc.section.5.2.6"><a href="#rfc.section.5.2.6">5.2.6.</a> <a href="#frame-goaway" id="frame-goaway">GOAWAY</a></h3>
+<p id="rfc.section.5.2.6.p.1">The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of a connection by a server.  GOAWAY allows a server to stop accepting new requests while still finishing processing of previously received requests.  This enables administrative actions, like server maintenance.  GOAWAY by itself does not close a connection.  (Note that clients do not need to send GOAWAY to gracefully close a connection; they simply stop making new requests.)</p>
+<p id="rfc.section.5.2.6.p.2">The GOAWAY frame does not define any flags, and the payload is a QUIC stream identifier.  The GOAWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat a GOAWAY frame on a stream other than the control stream as a connection error (<a href="#errors">Section 6</a>) of type HTTP_WRONG_STREAM.</p>
+<p id="rfc.section.5.2.6.p.3">New client requests might already have been sent before the client receives the server&#8217;s GOAWAY frame.  The GOAWAY frame contains the stream identifier of the last client-initiated request that was or might be processed in this connection, which enables client and server to agree on which requests were accepted prior to the connection shutdown.  This identifier MAY be lower than the stream limit identified by a QUIC MAX_STREAM_ID frame, and MAY be zero if no requests were processed.  Servers SHOULD NOT increase the MAX_STREAM_ID limit after sending a GOAWAY frame.</p>
+<p/>
+
+<dl>
+  <dt>Note:</dt>
+  <dd style="margin-left: 8">In this context, &#8220;processed&#8221; means that some data from the stream was passed to some higher layer of software that might have taken some action as a result.</dd>
+</dl>
+<p id="rfc.section.5.2.6.p.5">Once sent, the server will refuse requests sent on streams with an identifier higher than the included last stream identifier.  Clients MUST NOT send new requests on the connection after receiving GOAWAY, although requests might already be in transit. A new connection can be established for new requests.</p>
+<p id="rfc.section.5.2.6.p.6">If the client has sent requests on streams with a higher stream identifier than indicated in the GOAWAY frame, those requests were not and will not be processed.  Endpoints SHOULD reset any streams above this ID with the error code HTTP_REQUEST_CANCELLED.  Servers MAY also reset streams below the indicated ID with HTTP_REQUEST_CANCELLED if the associated requests were not processed.</p>
+<p id="rfc.section.5.2.6.p.7">The client can treat requests cancelled by the server as though they had never been sent at all, thereby allowing them to be retried later on a new connection.  Automatically retrying other requests is not possible, unless this is otherwise permitted (e.g. idempotent actions like GET, PUT, or DELETE).  Requests on stream IDs less than or equal to the stream ID in the GOAWAY frame might have been processed; their status cannot be known until they are completed successfully, reset, or the connection terminates.</p>
+<p id="rfc.section.5.2.6.p.8">Servers SHOULD send a GOAWAY frame when the closing of a connection is known in advance, even if the advance notice is small, so that the remote peer can know whether a stream has been partially processed or not.  For example, if an HTTP client sends a POST at the same time that a server closes a QUIC connection, the client cannot know if the server started to process that POST request if the server does not send a GOAWAY frame to indicate what streams it might have acted on.</p>
+<p id="rfc.section.5.2.6.p.9">For unexpected closures caused by error conditions, a QUIC CONNECTION_CLOSE frame MUST be used.  However, a GOAWAY MAY be sent first to provide additional detail to clients.  If a connection terminates without a GOAWAY frame, the last stream identifier is effectively the highest possible stream identifier (as determined by QUIC&#8217;s MAX_STREAM_ID).</p>
+<p id="rfc.section.5.2.6.p.10">An endpoint MAY send multiple GOAWAY frames if circumstances change. For instance, an endpoint that sends GOAWAY without an error code during graceful shutdown could subsequently encounter an error condition.  The last stream identifier from the last GOAWAY frame received indicates which streams could have been acted upon.  Endpoints MUST NOT increase the value they send in the last stream identifier, since the peers might already have retried unprocessed requests on another connection.</p>
+<p id="rfc.section.5.2.6.p.11">A client that is unable to retry requests loses all requests that are in flight when the server closes the connection.  A server that is attempting to gracefully shut down a connection SHOULD send an initial GOAWAY frame with the last stream identifier set to the current value of QUIC&#8217;s MAX_STREAM_ID and SHOULD NOT increase the MAX_STREAM_ID thereafter.  This signals to the client that a shutdown is imminent and that initiating further requests is prohibited.  After allowing time for any in-flight requests (at least one round-trip time), the server MAY send another GOAWAY frame with an updated last stream identifier.  This ensures that a connection can be cleanly shut down without losing requests.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#errors" id="errors">Error Handling</a></h1>
 <p id="rfc.section.6.p.1">QUIC allows the application to abruptly terminate (reset) individual streams or the entire connection when an error is encountered.  These are referred to as &#8220;stream errors&#8221; or &#8220;connection errors&#8221; and are described in more detail in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
 <p id="rfc.section.6.p.2">This section describes HTTP-specific error codes which can be used to express the cause of a connection or stream error.</p>
 <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1.</a> <a href="#http-error-codes" id="http-error-codes">HTTP-Defined QUIC Error Codes</a></h2>
-<p id="rfc.section.6.1.p.1">QUIC allocates error codes 0x0000-0x3FFF to application protocol definition.  The following error codes are defined by HTTP for use in QUIC RST_STREAM, GOAWAY, and CONNECTION_CLOSE frames.</p>
+<p id="rfc.section.6.1.p.1">QUIC allocates error codes 0x0000-0x3FFF to application protocol definition. The following error codes are defined by HTTP for use in QUIC RST_STREAM and CONNECTION_CLOSE frames.</p>
 <p/>
 
 <dl>
@@ -736,7 +755,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dt>PING (0x6):</dt>
   <dd style="margin-left: 8">PING frames do not exist, since QUIC provides equivalent functionality.</dd>
   <dt>GOAWAY (0x7):</dt>
-  <dd style="margin-left: 8">GOAWAY frames do not exist, since QUIC provides equivalent functionality.</dd>
+  <dd style="margin-left: 8">GOAWAY is sent only from server to client and does not contain an error code.  See <a href="#frame-goaway">Section 5.2.6</a>.</dd>
   <dt>WINDOW_UPDATE (0x8):</dt>
   <dd style="margin-left: 8">WINDOW_UPDATE frames do not exist, since QUIC provides flow control.</dd>
   <dt>CONTINUATION (0x9):</dt>
@@ -897,9 +916,11 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
       <td class="left">N/A</td>
     </tr>
     <tr>
-      <td class="left">Reserved</td>
+      <td class="left">GOAWAY</td>
       <td class="center">0x7</td>
-      <td class="left">N/A</td>
+      <td class="left">
+        <a href="#frame-goaway">Section 5.2.6</a>
+      </td>
     </tr>
     <tr>
       <td class="left">Reserved</td>
@@ -1217,6 +1238,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <li>Return to a single stream per request (#245,#557)</li>
   <li>Use separate frame type and settings registries from HTTP/2 (#81)</li>
   <li>SETTINGS_ENABLE_PUSH instead of SETTINGS_DISABLE_PUSH (#477)</li>
+  <li>Restored GOAWAY (#696)</li>
 </ul>
 <h2 id="rfc.appendix.B.2"><a href="#rfc.appendix.B.2">B.2.</a> <a href="#since-draft-ietf-quic-http-03" id="since-draft-ietf-quic-http-03">Since draft-ietf-quic-http-03</a></h2>
 <p id="rfc.section.B.2.p.1">None.</p>

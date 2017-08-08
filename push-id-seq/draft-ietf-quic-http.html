@@ -728,11 +728,12 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.5.2.7.p.11">A client that is unable to retry requests loses all requests that are in flight when the server closes the connection.  A server that is attempting to gracefully shut down a connection SHOULD send an initial GOAWAY frame with the last stream identifier set to the current value of QUIC&#8217;s MAX_STREAM_ID and SHOULD NOT increase the MAX_STREAM_ID thereafter.  This signals to the client that a shutdown is imminent and that initiating further requests is prohibited.  After allowing time for any in-flight requests (at least one round-trip time), the server MAY send another GOAWAY frame with an updated last stream identifier.  This ensures that a connection can be cleanly shut down without losing requests.</p>
 <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a> <a href="#frame-max-push-id" id="frame-max-push-id">MAX_PUSH_ID</a></h1>
 <p id="rfc.section.6.p.1">The MAX_PUSH_ID frame (type=0xA) is used by clients to control the number of server pushes that the server can initiate.  This sets the maximum value for a Push ID that the server can use in a PUSH_PROMISE frame.  Consequently, this also limits the number of push streams that the server can initiate.</p>
-<p id="rfc.section.6.p.2">The initial value for the maximum Push ID is determined by the SETTINGS_MAX_PUSH_ID setting (<a href="#settings-parameters">Section 5.2.5.2</a>).  A client that wishes to manage the number of promised server pushes can increase the maximum Push ID by sending a MAX_PUSH_ID frame as the server fulfills or cancels server pushes.</p>
-<p id="rfc.section.6.p.3">The MAX_PUSH_ID frame has no defined flags.</p>
-<p id="rfc.section.6.p.4">The MAX_PUSH_ID frame carries a 32-bit Push ID that identifies the maximum value for a Push ID that the server can use (see <a href="#frame-push-promise">Section 5.2.6</a>).</p>
-<p id="rfc.section.6.p.5">A server MUST NOT send a MAX_PUSH_ID frame.  A client MUST treat the receipt of a MAX_PUSH_ID frame as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
-<p id="rfc.section.6.p.6">A server MUST treat a MAX_PUSH_ID frame payload that is other than 4 octets in length as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
+<p id="rfc.section.6.p.2">The MAX_PUSH_ID frame is always sent on the control stream.  Receipt of a MAX_PUSH_ID frame on any other stream MUST be treated as a connection error of type HTTP_WRONG_STREAM.</p>
+<p id="rfc.section.6.p.3">A server MUST NOT send a MAX_PUSH_ID frame.  A client MUST treat the receipt of a MAX_PUSH_ID frame as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
+<p id="rfc.section.6.p.4">The initial value for the maximum Push ID is determined by the SETTINGS_MAX_PUSH_ID setting (<a href="#settings-parameters">Section 5.2.5.2</a>).  A client that wishes to manage the number of promised server pushes can increase the maximum Push ID by sending a MAX_PUSH_ID frame as the server fulfills or cancels server pushes.</p>
+<p id="rfc.section.6.p.5">The MAX_PUSH_ID frame has no defined flags.</p>
+<p id="rfc.section.6.p.6">The MAX_PUSH_ID frame carries a 32-bit Push ID that identifies the maximum value for a Push ID that the server can use (see <a href="#frame-push-promise">Section 5.2.6</a>).  A MAX_PUSH_ID frame cannot reduce the maximum Push ID; receipt of a MAX_PUSH_ID that contains a smaller value than previously received MUST be treated as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
+<p id="rfc.section.6.p.7">A server MUST treat a MAX_PUSH_ID frame payload that is other than 4 octets in length as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
 <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a> <a href="#errors" id="errors">Error Handling</a></h1>
 <p id="rfc.section.7.p.1">QUIC allows the application to abruptly terminate (reset) individual streams or the entire connection when an error is encountered.  These are referred to as &#8220;stream errors&#8221; or &#8220;connection errors&#8221; and are described in more detail in <a href="#QUIC-TRANSPORT">[QUIC-TRANSPORT]</a>.</p>
 <p id="rfc.section.7.p.2">This section describes HTTP-specific error codes which can be used to express the cause of a connection or stream error.</p>
@@ -769,12 +770,14 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
   <dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
   <dt>HTTP_INTERRUPTED_HEADERS (0x0E):</dt>
   <dd style="margin-left: 8">A HEADERS frame without the End Header Block flag was followed by a frame other than HEADERS.</dd>
-  <dt>HTTP_SETTINGS_ON_WRONG_STREAM (0x0F):</dt>
-  <dd style="margin-left: 8">A SETTINGS frame was received on a request control stream.</dd>
+  <dt>HTTP_WRONG_STREAM (0x0F):</dt>
+  <dd style="margin-left: 8">A frame was received on a different stream to where it is permitted.</dd>
   <dt>HTTP_MULTIPLE_SETTINGS (0x10):</dt>
   <dd style="margin-left: 8">More than one SETTINGS frame was received.</dd>
   <dt>HTTP_MALFORMED_PUSH (0x11):</dt>
   <dd style="margin-left: 8">A push stream header was malformed or included an invalid Push ID.</dd>
+  <dt>HTTP_MALFORMED_MAX_PUSH_ID (0x12):</dt>
+  <dd style="margin-left: 8">A MAX_STREAM_ID frame has been received with an invalid format.</dd>
 </dl>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#considerations-for-transitioning-from-http2" id="considerations-for-transitioning-from-http2">Considerations for Transitioning from HTTP/2</a></h1>
 <p id="rfc.section.8.p.1">HTTP/QUIC is strongly informed by HTTP/2, and bears many similarities.  This section describes the approach taken to design HTTP/QUIC, points out important differences from HTTP/2, and describes how to map HTTP/2 extensions into HTTP/QUIC.</p>
@@ -1206,6 +1209,14 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
       <td class="left">HTTP_MALFORMED_PUSH</td>
       <td class="left">0x11</td>
       <td class="left">Invalid push stream header</td>
+      <td class="left">
+        <a href="#http-error-codes">Section 7.1</a>
+      </td>
+    </tr>
+    <tr>
+      <td class="left">HTTP_MALFORMED_MAX_PUSH_ID</td>
+      <td class="left">0x12</td>
+      <td class="left">Invalid MAX_PUSH_ID frame</td>
       <td class="left">
         <a href="#http-error-codes">Section 7.1</a>
       </td>

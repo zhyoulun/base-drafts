@@ -393,7 +393,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-8-15" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-8-16" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -417,12 +417,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: February 16, 2018</td>
+  <td class="left">Expires: February 17, 2018</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">August 15, 2017</td>
+  <td class="right">August 16, 2017</td>
 </tr>
 
     	
@@ -447,7 +447,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on February 16, 2018.</p>
+<p>This Internet-Draft will expire on February 17, 2018.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -839,7 +839,8 @@ address {
 <h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#packet-version" id="packet-version">Version Negotiation Packet</a></h2>
 <p id="rfc.section.5.3.p.1">A Version Negotiation packet has long headers with a type value of 0x01 and is sent only by servers.  The Version Negotiation packet is a response to a client packet that contains a version that is not supported by the server.</p>
 <p id="rfc.section.5.3.p.2">The packet number, connection ID and version fields echo corresponding values from the triggering client packet.  This allows clients some assurance that the server received the packet and that the Version Negotiation packet was not carried in a packet with a spoofed source address.</p>
-<p id="rfc.section.5.3.p.3">The payload of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
+<p id="rfc.section.5.3.p.3">A Version Negotiation packet is never explicitly acknowledged in an ACK frame by a client.  Receiving another Client Initial packet implicitly acknowledges a Version Negotiation packet.</p>
+<p id="rfc.section.5.3.p.4">The payload of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
 <div id="rfc.figure.3"/>
 <div id="version-negotiation-format"/>
 <pre>
@@ -856,7 +857,7 @@ address {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 3: Version Negotiation Packet</p>
-<p id="rfc.section.5.3.p.4">See <a href="#version-negotiation">Section 7.1</a> for a description of the version negotiation process.</p>
+<p id="rfc.section.5.3.p.5">See <a href="#version-negotiation">Section 7.1</a> for a description of the version negotiation process.</p>
 <h2 id="rfc.section.5.4"><a href="#rfc.section.5.4">5.4.</a> <a href="#cleartext-packet" id="cleartext-packet">Cleartext Packets</a></h2>
 <p id="rfc.section.5.4.p.1">Cleartext packets are sent during the handshake prior to key negotiation.</p>
 <p id="rfc.section.5.4.p.2">All cleartext packets contain the current QUIC version in the version field.</p>
@@ -870,9 +871,10 @@ address {
 <h3 id="rfc.section.5.4.2"><a href="#rfc.section.5.4.2">5.4.2.</a> <a href="#packet-server-stateless" id="packet-server-stateless">Server Stateless Retry Packet</a></h3>
 <p id="rfc.section.5.4.2.p.1">A Server Stateless Retry packet uses long headers with a type value of 0x03.  It carries cryptographic handshake messages and acknowledgments.  It is used by a server that wishes to perform a stateless retry (see <a href="#stateless-retry">Section 7.4</a>).</p>
 <p id="rfc.section.5.4.2.p.2">The packet number and connection ID fields echo the corresponding fields from the triggering client packet.  This allows a client to verify that the server received its packet.</p>
-<p id="rfc.section.5.4.2.p.3">After receiving a Server Stateless Retry packet, the client uses a new Client Initial packet containing the next cryptographic handshake message.  The client retains the state of its cryptographic handshake, but discards all transport state.  In effect, the next cryptographic handshake message is sent on a new connection.  The new Client Initial packet is sent in a packet with a newly randomized packet number and starting at a stream offset of 0.</p>
-<p id="rfc.section.5.4.2.p.4">Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.  In addition to continuing the cryptographic handshake, the client MUST remember the results of any version negotiation that occurred (see <a href="#version-negotiation">Section 7.1</a>).  The client MAY also retain any observed RTT or congestion state that it has accumulated for the flow, but other transport state MUST be discarded.</p>
-<p id="rfc.section.5.4.2.p.5">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
+<p id="rfc.section.5.4.2.p.3">A Server Stateless Retry packet is never explicitly acknowledged in an ACK frame by a client.  Receiving another Client Initial packet implicitly acknowledges a Server Stateless Retry packet.</p>
+<p id="rfc.section.5.4.2.p.4">After receiving a Server Stateless Retry packet, the client uses a new Client Initial packet containing the next cryptographic handshake message.  The client retains the state of its cryptographic handshake, but discards all transport state.  In effect, the next cryptographic handshake message is sent on a new connection.  The new Client Initial packet is sent in a packet with a newly randomized packet number and starting at a stream offset of 0.</p>
+<p id="rfc.section.5.4.2.p.5">Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.  In addition to continuing the cryptographic handshake, the client MUST remember the results of any version negotiation that occurred (see <a href="#version-negotiation">Section 7.1</a>).  The client MAY also retain any observed RTT or congestion state that it has accumulated for the flow, but other transport state MUST be discarded.</p>
+<p id="rfc.section.5.4.2.p.6">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
 <h3 id="rfc.section.5.4.3"><a href="#rfc.section.5.4.3">5.4.3.</a> <a href="#packet-server-cleartext" id="packet-server-cleartext">Server Cleartext Packet</a></h3>
 <p id="rfc.section.5.4.3.p.1">A Server Cleartext packet uses long headers with a type value of 0x04.  It is used to carry acknowledgments and cryptographic handshake messages from the server.</p>
 <p id="rfc.section.5.4.3.p.2">The connection ID field in a Server Cleartext packet contains a connection ID that is chosen by the server (see <a href="#connection-id">Section 5.6</a>).</p>
@@ -1487,9 +1489,10 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.8.13.p.3">A receiver that is only sending ACK frames will not receive acknowledgments for its packets.  Sending an occasional MAX_DATA or MAX_STREAM_DATA frame as data is received will ensure that acknowledgements are generated by a peer.  Otherwise, an endpoint MAY send a PING frame once per RTT to solicit an acknowledgment.</p>
 <p id="rfc.section.8.13.p.4">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.  When this is necessary, the receiver SHOULD acknowledge newly received packets and stop acknowledging packets received in the past.</p>
 <p id="rfc.section.8.13.p.5">Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it remains acknowledged.</p>
-<p id="rfc.section.8.13.p.6">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
-<p id="rfc.section.8.13.p.7">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
-<p id="rfc.section.8.13.p.8">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>101NLLMM</samp>.  These bits are parsed as follows:</p>
+<p id="rfc.section.8.13.p.6">A client MUST NOT acknowledge Version Negotiation or Server Stateless Retry packets.  These packet types contain packet numbers selected by the client, not the server.</p>
+<p id="rfc.section.8.13.p.7">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
+<p id="rfc.section.8.13.p.8">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
+<p id="rfc.section.8.13.p.9">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>101NLLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
 
 <ul>
@@ -1498,7 +1501,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
   <li>The two <samp>LL</samp> bits encode the length of the Largest Acknowledged field.  The values 00, 01, 02, and 03 indicate lengths of 8, 16, 32, and 64 bits respectively.</li>
   <li>The two <samp>MM</samp> bits encode the length of the ACK Block Length fields.  The values 00, 01, 02, and 03 indicate lengths of 8, 16, 32, and 64 bits respectively.</li>
 </ul>
-<p id="rfc.section.8.13.p.10">An ACK frame is shown below.</p>
+<p id="rfc.section.8.13.p.11">An ACK frame is shown below.</p>
 <div id="rfc.figure.7"/>
 <div id="ack-format"/>
 <pre>
@@ -1517,7 +1520,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 7: ACK Frame Format</p>
-<p id="rfc.section.8.13.p.11">The fields in the ACK frame are as follows:</p>
+<p id="rfc.section.8.13.p.12">The fields in the ACK frame are as follows:</p>
 <p/>
 
 <dl>

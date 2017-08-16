@@ -120,15 +120,15 @@ Internet-Draft           QUIC Transport Protocol             August 2017
        7.3.3.  New Transport Parameters  . . . . . . . . . . . . . .  27
        7.3.4.  Version Negotiation Validation  . . . . . . . . . . .  28
      7.4.  Stateless Retries . . . . . . . . . . . . . . . . . . . .  29
-     7.5.  Proof of Source Address Ownership . . . . . . . . . . . .  29
+     7.5.  Proof of Source Address Ownership . . . . . . . . . . . .  30
        7.5.1.  Client Address Validation Procedure . . . . . . . . .  30
        7.5.2.  Address Validation on Session Resumption  . . . . . .  31
        7.5.3.  Address Validation Token Integrity  . . . . . . . . .  32
      7.6.  Connection Migration  . . . . . . . . . . . . . . . . . .  32
        7.6.1.  Privacy Implications of Connection Migration  . . . .  32
-       7.6.2.  Address Validation for Migrated Connections . . . . .  33
+       7.6.2.  Address Validation for Migrated Connections . . . . .  34
      7.7.  Connection Termination  . . . . . . . . . . . . . . . . .  34
-     7.8.  Stateless Reset . . . . . . . . . . . . . . . . . . . . .  34
+     7.8.  Stateless Reset . . . . . . . . . . . . . . . . . . . . .  35
        7.8.1.  Detecting a Stateless Reset . . . . . . . . . . . . .  36
        7.8.2.  Calculating a Stateless Reset Token . . . . . . . . .  36
    8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  37
@@ -1438,18 +1438,18 @@ Internet-Draft           QUIC Transport Protocol             August 2017
       is encoded as an unsigned 16-bit integer.  The maximum value is
       600 seconds (10 minutes).
 
-   stateless_reset_token (0x0005):  The Stateless Reset Token is used in
+   A server MUST include the following transport parameters:
+
+   stateless_reset_token (0x0006):  The Stateless Reset Token is used in
       verifying a stateless reset, see Section 7.8.  This parameter is a
       sequence of 16 octets.
 
+   A client MUST NOT include a stateless reset token.  A server MUST
+   treat receipt of a stateless_reset_token transport parameter as a
+   connection error of type TRANSPORT_PARAMETER_ERROR.
+
    An endpoint MAY use the following transport parameters:
 
-   omit_connection_id (0x0004):  The omit connection identifier
-      parameter indicates that packets sent to the endpoint that
-      advertises this parameter can omit the connection ID.  This can be
-      used by an endpoint where it knows that source and destination IP
-      address and port are sufficient for it to identify a connection.
-      This parameter is zero length.  Absence this parameter indicates
 
 
 
@@ -1458,6 +1458,12 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 26]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
+   omit_connection_id (0x0004):  The omit connection identifier
+      parameter indicates that packets sent to the endpoint that
+      advertises this parameter can omit the connection ID.  This can be
+      used by an endpoint where it knows that source and destination IP
+      address and port are sufficient for it to identify a connection.
+      This parameter is zero length.  Absence this parameter indicates
       that the endpoint relies on the connection ID being present in
       every packet.
 
@@ -1499,12 +1505,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    New transport parameters can be used to negotiate new protocol
    behavior.  An endpoint MUST ignore transport parameters that it does
-   not support.  Absence of a transport parameter therefore disables any
-   optional protocol feature that is negotiated using the parameter.
-
-   New transport parameters can be registered according to the rules in
-   Section 14.1.
-
 
 
 
@@ -1513,6 +1513,12 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 27]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+   not support.  Absence of a transport parameter therefore disables any
+   optional protocol feature that is negotiated using the parameter.
+
+   New transport parameters can be registered according to the rules in
+   Section 14.1.
 
 7.3.4.  Version Negotiation Validation
 
@@ -1557,18 +1563,18 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    of negotiated_version, the server MUST terminate the connection with
    a VERSION_NEGOTIATION_ERROR error.
 
-   The server includes a list of versions that it would send in any
-   version negotiation packet (Section 5.3) in supported_versions.  The
-   server populates this field even if it did not send a version
-   negotiation packet.  This field is absent if the parameters are
-   included in a NewSessionTicket message.
-
 
 
 Iyengar & Thomson       Expires February 17, 2018              [Page 28]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+   The server includes a list of versions that it would send in any
+   version negotiation packet (Section 5.3) in supported_versions.  The
+   server populates this field even if it did not send a version
+   negotiation packet.  This field is absent if the parameters are
+   included in a NewSessionTicket message.
 
    The client can validate that the negotiated_version is included in
    the supported_versions list and - if version negotiation was
@@ -1610,13 +1616,7 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    In TLS, the Server Stateless Retry packet type is used to carry the
    HelloRetryRequest message.
 
-7.5.  Proof of Source Address Ownership
 
-   Transport protocols commonly spend a round trip checking that a
-   client owns the transport address (IP and port) that it claims.
-   Verifying that a client can receive packets sent to its claimed
-   transport address protects against spoofing of this information by
-   malicious clients.
 
 
 
@@ -1625,6 +1625,14 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 29]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+7.5.  Proof of Source Address Ownership
+
+   Transport protocols commonly spend a round trip checking that a
+   client owns the transport address (IP and port) that it claims.
+   Verifying that a client can receive packets sent to its claimed
+   transport address protects against spoofing of this information by
+   malicious clients.
 
    This technique is used primarily to avoid QUIC from being used for
    traffic amplification attack.  In such an attack, a packet is sent to
@@ -1665,6 +1673,15 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    the client is able to return that token, it proves to the server that
    it received the token.
 
+
+
+
+
+Iyengar & Thomson       Expires February 17, 2018              [Page 30]
+
+Internet-Draft           QUIC Transport Protocol             August 2017
+
+
    During the processing of the cryptographic handshake messages from a
    client, TLS will request that QUIC make a decision about whether to
    proceed based on the information it has.  TLS will provide QUIC with
@@ -1674,14 +1691,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    If QUIC decides to request address validation, it provides the
    cryptographic handshake with a token.  The contents of this token are
-
-
-
-Iyengar & Thomson       Expires February 17, 2018              [Page 30]
-
-Internet-Draft           QUIC Transport Protocol             August 2017
-
-
    consumed by the server that generates the token, so there is no need
    for a single well-defined format.  A token could include information
    about the claimed client address (IP and port), a timestamp, and any
@@ -1721,15 +1730,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    This token can be provided to the cryptographic handshake immediately
    after establishing a connection.  QUIC might also generate an updated
    token if significant time passes or the client address changes for
-   any reason (see Section 7.6).  The cryptographic handshake is
-   responsible for providing the client with the token.  In TLS the
-   token is included in the ticket that is used for resumption and
-   0-RTT, which is carried in a NewSessionTicket message.
-
-
-
-
-
 
 
 
@@ -1737,6 +1737,11 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 31]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+   any reason (see Section 7.6).  The cryptographic handshake is
+   responsible for providing the client with the token.  In TLS the
+   token is included in the ticket that is used for resumption and
+   0-RTT, which is carried in a NewSessionTicket message.
 
 7.5.3.  Address Validation Token Integrity
 
@@ -1780,12 +1785,7 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    that moves between networks might not wish to have their activity
    correlated by any entity other than a server.  The NEW_CONNECTION_ID
    message can be sent by a server to provide an unlinkable connection
-   ID for use in case the client wishes to explicitly break linkability
-   between two points of network attachment.
 
-   A client might need to send packets on multiple networks without
-   receiving any response from the server.  To ensure that the client is
-   not linkable across each of these changes, a new connection ID and
 
 
 
@@ -1794,6 +1794,12 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 32]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
+   ID for use in case the client wishes to explicitly break linkability
+   between two points of network attachment.
+
+   A client might need to send packets on multiple networks without
+   receiving any response from the server.  To ensure that the client is
+   not linkable across each of these changes, a new connection ID and
    packet number gap are needed for each network.  To support this, a
    server sends multiple NEW_CONNECTION_ID messages.  Each
    NEW_CONNECTION_ID is marked with a sequence number.  Connection IDs
@@ -1834,12 +1840,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    number. "packet_number_secret" is derived from the TLS key exchange,
    as described in [QUIC-TLS] Section 5.6.
 
-7.6.2.  Address Validation for Migrated Connections
-
-   TODO: see issue #161
-
-
-
 
 
 
@@ -1849,6 +1849,10 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 33]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+7.6.2.  Address Validation for Migrated Connections
+
+   TODO: see issue #161
 
 7.7.  Connection Termination
 
@@ -1892,12 +1896,8 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    time, implementations SHOULD respond to unexpected packets with a
    Public Reset packet.
 
-7.8.  Stateless Reset
 
-   A stateless reset is provided as an option of last resort for a
-   server that does not have access to the state of a connection.  A
-   server crash or outage might result in clients continuing to send
-   data to a server that is unable to properly continue the connection.
+
 
 
 
@@ -1906,6 +1906,12 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 34]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
+7.8.  Stateless Reset
+
+   A stateless reset is provided as an option of last resort for a
+   server that does not have access to the state of a connection.  A
+   server crash or outage might result in clients continuing to send
+   data to a server that is unable to properly continue the connection.
    A server that wishes to communicate a fatal connection error MUST use
    a CONNECTION_CLOSE frame if it has sufficient state to do so.
 
@@ -1948,12 +1954,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    A server copies the connection ID field from the packet that triggers
    the stateless reset.  A server omits the connection ID if explicitly
-   configured to do so, or if the client packet did not include a
-   connection ID.
-
-   After the first short header octet and optional connection ID, the
-   server includes the value of the Stateless Reset Token that it
-   included in its transport parameters.
 
 
 
@@ -1961,6 +1961,13 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 35]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+   configured to do so, or if the client packet did not include a
+   connection ID.
+
+   After the first short header octet and optional connection ID, the
+   server includes the value of the Stateless Reset Token that it
+   included in its transport parameters.
 
    After the Stateless Reset Token, the endpoint pads the message with
    an arbitrary number of octets containing random values.
@@ -2003,13 +2010,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    output of this function is truncated to 16 octets to produce the
    Stateless Reset Token for that connection.
 
-   A server that loses state can use the same method to generate a valid
-   Stateless Reset Secret.  The connection ID comes from the packet that
-   the server receives.
-
-   This design relies on the client always sending a connection ID in
-   its packets so that the server can use the connection ID from a
-   packet to reset the connection.  A server that uses this design
 
 
 
@@ -2018,6 +2018,13 @@ Iyengar & Thomson       Expires February 17, 2018              [Page 36]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
+   A server that loses state can use the same method to generate a valid
+   Stateless Reset Secret.  The connection ID comes from the packet that
+   the server receives.
+
+   This design relies on the client always sending a connection ID in
+   its packets so that the server can use the connection ID from a
+   packet to reset the connection.  A server that uses this design
    cannot allow clients to omit a connection ID (that is, it cannot use
    the truncate_connection_id transport parameter Section 7.3.1).
 
@@ -2059,13 +2066,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    stream is already closed.
 
    The RST_STREAM frame is as follows:
-
-
-
-
-
-
-
 
 
 

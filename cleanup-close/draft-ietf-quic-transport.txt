@@ -1864,11 +1864,12 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    prior to receiving any close signal, or they might be retransmissions
    of packets for which acknowledgments were lost.
 
-   The draining period persists for three times the maximum of the RTO
-   or the RTT (see [QUIC-RECOVERY] for descriptions of these values).
-   During this period, new packets can be attributed to the correct
-   connection and handled appropriately, but the connection is no longer
-   considered active and usable.
+   The draining period persists for three times the maximum of minimum
+   RTO (kMinRTOTimeout) or the round trip time (smoothed_rtt), see
+   [QUIC-RECOVERY] for descriptions of these values.  During this
+   period, new packets can be attributed to the correct connection and
+   acknowledged, but the connection is no longer considered active and
+   usable.
 
    Different treatment is given to packets that are received while a
    connection is in the draining period depending on how the connection
@@ -1894,10 +1895,9 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    shutdown might not result in exchanging messages that are visible to
    the transport.
 
-   In the draining period (Section 7.7.1), an endpoint that has been
-   closed by an application SHOULD generate and send ACK frames as
-   normal.  This allows the peer to receive acknowledgements where
-   previous acknowledgements were lost.
+   In the draining period, an endpoint that has been closed by an
+   application SHOULD generate and send ACK frames as normal.  This
+
 
 
 
@@ -1905,6 +1905,9 @@ Iyengar & Thomson       Expires February 24, 2018              [Page 34]
 
 Internet-Draft           QUIC Transport Protocol             August 2017
 
+
+   allows the peer to receive acknowledgements where previous
+   acknowledgements were lost.
 
 7.7.3.  Idle Timeout
 
@@ -1927,21 +1930,21 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    implicitly reset.  After receiving a CONNECTION_CLOSE frame,
    endpoints MUST NOT send additional packets on that connection.
 
-   An endpoint SHOULD respond to any packet that it receives in the
-   draining period (Section 7.7.1) with another CONNECTION_CLOSE
-   message.  To reduce the state that an endpoint maintains in this
-   case, they MAY send the exact same CONNECTION_CLOSE packet.  However,
-   endpoints SHOULD limit the number of CONNECTION_CLOSE messages they
-   generate.  For instance, an endpoint could progressively increase the
-   number of packets that it receives before sending additional
-   CONNECTION_CLOSE frames.
+   An endpoint that sends a CONNECTION_CLOSE frame SHOULD respond to any
+   packet that it receives in the draining period with another packet
+   containing a CONNECTION_CLOSE frame.  To reduce the state that an
+   endpoint maintains in this case, they MAY send the exact same packet.
+   However, endpoints SHOULD limit the number of CONNECTION_CLOSE
+   messages they generate.  For instance, an endpoint could
+   progressively increase the number of packets that it receives before
+   sending additional CONNECTION_CLOSE frames.
 
-   Note:  This intentionally contradicts other advice in this document
-      that recommends the creation of new packet numbers for every
-      packet.  Sending new packet numbers is primarily of advantage to
-      loss recovery and congestion control, which are not expected to be
-      relevant for a closed connection.  Retransmitting the final packet
-      requires less state.
+   Note:  Allowing retransmision of a packet contradicts other advice in
+      this document that recommends the creation of new packet numbers
+      for every packet.  Sending new packet numbers is primarily of
+      advantage to loss recovery and congestion control, which are not
+      expected to be relevant for a closed connection.  Retransmitting
+      the final packet requires less state.
 
 7.7.5.  Stateless Reset
 
@@ -1952,9 +1955,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
    A server that wishes to communicate a fatal connection error MUST use
    a CONNECTION_CLOSE frame if it has sufficient state to do so.
 
-   To support this process, the server sends a stateless_reset_token
-   value during the handshake in the transport parameters.  This value
-
 
 
 Iyengar & Thomson       Expires February 24, 2018              [Page 35]
@@ -1962,6 +1962,8 @@ Iyengar & Thomson       Expires February 24, 2018              [Page 35]
 Internet-Draft           QUIC Transport Protocol             August 2017
 
 
+   To support this process, the server sends a stateless_reset_token
+   value during the handshake in the transport parameters.  This value
    is protected by encryption, so only client and server know this
    value.
 
@@ -2008,8 +2010,6 @@ Internet-Draft           QUIC Transport Protocol             August 2017
 
    After the Stateless Reset Token, the endpoint pads the message with
    an arbitrary number of octets containing random values.
-
-
 
 
 

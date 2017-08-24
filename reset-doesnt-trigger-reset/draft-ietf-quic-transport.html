@@ -320,11 +320,9 @@ address {
 <link href="#rfc.section.7.6.1" rel="Chapter" title="7.6.1 Privacy Implications of Connection Migration"/>
 <link href="#rfc.section.7.6.2" rel="Chapter" title="7.6.2 Address Validation for Migrated Connections"/>
 <link href="#rfc.section.7.7" rel="Chapter" title="7.7 Connection Termination"/>
-<link href="#rfc.section.7.7.1" rel="Chapter" title="7.7.1 Draining Period"/>
-<link href="#rfc.section.7.7.2" rel="Chapter" title="7.7.2 Application Close"/>
-<link href="#rfc.section.7.7.3" rel="Chapter" title="7.7.3 Idle Timeout"/>
-<link href="#rfc.section.7.7.4" rel="Chapter" title="7.7.4 Immediate Close"/>
-<link href="#rfc.section.7.7.5" rel="Chapter" title="7.7.5 Stateless Reset"/>
+<link href="#rfc.section.7.8" rel="Chapter" title="7.8 Stateless Reset"/>
+<link href="#rfc.section.7.8.1" rel="Chapter" title="7.8.1 Detecting a Stateless Reset"/>
+<link href="#rfc.section.7.8.2" rel="Chapter" title="7.8.2 Calculating a Stateless Reset Token"/>
 <link href="#rfc.section.8" rel="Chapter" title="8 Frame Types and Formats"/>
 <link href="#rfc.section.8.1" rel="Chapter" title="8.1 PADDING Frame"/>
 <link href="#rfc.section.8.2" rel="Chapter" title="8.2 RST_STREAM Frame"/>
@@ -506,11 +504,9 @@ address {
 <ul><li>7.6.1.   <a href="#rfc.section.7.6.1">Privacy Implications of Connection Migration</a></li>
 <li>7.6.2.   <a href="#rfc.section.7.6.2">Address Validation for Migrated Connections</a></li>
 </ul><li>7.7.   <a href="#rfc.section.7.7">Connection Termination</a></li>
-<ul><li>7.7.1.   <a href="#rfc.section.7.7.1">Draining Period</a></li>
-<li>7.7.2.   <a href="#rfc.section.7.7.2">Application Close</a></li>
-<li>7.7.3.   <a href="#rfc.section.7.7.3">Idle Timeout</a></li>
-<li>7.7.4.   <a href="#rfc.section.7.7.4">Immediate Close</a></li>
-<li>7.7.5.   <a href="#rfc.section.7.7.5">Stateless Reset</a></li>
+<li>7.8.   <a href="#rfc.section.7.8">Stateless Reset</a></li>
+<ul><li>7.8.1.   <a href="#rfc.section.7.8.1">Detecting a Stateless Reset</a></li>
+<li>7.8.2.   <a href="#rfc.section.7.8.2">Calculating a Stateless Reset Token</a></li>
 </ul></ul><li>8.   <a href="#rfc.section.8">Frame Types and Formats</a></li>
 <ul><li>8.1.   <a href="#rfc.section.8.1">PADDING Frame</a></li>
 <li>8.2.   <a href="#rfc.section.8.2">RST_STREAM Frame</a></li>
@@ -843,7 +839,8 @@ address {
 <h2 id="rfc.section.5.3"><a href="#rfc.section.5.3">5.3.</a> <a href="#packet-version" id="packet-version">Version Negotiation Packet</a></h2>
 <p id="rfc.section.5.3.p.1">A Version Negotiation packet has long headers with a type value of 0x01 and is sent only by servers.  The Version Negotiation packet is a response to a client packet that contains a version that is not supported by the server.</p>
 <p id="rfc.section.5.3.p.2">The packet number, connection ID and version fields echo corresponding values from the triggering client packet.  This allows clients some assurance that the server received the packet and that the Version Negotiation packet was not carried in a packet with a spoofed source address.</p>
-<p id="rfc.section.5.3.p.3">The payload of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
+<p id="rfc.section.5.3.p.3">A Version Negotiation packet is never explicitly acknowledged in an ACK frame by a client.  Receiving another Client Initial packet implicitly acknowledges a Version Negotiation packet.</p>
+<p id="rfc.section.5.3.p.4">The payload of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
 <div id="rfc.figure.3"/>
 <div id="version-negotiation-format"/>
 <pre>
@@ -860,7 +857,7 @@ address {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 3: Version Negotiation Packet</p>
-<p id="rfc.section.5.3.p.4">See <a href="#version-negotiation">Section 7.1</a> for a description of the version negotiation process.</p>
+<p id="rfc.section.5.3.p.5">See <a href="#version-negotiation">Section 7.1</a> for a description of the version negotiation process.</p>
 <h2 id="rfc.section.5.4"><a href="#rfc.section.5.4">5.4.</a> <a href="#cleartext-packet" id="cleartext-packet">Cleartext Packets</a></h2>
 <p id="rfc.section.5.4.p.1">Cleartext packets are sent during the handshake prior to key negotiation.</p>
 <p id="rfc.section.5.4.p.2">All cleartext packets contain the current QUIC version in the version field.</p>
@@ -874,9 +871,10 @@ address {
 <h3 id="rfc.section.5.4.2"><a href="#rfc.section.5.4.2">5.4.2.</a> <a href="#packet-server-stateless" id="packet-server-stateless">Server Stateless Retry Packet</a></h3>
 <p id="rfc.section.5.4.2.p.1">A Server Stateless Retry packet uses long headers with a type value of 0x03.  It carries cryptographic handshake messages and acknowledgments.  It is used by a server that wishes to perform a stateless retry (see <a href="#stateless-retry">Section 7.4</a>).</p>
 <p id="rfc.section.5.4.2.p.2">The packet number and connection ID fields echo the corresponding fields from the triggering client packet.  This allows a client to verify that the server received its packet.</p>
-<p id="rfc.section.5.4.2.p.3">After receiving a Server Stateless Retry packet, the client uses a new Client Initial packet containing the next cryptographic handshake message.  The client retains the state of its cryptographic handshake, but discards all transport state.  In effect, the next cryptographic handshake message is sent on a new connection.  The new Client Initial packet is sent in a packet with a newly randomized packet number and starting at a stream offset of 0.</p>
-<p id="rfc.section.5.4.2.p.4">Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.  In addition to continuing the cryptographic handshake, the client MUST remember the results of any version negotiation that occurred (see <a href="#version-negotiation">Section 7.1</a>).  The client MAY also retain any observed RTT or congestion state that it has accumulated for the flow, but other transport state MUST be discarded.</p>
-<p id="rfc.section.5.4.2.p.5">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
+<p id="rfc.section.5.4.2.p.3">A Server Stateless Retry packet is never explicitly acknowledged in an ACK frame by a client.  Receiving another Client Initial packet implicitly acknowledges a Server Stateless Retry packet.</p>
+<p id="rfc.section.5.4.2.p.4">After receiving a Server Stateless Retry packet, the client uses a new Client Initial packet containing the next cryptographic handshake message.  The client retains the state of its cryptographic handshake, but discards all transport state.  In effect, the next cryptographic handshake message is sent on a new connection.  The new Client Initial packet is sent in a packet with a newly randomized packet number and starting at a stream offset of 0.</p>
+<p id="rfc.section.5.4.2.p.5">Continuing the cryptographic handshake is necessary to ensure that an attacker cannot force a downgrade of any cryptographic parameters.  In addition to continuing the cryptographic handshake, the client MUST remember the results of any version negotiation that occurred (see <a href="#version-negotiation">Section 7.1</a>).  The client MAY also retain any observed RTT or congestion state that it has accumulated for the flow, but other transport state MUST be discarded.</p>
+<p id="rfc.section.5.4.2.p.6">The payload of the Server Stateless Retry packet contains STREAM frames and could contain PADDING and ACK frames.  A server can only send a single Server Stateless Retry packet in response to each Client Initial packet that is receives.</p>
 <h3 id="rfc.section.5.4.3"><a href="#rfc.section.5.4.3">5.4.3.</a> <a href="#packet-server-cleartext" id="packet-server-cleartext">Server Cleartext Packet</a></h3>
 <p id="rfc.section.5.4.3.p.1">A Server Cleartext packet uses long headers with a type value of 0x04.  It is used to carry acknowledgments and cryptographic handshake messages from the server.</p>
 <p id="rfc.section.5.4.3.p.2">The connection ID field in a Server Cleartext packet contains a connection ID that is chosen by the server (see <a href="#connection-id">Section 5.6</a>).</p>
@@ -902,7 +900,7 @@ address {
 <p id="rfc.section.5.6.p.4">Once the client receives the connection ID that the server has chosen, it uses this for all subsequent packets that it sends, except for any 0-RTT packets, which all have the same connection ID.</p>
 <h2 id="rfc.section.5.7"><a href="#rfc.section.5.7">5.7.</a> <a href="#packet-numbers" id="packet-numbers">Packet Numbers</a></h2>
 <p id="rfc.section.5.7.p.1">The packet number is a 64-bit unsigned number and is used as part of a cryptographic nonce for packet encryption.  Each endpoint maintains a separate packet number for sending and receiving.  The packet number for sending MUST increase by at least one after sending any packet, unless otherwise specified (see <a href="#initial-packet-number">Section 5.7.1</a>).</p>
-<p id="rfc.section.5.7.p.2">A QUIC endpoint MUST NOT reuse a packet number within the same connection (that is, under the same cryptographic keys).  If the packet number for sending reaches 2^64 - 1, the sender MUST close the connection without sending a CONNECTION_CLOSE frame or any further packets; the sender MAY send a Stateless Reset packet in response to further packets that it receives.</p>
+<p id="rfc.section.5.7.p.2">A QUIC endpoint MUST NOT reuse a packet number within the same connection (that is, under the same cryptographic keys).  If the packet number for sending reaches 2^64 - 1, the sender MUST close the connection without sending a CONNECTION_CLOSE frame or any further packets; the sender MAY send a Public Reset packet in response to further packets that it receives.</p>
 <p id="rfc.section.5.7.p.3">To reduce the number of bits required to represent the packet number over the wire, only the least significant bits of the packet number are transmitted.  The actual packet number for each packet is reconstructed at the receiver based on the largest packet number received on a successfully authenticated packet.</p>
 <p id="rfc.section.5.7.p.4">A packet number is decoded by finding the packet number value that is closest to the next expected packet.  The next expected packet is the highest received packet number plus one.  For example, if the highest successfully authenticated packet had a packet number of 0xaa82f30e, then a packet containing a 16-bit value of 0x1f94 will be decoded as 0xaa831f94.</p>
 <p id="rfc.section.5.7.p.5">The sender MUST use a packet number size able to represent more than twice as large a range than the difference between the largest acknowledged packet and packet number being sent.  A peer receiving the packet will then correctly decode the packet number, unless the packet is delayed in transit such that it arrives after many higher-numbered packets have been received.  An endpoint SHOULD use a large enough packet number encoding to allow the packet number to be recovered even if the packet arrives after packets that are sent afterwards.</p>
@@ -1134,7 +1132,7 @@ address {
             QuicVersion initial_version;
 
          case encrypted_extensions:
-            QuicVersion supported_versions&lt;2..2^8-4&gt;;
+            QuicVersion supported_versions&lt;4..2^8-4&gt;;
 
          case new_session_ticket:
             struct {};
@@ -1159,10 +1157,16 @@ address {
   <dd style="margin-left: 8">The initial maximum stream ID parameter contains the initial maximum stream number the peer may initiate, encoded as an unsigned 32-bit integer.  This is equivalent to sending a MAX_STREAM_ID (<a href="#frame-max-stream-id">Section 8.6</a>) immediately after completing the handshake.</dd>
   <dt>idle_timeout (0x0003):</dt>
   <dd style="margin-left: 8">The idle timeout is a value in seconds that is encoded as an unsigned 16-bit integer.  The maximum value is 600 seconds (10 minutes).</dd>
-  <dt>stateless_reset_token (0x0005):</dt>
-  <dd style="margin-left: 8">The Stateless Reset Token is used in verifying a stateless reset, see <a href="#stateless-reset">Section 7.7.5</a>.  This parameter is a sequence of 16 octets.</dd>
 </dl>
-<p id="rfc.section.7.3.1.p.3">An endpoint MAY use the following transport parameters:</p>
+<p id="rfc.section.7.3.1.p.3">A server MUST include the following transport parameters:</p>
+<p/>
+
+<dl>
+  <dt>stateless_reset_token (0x0006):</dt>
+  <dd style="margin-left: 8">The Stateless Reset Token is used in verifying a stateless reset, see <a href="#stateless-reset">Section 7.8</a>.  This parameter is a sequence of 16 octets.</dd>
+</dl>
+<p id="rfc.section.7.3.1.p.5">A client MUST NOT include a stateless reset token.  A server MUST treat receipt of a stateless_reset_token transport parameter as a connection error of type TRANSPORT_PARAMETER_ERROR.</p>
+<p id="rfc.section.7.3.1.p.6">An endpoint MAY use the following transport parameters:</p>
 <p/>
 
 <dl>
@@ -1239,32 +1243,19 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h3 id="rfc.section.7.6.2"><a href="#rfc.section.7.6.2">7.6.2.</a> <a href="#address-validation-for-migrated-connections" id="address-validation-for-migrated-connections">Address Validation for Migrated Connections</a></h3>
 <p id="rfc.section.7.6.2.p.1">TODO: see issue #161</p>
 <h2 id="rfc.section.7.7"><a href="#rfc.section.7.7">7.7.</a> <a href="#termination" id="termination">Connection Termination</a></h2>
-<p id="rfc.section.7.7.p.1">Connections should remain open until they become idle for a pre-negotiated period of time.  A QUIC connection, once established, can be terminated in one of four ways: negotiated shutdown, idle timeout, immediate close, and a stateless reset.</p>
-<h3 id="rfc.section.7.7.1"><a href="#rfc.section.7.7.1">7.7.1.</a> <a href="#draining" id="draining">Draining Period</a></h3>
-<p id="rfc.section.7.7.1.p.1">After a connection is closed for any reason, an endpoint might receive packets from its peer.  These packets might have been sent prior to receiving any close signal, or they might be retransmissions of packets for which acknowledgments were lost.</p>
-<p id="rfc.section.7.7.1.p.2">The draining period persists for three times the maximum of minimum RTO (kMinRTOTimeout) or the round trip time (smoothed_rtt), see <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a> for descriptions of these values.  During this period, new packets can be attributed to the correct connection and acknowledged, but the connection is no longer considered active and usable.</p>
-<p id="rfc.section.7.7.1.p.3">Different treatment is given to packets that are received while a connection is in the draining period depending on how the connection was closed.  In all cases, it is possible to acknowledge packets that are received as normal, but other reactions might be preferable depending on how the connection was closed.  An endpoint that is in a draining period MUST NOT send packets other than ACK, PADDING, or CONNECTION_CLOSE.</p>
-<p id="rfc.section.7.7.1.p.4">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being discarded.  An endpoint MAY use a stateless reset in response to any further incoming packets.</p>
-<p id="rfc.section.7.7.1.p.5">The draining period does not apply when a stateless reset (<a href="#stateless-reset">Section 7.7.5</a>) is used.</p>
-<h3 id="rfc.section.7.7.2"><a href="#rfc.section.7.7.2">7.7.2.</a> <a href="#application-close" id="application-close">Application Close</a></h3>
-<p id="rfc.section.7.7.2.p.1">An application protocol can arrange to close a connection.  This might be after negotiating a graceful shutdown.  The application protocol exchanges whatever messages that are needed to cause both endpoints to agree to close the connection, after which the application requests that the connection be closed.  A negotiated shutdown might not result in exchanging messages that are visible to the transport.</p>
-<p id="rfc.section.7.7.2.p.2">In the draining period, an endpoint that has been closed by an application SHOULD generate and send ACK frames as normal.  This allows the peer to receive acknowledgements where previous acknowledgements were lost.</p>
-<h3 id="rfc.section.7.7.3"><a href="#rfc.section.7.7.3">7.7.3.</a> <a href="#idle-timeout" id="idle-timeout">Idle Timeout</a></h3>
-<p id="rfc.section.7.7.3.p.1">A connection that remains idle for longer than the idle timeout (see <a href="#transport-parameter-definitions">Section 7.3.1</a>) becomes closed.  Either peer removes connection state if they have neither sent nor received a packet for this time.</p>
-<p id="rfc.section.7.7.3.p.2">The time at which an idle timeout takes effect won&#8217;t be perfectly synchronized on peers.  A connection enters the draining period when the idle timeout expires.  During this time, an endpoint that receives new packets MAY choose to restore the connection.  Alternatively, an endpoint that receives packets MAY signal the timeout using an immediate close.</p>
-<h3 id="rfc.section.7.7.4"><a href="#rfc.section.7.7.4">7.7.4.</a> <a href="#immediate-close" id="immediate-close">Immediate Close</a></h3>
-<p id="rfc.section.7.7.4.p.1">An endpoint sends a CONNECTION_CLOSE frame to terminate the connection immediately.  A CONNECTION_CLOSE causes all open streams to immediately become closed; open streams can be assumed to be implicitly reset.  After receiving a CONNECTION_CLOSE frame, endpoints immediately enter a draining period.</p>
-<p id="rfc.section.7.7.4.p.2">An endpoint that sends a CONNECTION_CLOSE frame SHOULD respond to any packet that it receives in the draining period with another packet containing a CONNECTION_CLOSE frame.  To reduce the state that an endpoint maintains in this case, they MAY send the exact same packet.  However, endpoints SHOULD limit the number of CONNECTION_CLOSE messages they generate.  For instance, an endpoint could progressively increase the number of packets that it receives before sending additional CONNECTION_CLOSE frames.</p>
+<p id="rfc.section.7.7.p.1">Connections should remain open until they become idle for a pre-negotiated period of time.  A QUIC connection, once established, can be terminated in one of three ways:</p>
 <p/>
 
-<dl>
-  <dt>Note:</dt>
-  <dd style="margin-left: 8">Allowing retransmision of a packet contradicts other advice in this document that recommends the creation of new packet numbers for every packet.  Sending new packet numbers is primarily of advantage to loss recovery and congestion control, which are not expected to be relevant for a closed connection.  Retransmitting the final packet requires less state.</dd>
-</dl>
-<h3 id="rfc.section.7.7.5"><a href="#rfc.section.7.7.5">7.7.5.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a></h3>
-<p id="rfc.section.7.7.5.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  A server crash or outage might result in clients continuing to send data to a server that is unable to properly continue the connection.  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
-<p id="rfc.section.7.7.5.p.2">To support this process, the server sends a stateless_reset_token value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>
-<p id="rfc.section.7.7.5.p.3">A server that receives packets that it cannot process sends a packet in the following layout:</p>
+<ol>
+  <li>Explicit Shutdown: An endpoint sends a CONNECTION_CLOSE frame to terminate the connection.  An endpoint MAY use application-layer mechanisms prior to a CONNECTION_CLOSE to indicate that the connection will soon be terminated.  On termination of the active streams, a CONNECTION_CLOSE may be sent.  If an endpoint sends a CONNECTION_CLOSE frame while unterminated streams are active (no FIN bit or RST_STREAM frames have been sent or received for one or more streams), then the peer must assume that the streams were incomplete and were abnormally terminated.</li>
+  <li>Implicit Shutdown: The default idle timeout is a required parameter in connection negotiation.  The maximum is 10 minutes.  If there is no network activity for the duration of the idle timeout, the connection is closed.  By default a CONNECTION_CLOSE frame will be sent.  A silent close option can be enabled when it is expensive to send an explicit close, such as mobile networks that must wake up the radio.</li>
+  <li>Stateless Reset: An endpoint that loses state can use this procedure to cause the connection to terminate early, see <a href="#stateless-reset">Section 7.8</a> for details.</li>
+</ol>
+<p id="rfc.section.7.7.p.3">After receiving either a CONNECTION_CLOSE frame or a Public Reset, an endpoint MUST NOT send additional packets on that connection. After sending either a CONNECTION_CLOSE frame or a Public Reset packet, implementations MUST NOT send any non-closing packets on that connection. If additional packets are received after this time and before idle_timeout seconds has passed, implementations SHOULD respond to them by sending a CONNECTION_CLOSE (which MAY just be a duplicate of the previous CONNECTION_CLOSE packet) but MAY also send a Public Reset packet.  Implementations SHOULD throttle these responses, for instance by exponentially backing off the number of packets which are received before sending a response.  After this time, implementations SHOULD respond to unexpected packets with a Public Reset packet.</p>
+<h2 id="rfc.section.7.8"><a href="#rfc.section.7.8">7.8.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a></h2>
+<p id="rfc.section.7.8.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  A server crash or outage might result in clients continuing to send data to a server that is unable to properly continue the connection.  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
+<p id="rfc.section.7.8.p.2">To support this process, the server sends a stateless_reset_token value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>
+<p id="rfc.section.7.8.p.3">A server that receives packets that it cannot process sends a packet in the following layout:</p>
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1286,20 +1277,20 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 |                        Random Octets (*)                    ...
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
-<p id="rfc.section.7.7.5.p.4">This packet SHOULD use the short header form with the shortest possible packet number encoding.  This minimizes the perceived gap between the last packet that the server sent and this packet.  The leading octet of the Stateless Reset Token will be interpreted as a packet number.  A server MAY use a different short header type, indicating a different packet number length, but this allows for the message to be identified as a stateless reset more easily using heuristics.</p>
-<p id="rfc.section.7.7.5.p.5">A server copies the connection ID field from the packet that triggers the stateless reset.  A server omits the connection ID if explicitly configured to do so, or if the client packet did not include a connection ID.</p>
-<p id="rfc.section.7.7.5.p.6">After the first short header octet and optional connection ID, the server includes the value of the Stateless Reset Token that it included in its transport parameters.</p>
-<p id="rfc.section.7.7.5.p.7">After the Stateless Reset Token, the endpoint pads the message with an arbitrary number of octets containing random values.</p>
-<p id="rfc.section.7.7.5.p.8">This design ensures that a stateless reset packet is - to the extent possible - indistinguishable from a regular packet.</p>
-<p id="rfc.section.7.7.5.p.9">A stateless reset is not appropriate for signaling error conditions.  An endpoint that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
-<h4 id="rfc.section.7.7.5.1"><a href="#rfc.section.7.7.5.1">7.7.5.1.</a> <a href="#detecting-a-stateless-reset" id="detecting-a-stateless-reset">Detecting a Stateless Reset</a></h4>
-<p id="rfc.section.7.7.5.1.p.1">A client detects a potential stateless reset when a packet with a short header cannot be decrypted.  The client then performs a constant-time comparison of the 16 octets that follow the Connection ID with the Stateless Reset Token provided by the server in its transport parameters.  If this comparison is successful, the connection MUST be terminated immediately.  Otherwise, the packet can be discarded.</p>
-<h4 id="rfc.section.7.7.5.2"><a href="#rfc.section.7.7.5.2">7.7.5.2.</a> <a href="#calculating-a-stateless-reset-token" id="calculating-a-stateless-reset-token">Calculating a Stateless Reset Token</a></h4>
-<p id="rfc.section.7.7.5.2.p.1">The stateless reset token MUST be difficult to guess.  In order to create a Stateless Reset Token, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
-<p id="rfc.section.7.7.5.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Token for that connection.</p>
-<p id="rfc.section.7.7.5.2.p.3">A server that loses state can use the same method to generate a valid Stateless Reset Secret.  The connection ID comes from the packet that the server receives.</p>
-<p id="rfc.section.7.7.5.2.p.4">This design relies on the client always sending a connection ID in its packets so that the server can use the connection ID from a packet to reset the connection.  A server that uses this design cannot allow clients to omit a connection ID (that is, it cannot use the truncate_connection_id transport parameter <a href="#transport-parameter-definitions">Section 7.3.1</a>).</p>
-<p id="rfc.section.7.7.5.2.p.5">Revealing the Stateless Reset Token allows any entity to terminate the connection, so a value can only be used once.  This method for choosing the Stateless Reset Token means that the combination of server instance, connection ID, and static key cannot occur for another connection.  A connection ID from a connection that is reset by revealing the Stateless Reset Token cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
+<p id="rfc.section.7.8.p.4">This packet SHOULD use the short header form with the shortest possible packet number encoding.  This minimizes the perceived gap between the last packet that the server sent and this packet.  The leading octet of the Stateless Reset Token will be interpreted as a packet number.  A server MAY use a different short header type, indicating a different packet number length, but this allows for the message to be identified as a stateless reset more easily using heuristics.</p>
+<p id="rfc.section.7.8.p.5">A server copies the connection ID field from the packet that triggers the stateless reset.  A server omits the connection ID if explicitly configured to do so, or if the client packet did not include a connection ID.</p>
+<p id="rfc.section.7.8.p.6">After the first short header octet and optional connection ID, the server includes the value of the Stateless Reset Token that it included in its transport parameters.</p>
+<p id="rfc.section.7.8.p.7">After the Stateless Reset Token, the endpoint pads the message with an arbitrary number of octets containing random values.</p>
+<p id="rfc.section.7.8.p.8">This design ensures that a stateless reset packet is - to the extent possible - indistinguishable from a regular packet.</p>
+<p id="rfc.section.7.8.p.9">A stateless reset is not appropriate for signaling error conditions.  An endpoint that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
+<h3 id="rfc.section.7.8.1"><a href="#rfc.section.7.8.1">7.8.1.</a> <a href="#detecting-a-stateless-reset" id="detecting-a-stateless-reset">Detecting a Stateless Reset</a></h3>
+<p id="rfc.section.7.8.1.p.1">A client detects a potential stateless reset when a packet with a short header cannot be decrypted.  The client then performs a constant-time comparison of the 16 octets that follow the Connection ID with the Stateless Reset Token provided by the server in its transport parameters.  If this comparison is successful, the connection MUST be terminated immediately.  Otherwise, the packet can be discarded.</p>
+<h3 id="rfc.section.7.8.2"><a href="#rfc.section.7.8.2">7.8.2.</a> <a href="#calculating-a-stateless-reset-token" id="calculating-a-stateless-reset-token">Calculating a Stateless Reset Token</a></h3>
+<p id="rfc.section.7.8.2.p.1">The stateless reset token MUST be difficult to guess.  In order to create a Stateless Reset Token, a server could randomly generate <a href="#RFC4086">[RFC4086]</a> a secret for every connection that it creates.  However, this presents a coordination problem when there are multiple servers in a cluster or a storage problem for a server that might lose state.  Stateless reset specifically exists to handle the case where state is lost, so this approach is suboptimal.</p>
+<p id="rfc.section.7.8.2.p.2">A single static key can be used across all connections to the same endpoint by generating the proof using a second iteration of a preimage-resistant function that takes three inputs: the static key, a the connection ID for the connection (see <a href="#connection-id">Section 5.6</a>), and an identifier for the server instance.  A server could use HMAC <a href="#RFC2104">[RFC2104]</a> (for example, HMAC(static_key, server_id || connection_id)) or HKDF <a href="#RFC5869">[RFC5869]</a> (for example, using the static key as input keying material, with server and connection identifiers as salt).  The output of this function is truncated to 16 octets to produce the Stateless Reset Token for that connection.</p>
+<p id="rfc.section.7.8.2.p.3">A server that loses state can use the same method to generate a valid Stateless Reset Secret.  The connection ID comes from the packet that the server receives.</p>
+<p id="rfc.section.7.8.2.p.4">This design relies on the client always sending a connection ID in its packets so that the server can use the connection ID from a packet to reset the connection.  A server that uses this design cannot allow clients to omit a connection ID (that is, it cannot use the truncate_connection_id transport parameter <a href="#transport-parameter-definitions">Section 7.3.1</a>).</p>
+<p id="rfc.section.7.8.2.p.5">Revealing the Stateless Reset Token allows any entity to terminate the connection, so a value can only be used once.  This method for choosing the Stateless Reset Token means that the combination of server instance, connection ID, and static key cannot occur for another connection.  A connection ID from a connection that is reset by revealing the Stateless Reset Token cannot be reused for new connections at the same server without first changing to use a different static key or server identifier.</p>
 <h1 id="rfc.section.8"><a href="#rfc.section.8">8.</a> <a href="#frame-types-and-formats" id="frame-types-and-formats">Frame Types and Formats</a></h1>
 <p id="rfc.section.8.p.1">As described in <a href="#frames">Section 6</a>, Regular packets contain one or more frames.  We now describe the various QUIC frame types that can be present in a Regular packet. The use of these frames and various frame header bits are described in subsequent sections.</p>
 <h2 id="rfc.section.8.1"><a href="#rfc.section.8.1">8.1.</a> <a href="#frame-padding" id="frame-padding">PADDING Frame</a></h2>
@@ -1476,7 +1467,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
   <dt>Connection ID:</dt>
   <dd style="margin-left: 8">A 64-bit connection ID.</dd>
   <dt>Stateless Reset Token:</dt>
-  <dd style="margin-left: 8">A 128-bit value that will be used to for a stateless reset when the associated connection ID is used (see <a href="#stateless-reset">Section 7.7.5</a>).</dd>
+  <dd style="margin-left: 8">A 128-bit value that will be used to for a stateless reset when the associated connection ID is used (see <a href="#stateless-reset">Section 7.8</a>).</dd>
 </dl>
 <h2 id="rfc.section.8.12"><a href="#rfc.section.8.12">8.12.</a> <a href="#frame-stop-sending" id="frame-stop-sending">STOP_SENDING Frame</a></h2>
 <p id="rfc.section.8.12.p.1">An endpoint may use a STOP_SENDING frame (type=0x0c) to communicate that incoming data is being discarded on receipt at application request.  This signals a peer to abruptly terminate transmission on a stream.  The frame is as follows:</p>
@@ -1504,9 +1495,10 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.8.13.p.3">A receiver that is only sending ACK frames will not receive acknowledgments for its packets.  Sending an occasional MAX_DATA or MAX_STREAM_DATA frame as data is received will ensure that acknowledgements are generated by a peer.  Otherwise, an endpoint MAY send a PING frame once per RTT to solicit an acknowledgment.</p>
 <p id="rfc.section.8.13.p.4">To limit receiver state or the size of ACK frames, a receiver MAY limit the number of ACK blocks it sends.  A receiver can do this even without receiving acknowledgment of its ACK frames, with the knowledge this could cause the sender to unnecessarily retransmit some data.  When this is necessary, the receiver SHOULD acknowledge newly received packets and stop acknowledging packets received in the past.</p>
 <p id="rfc.section.8.13.p.5">Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it remains acknowledged.</p>
-<p id="rfc.section.8.13.p.6">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
-<p id="rfc.section.8.13.p.7">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
-<p id="rfc.section.8.13.p.8">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>101NLLMM</samp>.  These bits are parsed as follows:</p>
+<p id="rfc.section.8.13.p.6">A client MUST NOT acknowledge Version Negotiation or Server Stateless Retry packets.  These packet types contain packet numbers selected by the client, not the server.</p>
+<p id="rfc.section.8.13.p.7">QUIC ACK frames contain a timestamp section with up to 255 timestamps.  Timestamps enable better congestion control, but are not required for correct loss recovery, and old timestamps are less valuable, so it is not guaranteed every timestamp will be received by the sender.  A receiver SHOULD send a timestamp exactly once for each received packet containing retransmittable frames. A receiver MAY send timestamps for non-retransmittable packets.  A receiver MUST not send timestamps in unprotected packets.</p>
+<p id="rfc.section.8.13.p.8">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing blocks of missing packets; skipping packet numbers between 1 and 255 effectively provides up to 8 bits of efficient entropy on demand, which should be adequate protection against most opportunistic acknowledgement attacks.</p>
+<p id="rfc.section.8.13.p.9">The type byte for a ACK frame contains embedded flags, and is formatted as <samp>101NLLMM</samp>.  These bits are parsed as follows:</p>
 <p/>
 
 <ul>
@@ -1515,7 +1507,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
   <li>The two <samp>LL</samp> bits encode the length of the Largest Acknowledged field.  The values 00, 01, 02, and 03 indicate lengths of 8, 16, 32, and 64 bits respectively.</li>
   <li>The two <samp>MM</samp> bits encode the length of the ACK Block Length fields.  The values 00, 01, 02, and 03 indicate lengths of 8, 16, 32, and 64 bits respectively.</li>
 </ul>
-<p id="rfc.section.8.13.p.10">An ACK frame is shown below.</p>
+<p id="rfc.section.8.13.p.11">An ACK frame is shown below.</p>
 <div id="rfc.figure.7"/>
 <div id="ack-format"/>
 <pre>
@@ -1534,7 +1526,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 7: ACK Frame Format</p>
-<p id="rfc.section.8.13.p.11">The fields in the ACK frame are as follows:</p>
+<p id="rfc.section.8.13.p.12">The fields in the ACK frame are as follows:</p>
 <p/>
 
 <dl>
@@ -1695,7 +1687,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 </ul>
 <p id="rfc.section.9.p.15">Upon detecting losses, a sender MUST take appropriate congestion control action.  The details of loss detection and congestion control are described in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
 <p id="rfc.section.9.p.16">A packet MUST NOT be acknowledged until packet protection has been successfully removed and all frames contained in the packet have been processed.  For STREAM frames, this means the data has been queued (but not necessarily delivered to the application).  This also means that any stream state transitions triggered by STREAM or RST_STREAM frames have occurred. Once the packet has been fully processed, a receiver acknowledges receipt by sending one or more ACK frames containing the packet number of the received packet.</p>
-<p id="rfc.section.9.p.17">To avoid creating an indefinite feedback loop, an endpoint MUST NOT generate an ACK frame in response to a packet containing only ACK or PADDING frames.</p>
+<p id="rfc.section.9.p.17">To avoid creating an indefinite feedback loop, an endpoint MUST NOT send an ACK frame in response to a packet containing only ACK or PADDING frames, even if there are packet gaps which precede the received packet.  The endpoint MUST acknowledge packets containing only ACK or PADDING frames in the next ACK frame that it sends.</p>
 <p id="rfc.section.9.p.18">Strategies and implications of the frequency of generating acknowledgments are discussed in more detail in <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a>.</p>
 <h2 id="rfc.section.9.1"><a href="#rfc.section.9.1">9.1.</a> <a href="#special-considerations-for-pmtu-discovery" id="special-considerations-for-pmtu-discovery">Special Considerations for PMTU Discovery</a></h2>
 <p id="rfc.section.9.1.p.1">Traditional ICMP-based path MTU discovery in IPv4 <a href="#RFC1191">[RFC1191]</a> is potentially vulnerable to off-path attacks that successfully guess the IP/port 4-tuple and reduce the MTU to a bandwidth-inefficient value. TCP connections mitigate this risk by using the (at minimum) 8 bytes of transport header echoed in the ICMP message to validate the TCP sequence number as valid for the current connection. However, as QUIC operates over UDP, in IPv4 the echoed information could consist only of the IP and UDP headers, which usually has insufficient entropy to mitigate off-path attacks.</p>
@@ -1849,11 +1841,11 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h1 id="rfc.section.12"><a href="#rfc.section.12">12.</a> <a href="#error-handling" id="error-handling">Error Handling</a></h1>
 <p id="rfc.section.12.p.1">An endpoint that detects an error SHOULD signal the existence of that error to its peer.  Errors can affect an entire connection (see <a href="#connection-errors">Section 12.1</a>), or a single stream (see <a href="#stream-errors">Section 12.2</a>).</p>
 <p id="rfc.section.12.p.2">The most appropriate error code (<a href="#error-codes">Section 12.3</a>) SHOULD be included in the frame that signals the error.  Where this specification identifies error conditions, it also identifies the error code that is used.</p>
-<p id="rfc.section.12.p.3">A stateless reset (<a href="#stateless-reset">Section 7.7.5</a>) is not suitable for any error that can be signaled with a CONNECTION_CLOSE or RST_STREAM frame.  A stateless reset MUST NOT be used by an endpoint that has the state necessary to send a frame on the connection.</p>
+<p id="rfc.section.12.p.3">A stateless reset (<a href="#stateless-reset">Section 7.8</a>) is not suitable for any error that can be signaled with a CONNECTION_CLOSE or RST_STREAM frame.  A stateless reset MUST NOT be used by an endpoint that has the state necessary to send a frame on the connection.</p>
 <h2 id="rfc.section.12.1"><a href="#rfc.section.12.1">12.1.</a> <a href="#connection-errors" id="connection-errors">Connection Errors</a></h2>
 <p id="rfc.section.12.1.p.1">Errors that result in the connection being unusable, such as an obvious violation of protocol semantics or corruption of state that affects an entire connection, MUST be signaled using a CONNECTION_CLOSE frame (<a href="#frame-connection-close">Section 8.3</a>). An endpoint MAY close the connection in this manner, even if the error only affects a single stream.</p>
 <p id="rfc.section.12.1.p.2">A CONNECTION_CLOSE frame could be sent in a packet that is lost.  An endpoint SHOULD be prepared to retransmit a packet containing a CONNECTION_CLOSE frame if it receives more packets on a terminated connection.  Limiting the number of retransmissions and the time over which this final packet is sent limits the effort expended on terminated connections.</p>
-<p id="rfc.section.12.1.p.3">An endpoint that chooses not to retransmit packets containing CONNECTION_CLOSE risks a peer missing the first such packet.  The only mechanism available to an endpoint that continues to receive data for a terminated connection is to use the stateless reset process (<a href="#stateless-reset">Section 7.7.5</a>).</p>
+<p id="rfc.section.12.1.p.3">An endpoint that chooses not to retransmit packets containing CONNECTION_CLOSE risks a peer missing the first such packet.  The only mechanism available to an endpoint that continues to receive data for a terminated connection is to use the stateless reset process (<a href="#stateless-reset">Section 7.8</a>).</p>
 <p id="rfc.section.12.1.p.4">An endpoint that receives an invalid CONNECTION_CLOSE frame MUST NOT signal the existence of the error to its peer.</p>
 <h2 id="rfc.section.12.2"><a href="#rfc.section.12.2">12.2.</a> <a href="#stream-errors" id="stream-errors">Stream Errors</a></h2>
 <p id="rfc.section.12.2.p.1">If the error affects a single stream, but otherwise leaves the connection in a recoverable state, the endpoint can send a RST_STREAM frame (<a href="#frame-rst-stream">Section 8.2</a>) with an appropriate error code to terminate just the affected stream.</p>
@@ -2143,8 +2135,19 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p/>
 
 <ul>
-  <li>Introduce STOP_SENDING frame (#165)</li>
-  <li>Removed GOAWAY (#696)</li>
+  <li>Introduce STOP_SENDING frame, RST_STREAM only resets in one direction (#165)</li>
+  <li>Removed GOAWAY; application protocols are responsible for graceful shutdown (#696)</li>
+  <li>Reduced the number of error codes (#96, #177, #184, #211)</li>
+  <li>Version validation fields can&#8217;t move or change (#121)</li>
+  <li>Removed versions from the transport parameters in a NewSessionTicket message (#547)</li>
+  <li>Clarify the meaning of &#8220;bytes in flight&#8221; (#550)</li>
+  <li>Public reset is now stateless reset and not visible to the path (#215)</li>
+  <li>Reordered bits and fields in STREAM frame (#620)</li>
+  <li>Clarifications to the stream state machine (#572, #571)</li>
+  <li>Increased the maximum length of the Largest Acknowledged field in ACK frames to 64 bits (#629)</li>
+  <li>truncate_connection_id is renamed to omit_connection_id (#659)</li>
+  <li>CONNECTION_CLOSE terminates the connection like TCP RST (#330, #328)</li>
+  <li>Update labels used in HKDF-Expand-Label to match TLS 1.3 (#642)</li>
 </ul>
 <h2 id="rfc.appendix.C.2"><a href="#rfc.appendix.C.2">C.2.</a> <a href="#since-draft-ietf-quic-transport-03" id="since-draft-ietf-quic-transport-03">Since draft-ietf-quic-transport-03</a></h2>
 <p/>

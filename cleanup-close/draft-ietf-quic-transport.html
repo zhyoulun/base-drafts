@@ -395,7 +395,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-8-25" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-8-28" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -419,12 +419,12 @@ address {
   <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-  <td class="left">Expires: February 26, 2018</td>
+  <td class="left">Expires: March 1, 2018</td>
   <td class="right">Mozilla</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">August 25, 2017</td>
+  <td class="right">August 28, 2017</td>
 </tr>
 
     	
@@ -449,7 +449,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on February 26, 2018.</p>
+<p>This Internet-Draft will expire on March 1, 2018.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -1239,12 +1239,20 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h3 id="rfc.section.7.6.2"><a href="#rfc.section.7.6.2">7.6.2.</a> <a href="#address-validation-for-migrated-connections" id="address-validation-for-migrated-connections">Address Validation for Migrated Connections</a></h3>
 <p id="rfc.section.7.6.2.p.1">TODO: see issue #161</p>
 <h2 id="rfc.section.7.7"><a href="#rfc.section.7.7">7.7.</a> <a href="#termination" id="termination">Connection Termination</a></h2>
-<p id="rfc.section.7.7.p.1">Connections should remain open until they become idle for a pre-negotiated period of time.  A QUIC connection, once established, can be terminated in one of four ways: negotiated shutdown, idle timeout, immediate close, and a stateless reset.</p>
+<p id="rfc.section.7.7.p.1">Connections should remain open until they become idle for a pre-negotiated period of time.  A QUIC connection, once established, can be terminated in one of four ways:</p>
+<p/>
+
+<ul>
+  <li>application close (<a href="#application-close">Section 7.7.2</a>)</li>
+  <li>idle timeout (<a href="#idle-timeout">Section 7.7.3</a>)</li>
+  <li>immediate close (<a href="#immediate-close">Section 7.7.4</a>)</li>
+  <li>stateless reset (<a href="#stateless-reset">Section 7.7.5</a>)</li>
+</ul>
 <h3 id="rfc.section.7.7.1"><a href="#rfc.section.7.7.1">7.7.1.</a> <a href="#draining" id="draining">Draining Period</a></h3>
 <p id="rfc.section.7.7.1.p.1">After a connection is closed for any reason, an endpoint might receive packets from its peer.  These packets might have been sent prior to receiving any close signal, or they might be retransmissions of packets for which acknowledgments were lost.</p>
 <p id="rfc.section.7.7.1.p.2">The draining period persists for three times the maximum of minimum RTO (kMinRTOTimeout) or the round trip time (smoothed_rtt), see <a href="#QUIC-RECOVERY">[QUIC-RECOVERY]</a> for descriptions of these values.  During this period, new packets can be attributed to the correct connection and acknowledged, but the connection is no longer considered active and usable.</p>
-<p id="rfc.section.7.7.1.p.3">Different treatment is given to packets that are received while a connection is in the draining period depending on how the connection was closed.  In all cases, it is possible to acknowledge packets that are received as normal, but other reactions might be preferable depending on how the connection was closed.  An endpoint that is in a draining period MUST NOT send packets other than ACK, PADDING, or CONNECTION_CLOSE.</p>
-<p id="rfc.section.7.7.1.p.4">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being discarded.  An endpoint MAY use a stateless reset in response to any further incoming packets.</p>
+<p id="rfc.section.7.7.1.p.3">Different treatment is given to packets that are received while a connection is in the draining period depending on how the connection was closed.  In all cases, it is possible to acknowledge packets that are received as normal, but other reactions might be preferable depending on how the connection was closed.  An endpoint that is in a draining period MUST NOT send packets containing frames other than ACK, PADDING, or CONNECTION_CLOSE.</p>
+<p id="rfc.section.7.7.1.p.4">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being discarded.  An endpoint MAY send a stateless reset in response to any further incoming packets.</p>
 <p id="rfc.section.7.7.1.p.5">The draining period does not apply when a stateless reset (<a href="#stateless-reset">Section 7.7.5</a>) is used.</p>
 <h3 id="rfc.section.7.7.2"><a href="#rfc.section.7.7.2">7.7.2.</a> <a href="#application-close" id="application-close">Application Close</a></h3>
 <p id="rfc.section.7.7.2.p.1">An application protocol can arrange to close a connection.  This might be after negotiating a graceful shutdown.  The application protocol exchanges whatever messages that are needed to cause both endpoints to agree to close the connection, after which the application requests that the connection be closed.  A negotiated shutdown might not result in exchanging messages that are visible to the transport.</p>
@@ -1253,14 +1261,15 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.7.7.3.p.1">A connection that remains idle for longer than the idle timeout (see <a href="#transport-parameter-definitions">Section 7.3.1</a>) becomes closed.  Either peer removes connection state if they have neither sent nor received a packet for this time.</p>
 <p id="rfc.section.7.7.3.p.2">The time at which an idle timeout takes effect won&#8217;t be perfectly synchronized on peers.  A connection enters the draining period when the idle timeout expires.  During this time, an endpoint that receives new packets MAY choose to restore the connection.  Alternatively, an endpoint that receives packets MAY signal the timeout using an immediate close.</p>
 <h3 id="rfc.section.7.7.4"><a href="#rfc.section.7.7.4">7.7.4.</a> <a href="#immediate-close" id="immediate-close">Immediate Close</a></h3>
-<p id="rfc.section.7.7.4.p.1">An endpoint sends a CONNECTION_CLOSE frame to terminate the connection immediately.  A CONNECTION_CLOSE causes all open streams to immediately become closed; open streams can be assumed to be implicitly reset.  After receiving a CONNECTION_CLOSE frame, endpoints immediately enter a draining period.</p>
-<p id="rfc.section.7.7.4.p.2">An endpoint that sends a CONNECTION_CLOSE frame SHOULD respond to any packet that it receives in the draining period with another packet containing a CONNECTION_CLOSE frame.  To reduce the state that an endpoint maintains in this case, they MAY send the exact same packet.  However, endpoints SHOULD limit the number of CONNECTION_CLOSE messages they generate.  For instance, an endpoint could progressively increase the number of packets that it receives before sending additional CONNECTION_CLOSE frames.  An endpoint can cease sending CONNECTION_CLOSE frames if it receives either a CONNECTION_CLOSE or an acknowledgement for a packet that contained a CONNECTION_CLOSE.</p>
+<p id="rfc.section.7.7.4.p.1">An endpoint sends a CONNECTION_CLOSE frame to terminate the connection immediately.  A CONNECTION_CLOSE causes all open streams to immediately become closed; open streams can be assumed to be implicitly reset.  After sending or receiving a CONNECTION_CLOSE frame, endpoints immediately enter a draining period.</p>
+<p id="rfc.section.7.7.4.p.2">During the draining period, an endpoint that sends a CONNECTION_CLOSE frame SHOULD respond to any subsequent packet that it receives with another packet containing a CONNECTION_CLOSE frame.  To reduce the state that an endpoint maintains in this case, it MAY send the exact same packet.  However, endpoints SHOULD limit the number of CONNECTION_CLOSE messages they generate.  For instance, an endpoint could progressively increase the number of packets that it receives before sending additional CONNECTION_CLOSE frames.</p>
 <p/>
 
 <dl>
   <dt>Note:</dt>
   <dd style="margin-left: 8">Allowing retransmision of a packet contradicts other advice in this document that recommends the creation of new packet numbers for every packet.  Sending new packet numbers is primarily of advantage to loss recovery and congestion control, which are not expected to be relevant for a closed connection.  Retransmitting the final packet requires less state.</dd>
 </dl>
+<p id="rfc.section.7.7.4.p.4">An endpoint can cease sending CONNECTION_CLOSE frames if it receives either a CONNECTION_CLOSE or an acknowledgement for a packet that contained a CONNECTION_CLOSE.</p>
 <h3 id="rfc.section.7.7.5"><a href="#rfc.section.7.7.5">7.7.5.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a></h3>
 <p id="rfc.section.7.7.5.p.1">A stateless reset is provided as an option of last resort for a server that does not have access to the state of a connection.  A server crash or outage might result in clients continuing to send data to a server that is unable to properly continue the connection.  A server that wishes to communicate a fatal connection error MUST use a CONNECTION_CLOSE frame if it has sufficient state to do so.</p>
 <p id="rfc.section.7.7.5.p.2">To support this process, the server sends a stateless_reset_token value during the handshake in the transport parameters.  This value is protected by encryption, so only client and server know this value.</p>

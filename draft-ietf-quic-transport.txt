@@ -178,32 +178,32 @@ Internet-Draft           QUIC Transport Protocol          September 2017
        11.1.1.  Response to a RST_STREAM . . . . . . . . . . . . . .  65
        11.1.2.  Data Limit Increments  . . . . . . . . . . . . . . .  65
      11.2.  Stream Limit Increment . . . . . . . . . . . . . . . . .  65
-       11.2.1.  Blocking on Flow Control . . . . . . . . . . . . . .  65
+       11.2.1.  Blocking on Flow Control . . . . . . . . . . . . . .  66
      11.3.  Stream Final Offset  . . . . . . . . . . . . . . . . . .  66
-   12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  66
+   12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  67
      12.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  67
-     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  67
+     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  68
      12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  68
    13. Security and Privacy Considerations . . . . . . . . . . . . .  70
      13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  70
      13.2.  Slowloris Attacks  . . . . . . . . . . . . . . . . . . .  70
      13.3.  Stream Fragmentation and Reassembly Attacks  . . . . . .  71
      13.4.  Stream Commitment Attack . . . . . . . . . . . . . . . .  71
-   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  71
-     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  71
+   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  72
+     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  72
    15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  73
      15.1.  Normative References . . . . . . . . . . . . . . . . . .  73
      15.2.  Informative References . . . . . . . . . . . . . . . . .  74
      15.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  75
    Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  75
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  75
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  75
-     C.1.  Since draft-ietf-quic-transport-04  . . . . . . . . . . .  75
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  76
+     C.1.  Since draft-ietf-quic-transport-04  . . . . . . . . . . .  76
      C.2.  Since draft-ietf-quic-transport-03  . . . . . . . . . . .  76
-     C.3.  Since draft-ietf-quic-transport-02  . . . . . . . . . . .  76
-     C.4.  Since draft-ietf-quic-transport-01  . . . . . . . . . . .  77
-     C.5.  Since draft-ietf-quic-transport-00  . . . . . . . . . . .  79
-     C.6.  Since draft-hamilton-quic-transport-protocol-01 . . . . .  79
+     C.3.  Since draft-ietf-quic-transport-02  . . . . . . . . . . .  77
+     C.4.  Since draft-ietf-quic-transport-01  . . . . . . . . . . .  78
+     C.5.  Since draft-ietf-quic-transport-00  . . . . . . . . . . .  80
+     C.6.  Since draft-hamilton-quic-transport-protocol-01 . . . . .  80
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  80
 
 1.  Introduction
@@ -3502,9 +3502,11 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    control, which prevents a single stream from consuming the entire
    receive buffer for a connection.
 
-   A receiver sends MAX_DATA or MAX_STREAM_DATA frames to the sender to
-   advertise additional credit by sending the absolute byte offset in
-   the connection or stream which it is willing to receive.
+   A data receiver sends MAX_STREAM_DATA or MAX_DATA frames to the
+   sender to advertise additional credit.  MAX_STREAM_DATA frames send
+   the the maximum absolute byte offset of a stream, while MAX_DATA
+   sends the maximum sum of the absolute byte offsets of all streams
+   other than stream 0.
 
    A receiver MAY advertise a larger offset at any point by sending
    MAX_DATA or MAX_STREAM_DATA frames.  A receiver MUST NOT renege on an
@@ -3520,8 +3522,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
 
    A sender MUST send BLOCKED frames to indicate it has data to write
    but is blocked by lack of connection or stream flow control credit.
-   BLOCKED frames are expected to be sent infrequently in common cases,
-   but they are considered useful for debugging and monitoring purposes.
 
 
 
@@ -3529,6 +3529,9 @@ Iyengar & Thomson        Expires March 10, 2018                [Page 63]
 
 Internet-Draft           QUIC Transport Protocol          September 2017
 
+
+   BLOCKED frames are expected to be sent infrequently in common cases,
+   but they are considered useful for debugging and monitoring purposes.
 
    A receiver advertises credit for a stream by sending a
    MAX_STREAM_DATA frame with the Stream ID set appropriately.  A
@@ -3574,9 +3577,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    the final byte offset sent on the stream in the RST_STREAM frame.  On
    receiving a RST_STREAM frame, a receiver definitively knows how many
    bytes were sent on that stream before the RST_STREAM frame, and the
-   receiver MUST use the final offset to account for all bytes sent on
-   the stream in its connection level flow controller.
-
 
 
 
@@ -3585,6 +3585,9 @@ Iyengar & Thomson        Expires March 10, 2018                [Page 64]
 
 Internet-Draft           QUIC Transport Protocol          September 2017
 
+
+   receiver MUST use the final offset to account for all bytes sent on
+   the stream in its connection level flow controller.
 
 11.1.1.  Response to a RST_STREAM
 
@@ -3627,13 +3630,10 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    maximum stream ID based on current activity, system conditions, and
    other environmental factors.
 
-11.2.1.  Blocking on Flow Control
 
-   If a sender does not receive a MAX_DATA or MAX_STREAM_DATA frame when
-   it has run out of flow control credit, the sender will be blocked and
-   MUST send a BLOCKED or STREAM_BLOCKED frame.  These frames are
-   expected to be useful for debugging at the receiver; they do not
-   require any other action.  A receiver SHOULD NOT wait for a BLOCKED
+
+
+
 
 
 
@@ -3642,6 +3642,13 @@ Iyengar & Thomson        Expires March 10, 2018                [Page 65]
 Internet-Draft           QUIC Transport Protocol          September 2017
 
 
+11.2.1.  Blocking on Flow Control
+
+   If a sender does not receive a MAX_DATA or MAX_STREAM_DATA frame when
+   it has run out of flow control credit, the sender will be blocked and
+   MUST send a BLOCKED or STREAM_BLOCKED frame.  These frames are
+   expected to be useful for debugging at the receiver; they do not
+   require any other action.  A receiver SHOULD NOT wait for a BLOCKED
    or STREAM_BLOCKED frame before sending MAX_DATA or MAX_STREAM_DATA,
    since doing so will mean that a sender is unable to send for an
    entire round trip.
@@ -3682,6 +3689,15 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    beyond the final offset as a FINAL_OFFSET_ERROR error, even after a
    stream is closed.  Generating these errors is not mandatory, but only
    because requiring that an endpoint generate these errors also means
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 66]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    that the endpoint needs to maintain the final offset state for closed
    streams, which could mean a significant state commitment.
 
@@ -3690,13 +3706,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    An endpoint that detects an error SHOULD signal the existence of that
    error to its peer.  Errors can affect an entire connection (see
    Section 12.1), or a single stream (see Section 12.2).
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 66]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    The most appropriate error code (Section 12.3) SHOULD be included in
    the frame that signals the error.  Where this specification
@@ -3733,6 +3742,18 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    An endpoint that receives an invalid CONNECTION_CLOSE frame MUST NOT
    signal the existence of the error to its peer.
 
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 67]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
 12.2.  Stream Errors
 
    If the error affects a single stream, but otherwise leaves the
@@ -3744,15 +3765,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    stream 0 is closed with either a RST_STREAM or STREAM frame bearing
    the FIN flag, an endpoint MUST generate a connection error of type
    PROTOCOL_VIOLATION.
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 67]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    Some application protocols make other streams critical to that
    protocol.  An application protocol does not need to inform the
@@ -3790,6 +3802,14 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    NO_ERROR (0x80000000):  An endpoint uses this with CONNECTION_CLOSE
       to signal that the connection is being closed abruptly in the
       absence of any error.  An endpoint uses this with RST_STREAM to
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 68]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
       signal that the stream is no longer wanted or in response to the
       receipt of a RST_STREAM for that stream.
 
@@ -3800,15 +3820,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
       indicate that the stream is not wanted and that no application
       action was taken for the stream.  This error code is not valid for
       use with CONNECTION_CLOSE.
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 68]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    FLOW_CONTROL_ERROR (0x80000003):  An endpoint received more data than
       it permitted in its advertised data limits (see Section 11).
@@ -3845,6 +3856,16 @@ Internet-Draft           QUIC Transport Protocol          September 2017
       that disagreed with the version negotiation that it performed.
       This error code indicates a potential version downgrade attack.
 
+
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 69]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    PROTOCOL_VIOLATION (0x8000000A):  An endpoint detected an error with
       protocol compliance that was not covered by more specific error
       codes.
@@ -3856,15 +3877,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
       specific frame type.  The frame type is included as the last octet
       of the error code.  For example, an error in a MAX_STREAM_ID frame
       would be indicated with the code (0x80000106).
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 69]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
 13.  Security and Privacy Considerations
 
@@ -3902,6 +3914,14 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    connections to the target endpoint open and hold them open as long as
    possible.  These attacks can be executed against a QUIC endpoint by
    generating the minimum amount of activity necessary to avoid being
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 70]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    closed for inactivity.  This might involve sending small amounts of
    data, gradually opening flow control windows in order to control the
    sender rate, or manufacturing ACK frames that simulate a high loss
@@ -3913,14 +3933,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    allowed to make, imposing restrictions on the minimum transfer speed
    a connection is allowed to have, and restricting the length of time
    an endpoint is allowed to stay connected.
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 70]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
 13.3.  Stream Fragmentation and Reassembly Attacks
 
@@ -3957,6 +3969,15 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    Thus, on a new connection, opening stream 2000001 opens 1 million
    streams, as required by the specification.
 
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 71]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    The number of active streams is limited by the concurrent stream
    limit transport parameter, as explained in Section 10.4.  If chosen
    judisciously, this limit mitigates the effect of the stream
@@ -3969,14 +3990,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
 
    IANA [SHALL add/has added] a registry for "QUIC Transport Parameters"
    under a "QUIC Protocol" heading.
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 71]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    The "QUIC Transport Parameters" registry governs a 16-bit space.
    This space is split into two spaces that are governed by different
@@ -4003,6 +4016,24 @@ Internet-Draft           QUIC Transport Protocol          September 2017
 
    The initial contents of this registry are shown in Table 4.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 72]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
            +--------+-------------------------+---------------+
            | Value  | Parameter Name          | Specification |
            +--------+-------------------------+---------------+
@@ -4022,17 +4053,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
            +--------+-------------------------+---------------+
 
             Table 4: Initial QUIC Transport Parameters Entries
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 72]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
 15.  References
 
@@ -4061,6 +4081,15 @@ Internet-Draft           QUIC Transport Protocol          September 2017
               for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
               1996, <https://www.rfc-editor.org/info/rfc1981>.
 
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 73]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997, <https://www.rfc-
@@ -4078,17 +4107,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
               Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
               <https://www.rfc-editor.org/info/rfc4821>.
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 73]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    [RFC5226]  Narten, T. and H. Alvestrand, "Guidelines for Writing an
               IANA Considerations Section in RFCs", RFC 5226,
@@ -4120,6 +4138,14 @@ Internet-Draft           QUIC Transport Protocol          September 2017
               Addresses", RFC 6824, DOI 10.17487/RFC6824, January 2013,
               <https://www.rfc-editor.org/info/rfc6824>.
 
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 74]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    [RFC7301]  Friedl, S., Popov, A., Langley, A., and E. Stephan,
               "Transport Layer Security (TLS) Application-Layer Protocol
               Negotiation Extension", RFC 7301, DOI 10.17487/RFC7301,
@@ -4138,13 +4164,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    [SST]      Ford, B., "Structured streams", ACM SIGCOMM Computer
               Communication Review Vol. 37, pp. 361,
               DOI 10.1145/1282427.1282421, October 2007.
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 74]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
 15.3.  URIs
 
@@ -4174,6 +4193,15 @@ Appendix B.  Acknowledgments
    discussions and public ones on the quic@ietf.org and proto-
    quic@chromium.org mailing lists.  Our thanks to all.
 
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 75]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
 Appendix C.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
@@ -4192,15 +4220,6 @@ C.1.  Since draft-ietf-quic-transport-04
    o  Reduced the number of error codes (#96, #177, #184, #211)
 
    o  Version validation fields can't move or change (#121)
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 75]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    o  Removed versions from the transport parameters in a
       NewSessionTicket message (#547)
@@ -4230,6 +4249,15 @@ C.2.  Since draft-ietf-quic-transport-03
 
    o  Add MAX_STREAM_ID settings
 
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 76]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
 C.3.  Since draft-ietf-quic-transport-02
 
    o  The size of the initial packet payload has a fixed minimum (#267,
@@ -4250,13 +4278,6 @@ C.3.  Since draft-ietf-quic-transport-02
 
    o  Remove congestion control exemption for cryptographic handshake
       (#248, #476)
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 76]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    o  Version 1 of QUIC uses TLS; a new version is needed to use a
       different handshake protocol (#516)
@@ -4283,6 +4304,16 @@ Internet-Draft           QUIC Transport Protocol          September 2017
 
    o  Expanded security considerations (#440, #444, #445, #448)
 
+
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 77]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
 C.4.  Since draft-ietf-quic-transport-01
 
    o  Defined short and long packet headers (#40, #148, #361)
@@ -4305,14 +4336,6 @@ C.4.  Since draft-ietf-quic-transport-01
 
    o  Transport parameters for 0-RTT are either remembered from before,
       or assume default values (#126)
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 77]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
 
    o  The server chooses connection IDs in its final flight (#119, #349,
       #361)
@@ -4339,6 +4362,14 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    o  Don't require retransmission of old timestamps for lost ACK frames
       (#308)
 
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 78]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
    o  Clarified that frames are not retransmitted, but the information
       in them can be (#157, #298)
 
@@ -4363,13 +4394,6 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    o  Stream 1 counts towards the maximum concurrent stream limit (#201,
       #282)
 
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 78]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
-
    o  Remove connection-level flow control exclusion for some streams
       (except 1) (#246)
 
@@ -4393,6 +4417,15 @@ Internet-Draft           QUIC Transport Protocol          September 2017
    o  Defined priority as the responsibility of the application protocol
       (#104, #303)
 
+
+
+
+
+Iyengar & Thomson        Expires March 10, 2018                [Page 79]
+
+Internet-Draft           QUIC Transport Protocol          September 2017
+
+
 C.5.  Since draft-ietf-quic-transport-00
 
    o  Replaced DIVERSIFICATION_NONCE flag with KEY_PHASE flag
@@ -4415,17 +4448,6 @@ C.6.  Since draft-hamilton-quic-transport-protocol-01
 
    o  Moved Contributors and Acknowledgments to appendices
 
-
-
-
-
-
-
-Iyengar & Thomson        Expires March 10, 2018                [Page 79]
-
-Internet-Draft           QUIC Transport Protocol          September 2017
-
-
 Authors' Addresses
 
    Jana Iyengar (editor)
@@ -4438,28 +4460,6 @@ Authors' Addresses
    Mozilla
 
    Email: martin.thomson@gmail.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

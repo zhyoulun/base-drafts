@@ -95,7 +95,7 @@ Table of Contents
      4.3.  Recovery Period . . . . . . . . . . . . . . . . . . . . .  15
      4.4.  Tail Loss Probe . . . . . . . . . . . . . . . . . . . . .  15
      4.5.  Retransmission Timeout  . . . . . . . . . . . . . . . . .  15
-     4.6.  Pacing Rate . . . . . . . . . . . . . . . . . . . . . . .  15
+     4.6.  Pacing Rate . . . . . . . . . . . . . . . . . . . . . . .  16
      4.7.  Pseudocode  . . . . . . . . . . . . . . . . . . . . . . .  16
        4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  16
        4.7.2.  Variables of interest . . . . . . . . . . . . . . . .  16
@@ -805,11 +805,16 @@ Internet-Draft             QUIC Loss Detection            September 2017
 4.3.  Recovery Period
 
    Recovery is a period of time beginning with detection of a lost
-   packet.  It ends when all packets outstanding at the time recovery
-   began have been acknowledged or lost.  During recovery, the
-   congestion window is not increased or decreased.  As such, multiple
-   lost packets only decrease the congestion window once as long as
-   they're lost before exiting recovery.
+   packet.  Because QUIC retransmits frames, not packets, it defines the
+   end of recovery as all packets outstanding at the start of recovery
+   being acknowledged or lost.  This is slightly different from TCP's
+   definition of recovery ending when the lost packet that started
+   recovery is acknowledged.  During recovery, the congestion window is
+   not increased or decreased.  As such, multiple lost packets only
+   decrease the congestion window once as long as they're lost before
+   exiting recovery.  This causes QUIC to decrease the congestion window
+   multiple times if retransmisions are lost, but limits the reduction
+   to once per round trip.
 
 4.4.  Tail Loss Probe
 
@@ -828,12 +833,7 @@ Internet-Draft             QUIC Loss Detection            September 2017
    has been validated and the congestion window must be reduced to the
    minimum congestion window and slow start is begun.
 
-4.6.  Pacing Rate
 
-   The pacing rate is a function of the mode, the congestion window, and
-   the smoothed rtt.  Specifically, the pacing rate is 2 times the
-   congestion window divided by the smoothed RTT during slow start and
-   1.25 times the congestion window divided by the smoothed RTT during
 
 
 
@@ -842,6 +842,12 @@ Iyengar & Swett          Expires March 23, 2018                [Page 15]
 Internet-Draft             QUIC Loss Detection            September 2017
 
 
+4.6.  Pacing Rate
+
+   The pacing rate is a function of the mode, the congestion window, and
+   the smoothed rtt.  Specifically, the pacing rate is 2 times the
+   congestion window divided by the smoothed RTT during slow start and
+   1.25 times the congestion window divided by the smoothed RTT during
    slow start.  In order to fairly compete with flows that are not
    pacing, it is recommended to not pace the first 10 sent packets when
    exiting quiescence.
@@ -884,12 +890,6 @@ Internet-Draft             QUIC Loss Detection            September 2017
    end_of_recovery:  The largest packet number sent when QUIC detects a
       loss.  When a larger packet is acknowledged, QUIC exits recovery.
 
-   ssthresh  Slow start threshold in bytes.  When the congestion window
-      is below ssthresh, the mode is slow start and the window grows by
-      the number of bytes acknowledged.
-
-
-
 
 
 
@@ -897,6 +897,10 @@ Iyengar & Swett          Expires March 23, 2018                [Page 16]
 
 Internet-Draft             QUIC Loss Detection            September 2017
 
+
+   ssthresh  Slow start threshold in bytes.  When the congestion window
+      is below ssthresh, the mode is slow start and the window grows by
+      the number of bytes acknowledged.
 
 4.7.3.  Initialization
 
@@ -939,10 +943,6 @@ Internet-Draft             QUIC Loss Detection            September 2017
 
    Invoked by loss detection from DetectLostPackets when new packets are
    detected lost.
-
-
-
-
 
 
 

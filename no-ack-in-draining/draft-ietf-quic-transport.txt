@@ -1889,15 +1889,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Different treatment is given to packets that are received while a
    connection is in the draining period depending on how the connection
-   was closed.  An endpoint that is in a draining period MUST NOT send
-   packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE
-   frame.
+   was closed.
 
-   An endpoint that receives either CONNECTION_CLOSE or
-   APPLICATION_CLOSE while in the draining period MAY terminate the
-   draining period immediately.  An endpoint that receives either of
-   these frames can send a packet containing a CONNECTION_CLOSE to allow
-   its peer to exit the draining period more rapidly.
+   An endpoint that is in a draining period MUST NOT send packets unless
+   they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame.
+
+   Once the draining period has ended, an endpoint SHOULD discard per-
+   connection state.  This results in new packets on the connection
+   being discarded.  An endpoint MAY send a stateless reset in response
+   to any further incoming packets.
 
 
 
@@ -1905,11 +1905,6 @@ Iyengar & Thomson        Expires April 15, 2018                [Page 34]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   Once the draining period has ended, an endpoint SHOULD discard per-
-   connection state.  This results in new packets on the connection
-   being discarded.  An endpoint MAY send a stateless reset in response
-   to any further incoming packets.
 
    The draining period does not apply when a stateless reset
    (Section 7.7.5) is used.
@@ -1954,6 +1949,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    instance, an endpoint could progressively increase the number of
    packets that it receives before sending additional packets.
 
+   Note:  Allowing retransmission of a packet contradicts other advice
+      in this document that recommends the creation of new packet
+      numbers for every packet.  Sending new packet numbers is primarily
+      of advantage to loss recovery and congestion control, which are
+
 
 
 
@@ -1962,10 +1962,6 @@ Iyengar & Thomson        Expires April 15, 2018                [Page 35]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   Note:  Allowing retransmission of a packet contradicts other advice
-      in this document that recommends the creation of new packet
-      numbers for every packet.  Sending new packet numbers is primarily
-      of advantage to loss recovery and congestion control, which are
       not expected to be relevant for a closed connection.
       Retransmitting the final packet requires less state.
 
@@ -2010,6 +2006,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    This packet SHOULD use the short header form with the shortest
    possible packet number encoding.  This minimizes the perceived gap
    between the last packet that the server sent and this packet.  The
+   leading octet of the Stateless Reset Token will be interpreted as a
+   packet number.  A server MAY use a different short header type,
+   indicating a different packet number length, but this allows for the
+
 
 
 
@@ -2018,9 +2018,6 @@ Iyengar & Thomson        Expires April 15, 2018                [Page 36]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   leading octet of the Stateless Reset Token will be interpreted as a
-   packet number.  A server MAY use a different short header type,
-   indicating a different packet number length, but this allows for the
    message to be identified as a stateless reset more easily using
    heuristics.
 
@@ -2066,6 +2063,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A single static key can be used across all connections to the same
    endpoint by generating the proof using a second iteration of a
+   preimage-resistant function that takes three inputs: the static key,
+   a the connection ID for the connection (see Section 5.6), and an
+   identifier for the server instance.  A server could use HMAC
 
 
 
@@ -2074,9 +2074,6 @@ Iyengar & Thomson        Expires April 15, 2018                [Page 37]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   preimage-resistant function that takes three inputs: the static key,
-   a the connection ID for the connection (see Section 5.6), and an
-   identifier for the server instance.  A server could use HMAC
    [RFC2104] (for example, HMAC(static_key, server_id || connection_id))
    or HKDF [RFC5869] (for example, using the static key as input keying
    material, with server and connection identifiers as salt).  The
@@ -2121,6 +2118,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A PADDING frame has no content.  That is, a PADDING frame consists of
    the single octet that identifies the frame as a PADDING frame.
+
+
+
 
 
 

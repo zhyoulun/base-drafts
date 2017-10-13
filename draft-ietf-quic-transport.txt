@@ -132,23 +132,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
        7.7.2.  Address Validation for Migrated Connections . . . . .  36
      7.8.  Connection Termination  . . . . . . . . . . . . . . . . .  36
        7.8.1.  Draining Period . . . . . . . . . . . . . . . . . . .  36
-       7.8.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  37
+       7.8.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  36
        7.8.3.  Immediate Close . . . . . . . . . . . . . . . . . . .  37
-       7.8.4.  Stateless Reset . . . . . . . . . . . . . . . . . . .  38
+       7.8.4.  Stateless Reset . . . . . . . . . . . . . . . . . . .  37
    8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  40
      8.1.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  40
-     8.2.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  41
+     8.2.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  40
      8.3.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  41
      8.4.  APPLICATION_CLOSE frame . . . . . . . . . . . . . . . . .  42
      8.5.  MAX_DATA Frame  . . . . . . . . . . . . . . . . . . . . .  42
      8.6.  MAX_STREAM_DATA Frame . . . . . . . . . . . . . . . . . .  43
      8.7.  MAX_STREAM_ID Frame . . . . . . . . . . . . . . . . . . .  44
-     8.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  45
+     8.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  44
      8.9.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  45
      8.10. STREAM_BLOCKED Frame  . . . . . . . . . . . . . . . . . .  45
-     8.11. STREAM_ID_BLOCKED Frame . . . . . . . . . . . . . . . . .  46
+     8.11. STREAM_ID_BLOCKED Frame . . . . . . . . . . . . . . . . .  45
      8.12. NEW_CONNECTION_ID Frame . . . . . . . . . . . . . . . . .  46
-     8.13. STOP_SENDING Frame  . . . . . . . . . . . . . . . . . . .  47
+     8.13. STOP_SENDING Frame  . . . . . . . . . . . . . . . . . . .  46
      8.14. ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  47
        8.14.1.  ACK Block Section  . . . . . . . . . . . . . . . . .  49
        8.14.2.  ACK Frames and Packet Protection . . . . . . . . . .  51
@@ -1992,11 +1992,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Different treatment is given to packets that are received while a
    connection is in the draining period depending on how the connection
-   was closed.  In all cases, it is possible to acknowledge packets that
-   are received as normal, but other reactions might be preferable
-   depending on how the connection was closed.  An endpoint that is in a
-   draining period MUST NOT send packets containing frames other than
-   ACK, PADDING, or CONNECTION_CLOSE.
+   was closed.
+
+   An endpoint that is in a draining period MUST NOT send packets unless
+   they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame.
 
    Once the draining period has ended, an endpoint SHOULD discard per-
    connection state.  This results in new packets on the connection
@@ -2004,12 +2003,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    to any further incoming packets.
 
    The draining period does not apply when a stateless reset
-   (Section 7.8.4) is used.
+   (Section 7.8.4) is sent.
 
+7.8.2.  Idle Timeout
 
-
-
-
+   A connection that remains idle for longer than the idle timeout (see
+   Section 7.4.1) becomes closed.  Either peer removes connection state
+   if they have neither sent nor received a packet for this time.
 
 
 
@@ -2017,12 +2017,6 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 36]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-7.8.2.  Idle Timeout
-
-   A connection that remains idle for longer than the idle timeout (see
-   Section 7.4.1) becomes closed.  Either peer removes connection state
-   if they have neither sent nor received a packet for this time.
 
    The time at which an idle timeout takes effect won't be perfectly
    synchronized on peers.  A connection enters the draining period when
@@ -2055,25 +2049,12 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       not expected to be relevant for a closed connection.
       Retransmitting the final packet requires less state.
 
-   An endpoint can cease sending CONNECTION_CLOSE or APPLICATION_CLOSE
-   frames if it receives either a CONNECTION_CLOSE, APPLICATION_CLOSE or
-   an acknowledgement for a packet that contained a either close frame.
-
    An immediate close can be used after an application protocol has
    arranged to close a connection.  This might be after the application
    protocols negotiates a graceful shutdown.  The application protocol
    exchanges whatever messages that are needed to cause both endpoints
    to agree to close the connection, after which the application
    requests that the connection be closed.  The application protocol can
-
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 37]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    use an APPLICATION_CLOSE message with an appropriate error code to
    signal closure.
 
@@ -2084,6 +2065,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    server crash or outage might result in clients continuing to send
    data to a server that is unable to properly continue the connection.
    A server that wishes to communicate a fatal connection error MUST use
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 37]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    a CONNECTION_CLOSE or APPLICATION_CLOSE frame if it has sufficient
    state to do so.
 
@@ -2122,14 +2112,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    configured to do so, or if the client packet did not include a
    connection ID.
 
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 38]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    The Packet Number field is set to a randomized value.  The server
    SHOULD send a packet with a short header and a type of 0x01.  This
    produces the shortest possible packet number encoding, which
@@ -2138,6 +2120,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    type, indicating a different packet number length, but a longer
    packet number encoding might allow this message to be identified as a
    stateless reset more easily using heuristics.
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 38]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    After the first short header octet and optional connection ID, the
    server includes the value of the Stateless Reset Token that it
@@ -2177,15 +2168,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Stateless reset specifically exists to handle the case where state is
    lost, so this approach is suboptimal.
 
-
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 39]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    A single static key can be used across all connections to the same
    endpoint by generating the proof using a second iteration of a
    preimage-resistant function that takes three inputs: the static key,
@@ -2196,6 +2178,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    material, with server and connection identifiers as salt).  The
    output of this function is truncated to 16 octets to produce the
    Stateless Reset Token for that connection.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 39]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    A server that loses state can use the same method to generate a valid
    Stateless Reset Secret.  The connection ID comes from the packet that
@@ -2233,15 +2222,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    increase an initial client packet to the minimum required size, or to
    provide protection against traffic analysis for protected packets.
 
-
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 40]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    A PADDING frame has no content.  That is, a PADDING frame consists of
    the single octet that identifies the frame as a PADDING frame.
 
@@ -2254,6 +2234,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    retransmission of STREAM frames on the identified stream.  A receiver
    of RST_STREAM can discard any data that it already received on that
    stream.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 40]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    The RST_STREAM frame is as follows:
 
@@ -2291,13 +2278,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    If there are open streams that haven't been explicitly closed, they
    are implicitly closed when the connection is closed.
 
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 41]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    The CONNECTION_CLOSE frame is as follows:
 
     0                   1                   2                   3
@@ -2309,6 +2289,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
    The fields of a CONNECTION_CLOSE frame are as follows:
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 41]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Error Code:  A 16-bit error code which indicates the reason for
       closing this connection.  CONNECTION_CLOSE uses codes from the
@@ -2344,16 +2332,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    The frame is as follows:
 
-
-
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 42]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -2368,6 +2346,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       amount of data that can be sent on the entire connection, in units
       of 1024 octets.  That is, the updated connection-level data limit
       is determined by multiplying the encoded value by 1024.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 42]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    All data sent in STREAM frames counts toward this limit, with the
    exception of data on stream 0.  The sum of the largest received
@@ -2400,16 +2385,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Stream ID:  The stream ID of the stream that is affected.
 
-
-
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 43]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    Maximum Stream Data:  A 64-bit unsigned integer indicating the
       maximum amount of data that can be sent on the identified stream,
       in units of octets.
@@ -2427,6 +2402,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    than the largest maximum stream data that it has sent for the
    affected stream, unless this is a result of a change in the initial
    limits (see Section 7.4.2).
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 43]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
 8.7.  MAX_STREAM_ID Frame
 
@@ -2458,14 +2440,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    this is a result of a change in the initial limits (see
    Section 7.4.2).
 
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 44]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
 8.8.  PING frame
 
    Endpoints can use PING frames (type=0x07) to verify that their peers
@@ -2483,6 +2457,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    that is expected to send the PING.  Having both endpoints send PING
    frames without coordination can produce an excessive number of
    packets and poor performance.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 44]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    A connection will time out if no packets are sent or received for a
    period longer than the time specified in the idle_timeout transport
@@ -2515,13 +2497,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 45]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    The STREAM_BLOCKED frame contains a single field:
 
    Stream ID:  A 32-bit unsigned number indicating the stream which is
@@ -2536,6 +2511,16 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    stream limit prevented the creation of the stream.
 
    The STREAM_ID_BLOCKED frame does not contain a payload.
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 45]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
 8.12.  NEW_CONNECTION_ID Frame
 
@@ -2570,14 +2555,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       server.  The sequence value can wrap; the value 65535 is followed
       by 0.  When wrapping the sequence field, the server MUST ensure
       that a value with the same sequence has been received and
-
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 46]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
       acknowledged by the client.  The connection ID that is assigned
       during the handshake is assumed to have a sequence of 65535.
 
@@ -2593,6 +2570,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    that incoming data is being discarded on receipt at application
    request.  This signals a peer to abruptly terminate transmission on a
    stream.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 46]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    The STOP_SENDING frame is as follows:
 
@@ -2627,13 +2611,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    acknowledged by its peer.  Once an ACK frame has been acknowledged,
    the packets it acknowledges SHOULD NOT be acknowledged again.
 
-
-
-Iyengar & Thomson        Expires April 16, 2018                [Page 47]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    A receiver that is only sending ACK frames will not receive
    acknowledgments for its packets.  Sending an occasional MAX_DATA or
    MAX_STREAM_DATA frame as data is received will ensure that
@@ -2647,6 +2624,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    some data.  When this is necessary, the receiver SHOULD acknowledge
    newly received packets and stop acknowledging packets received in the
    past.
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 47]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet has
    been acknowledged, even if it does not appear in a future ACK frame,
@@ -2682,6 +2668,20 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       fields.  The values 00, 01, 02, and 03 indicate lengths of 8, 16,
       32, and 64 bits respectively.
 
+   An ACK frame is shown below.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2689,8 +2689,6 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 48]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   An ACK frame is shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2730,6 +2728,8 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    field is absent, only the First ACK Block length is present in this
    section.  Otherwise, the Num Blocks field indicates how many
    additional blocks follow the First ACK Block Length field.
+
+
 
 
 

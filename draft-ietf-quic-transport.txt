@@ -101,7 +101,7 @@ Table of Contents
      5.7.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  18
        5.7.1.  Initial Packet Number . . . . . . . . . . . . . . . .  19
      5.8.  Handling Packets from Different Versions  . . . . . . . .  19
-   6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  20
+   6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  19
    7.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  21
      7.1.  Matching Packets to Connections . . . . . . . . . . . . .  22
      7.2.  Version Negotiation . . . . . . . . . . . . . . . . . . .  23
@@ -771,13 +771,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    client has received a packet from the server, the connection ID field
    uses the value provided by the server.
 
-   The packet number used for Client Initial packets is initialized with
-   a random value each time the new contents are created for the packet.
-   Retransmissions of the packet contents increment the packet number by
-   one, see (Section 5.7).
+   The first Client Initial packet that is sent by a client contains a
+   random 31-bit value.  All subsequent packets contain a packet number
+   that is incremented by one, see (Section 5.7).
 
    The payload of a Client Initial packet consists of a STREAM frame (or
    frames) for stream 0 containing a cryptographic handshake message,
+   with enough PADDING frames that the packet is at least 1200 octets
 
 
 
@@ -786,7 +786,6 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 14]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   with enough PADDING frames that the packet is at least 1200 octets
    (see Section 9).  The stream in this packet always starts at an
    offset of 0 (see Section 7.5) and the complete cryptographic
    handshake message MUST fit in a single packet (see Section 7.3).
@@ -816,10 +815,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    After receiving a Server Stateless Retry packet, the client uses a
    new Client Initial packet containing the next cryptographic handshake
    message.  The client retains the state of its cryptographic
-   handshake, but discards all transport state.  The new Client Initial
-   packet includes a newly randomized packet number, STREAM frames on
-   stream 0 that start again at an offset of 0, and the original
-   connection ID.
+   handshake, but discards all transport state.  The Client Initial
+   packet that is generated in response to a Server Stateless Retry
+   packet includes STREAM frames on stream 0 that start again at an
+   offset of 0.
 
    Continuing the cryptographic handshake is necessary to ensure that an
    attacker cannot force a downgrade of any cryptographic parameters.
@@ -834,6 +833,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    cryptographic stateless retry material.  It MUST NOT contain any
    other frames.  The next STREAM frame sent by the server will also
    start at stream offset 0.
+
 
 
 
@@ -1025,17 +1025,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    32-bits of the packet number.  Once any packet has been acknowledged,
    subsequent packets can use a shorter packet number encoding.
 
-   A client that receives a Version Negotiation (Section 5.3) or Server
-   Stateless Retry packet (Section 5.4.2) MUST generate a new initial
-   packet number.  This ensures that the first transmission attempt for
-   a Client Initial packet (Section 5.4.1) always contains a randomized
-   packet number, but packets that contain retransmissions increment the
-   packet number.
-
-   A client MUST NOT generate a new initial packet number if it discards
-   the server packet.  This might happen if the information the client
-   retransmits its Client Initial packet.
-
 5.8.  Handling Packets from Different Versions
 
    Between different versions the following things are guaranteed to
@@ -1059,18 +1048,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    unknown packet format.  All other fields MUST be ignored when
    processing a packet that contains an unsupported version.
 
+6.  Frames and Frame Types
+
+   The payload of cleartext packets and the plaintext after decryption
+   of protected payloads consists of a sequence of frames, as shown in
+   Figure 4.
+
+
+
+
+
+
 
 
 Iyengar & Thomson        Expires April 16, 2018                [Page 19]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-6.  Frames and Frame Types
-
-   The payload of cleartext packets and the plaintext after decryption
-   of protected payloads consists of a sequence of frames, as shown in
-   Figure 4.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1106,6 +1100,12 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    For all other frames, the Frame Type byte simply identifies the
    frame.  These frames are explained in more detail as they are
    referenced later in the document.
+
+
+
+
+
+
 
 
 

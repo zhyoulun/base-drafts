@@ -98,7 +98,7 @@ Table of Contents
        5.4.4.  Client Cleartext Packet . . . . . . . . . . . . . . .  16
      5.5.  Protected Packets . . . . . . . . . . . . . . . . . . . .  16
      5.6.  Connection ID . . . . . . . . . . . . . . . . . . . . . .  17
-     5.7.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  17
+     5.7.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  18
        5.7.1.  Initial Packet Number . . . . . . . . . . . . . . . .  19
      5.8.  Handling Packets from Different Versions  . . . . . . . .  19
    6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  20
@@ -886,9 +886,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Packets protected with 0-RTT keys use a type value of 0x06.  The
    connection ID field for a 0-RTT packet is selected by the client.
 
-   The client can send 0-RTT packets after having received a packet from
-   the server if that packet does not complete the handshake.  Even if
-   the client receives a different connection ID from the server, it
+   The client can send 0-RTT packets after receiving a Server Cleartext
+   packet (Section 5.4.3), if that packet does not complete the
+   handshake.  Even if the client receives a different connection ID in
 
 
 
@@ -898,8 +898,8 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 16]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   MUST NOT update the connection ID it uses for 0-RTT packets.  This
-   enables consistent routing for all 0-RTT packets.
+   the Server Cleartext packet, it MUST continue to use the connection
+   ID selected by the client for 0-RTT packets, see Section 5.6.
 
    Packets protected with 1-RTT keys that use long headers use a type
    value of 0x07 for key phase 0 and 0x08 for key phase 1; see
@@ -927,25 +927,25 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    balancers, to locate and use it.
 
    The client MUST choose a random connection ID and use it in Client
-   Initial packets (Section 5.4.1) and 0-RTT packets (Section 5.5).  If
-   the client has received any packet from the server, it uses the
-   connection ID it received from the server for all packets other than
-   0-RTT packets.
+   Initial packets (Section 5.4.1) and 0-RTT packets (Section 5.5).
 
    When the server receives a Client Initial packet and decides to
    proceed with the handshake, it chooses a new value for the connection
-   ID and sends that in a Server Cleartext packet.  The server MAY
-   choose to use the value that the client initially selects.
+   ID and sends that in a Server Cleartext packet (Section 5.4.3).  The
+   server MAY choose to use the value that the client initially selects.
 
    Once the client receives the connection ID that the server has
-   chosen, it uses this for all subsequent packets that it sends, except
-   for any 0-RTT packets, which all have the same connection ID.
+   chosen, it MUST use it for all subsequent Client Cleartext
+   (Section 5.4.4) and 1-RTT (Section 5.5) packets but not for 0-RTT
+   packets (Section 5.5).
 
-5.7.  Packet Numbers
+   Server's Version Negotiation (Section 5.3) and Stateless Retry
+   (Section 5.4.2) packets MUST use connection ID selected by the
+   client.
 
-   The packet number is a 64-bit unsigned number and is used as part of
-   a cryptographic nonce for packet encryption.  Each endpoint maintains
-   a separate packet number for sending and receiving.  The packet
+
+
+
 
 
 
@@ -954,6 +954,11 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 17]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
+5.7.  Packet Numbers
+
+   The packet number is a 64-bit unsigned number and is used as part of
+   a cryptographic nonce for packet encryption.  Each endpoint maintains
+   a separate packet number for sending and receiving.  The packet
    number for sending MUST increase by at least one after sending any
    packet, unless otherwise specified (see Section 5.7.1).
 
@@ -996,11 +1001,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    16-bit or larger packet number encoding; whereas a 32-bit packet
    number is needed to send a packet with a number of 0x6bc107.
 
-   Version Negotiation (Section 5.3) and Server Stateless Retry
-   (Section 5.4.2) packets have special rules for populating the packet
-   number field.
-
-
 
 
 
@@ -1009,6 +1009,10 @@ Iyengar & Thomson        Expires April 16, 2018                [Page 18]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
+
+   Version Negotiation (Section 5.3) and Server Stateless Retry
+   (Section 5.4.2) packets have special rules for populating the packet
+   number field.
 
 5.7.1.  Initial Packet Number
 
@@ -1054,10 +1058,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Implementations MUST assume that an unsupported version uses an
    unknown packet format.  All other fields MUST be ignored when
    processing a packet that contains an unsupported version.
-
-
-
-
 
 
 

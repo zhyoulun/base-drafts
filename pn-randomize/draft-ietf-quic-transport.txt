@@ -5,8 +5,8 @@
 QUIC                                                     J. Iyengar, Ed.
 Internet-Draft                                                    Google
 Intended status: Standards Track                         M. Thomson, Ed.
-Expires: April 13, 2018                                          Mozilla
-                                                        October 10, 2017
+Expires: April 16, 2018                                          Mozilla
+                                                        October 13, 2017
 
 
            QUIC: A UDP-Based Multiplexed and Secure Transport
@@ -44,7 +44,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on April 13, 2018.
+   This Internet-Draft will expire on April 16, 2018.
 
 
 
@@ -53,7 +53,7 @@ Status of This Memo
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                 [Page 1]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 1]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -94,119 +94,123 @@ Table of Contents
      5.4.  Cleartext Packets . . . . . . . . . . . . . . . . . . . .  14
        5.4.1.  Client Initial Packet . . . . . . . . . . . . . . . .  14
        5.4.2.  Server Stateless Retry Packet . . . . . . . . . . . .  15
-       5.4.3.  Server Cleartext Packet . . . . . . . . . . . . . . .  15
+       5.4.3.  Server Cleartext Packet . . . . . . . . . . . . . . .  16
        5.4.4.  Client Cleartext Packet . . . . . . . . . . . . . . .  16
      5.5.  Protected Packets . . . . . . . . . . . . . . . . . . . .  16
      5.6.  Connection ID . . . . . . . . . . . . . . . . . . . . . .  17
      5.7.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  17
-       5.7.1.  Initial Packet Number . . . . . . . . . . . . . . . .  18
+       5.7.1.  Initial Packet Number . . . . . . . . . . . . . . . .  19
      5.8.  Handling Packets from Different Versions  . . . . . . . .  19
    6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  19
    7.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  21
-     7.1.  Version Negotiation . . . . . . . . . . . . . . . . . . .  22
-       7.1.1.  Using Reserved Versions . . . . . . . . . . . . . . .  23
-     7.2.  Cryptographic and Transport Handshake . . . . . . . . . .  23
+     7.1.  Matching Packets to Connections . . . . . . . . . . . . .  22
+     7.2.  Version Negotiation . . . . . . . . . . . . . . . . . . .  23
+       7.2.1.  Sending Version Negotiation Packets . . . . . . . . .  23
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                 [Page 2]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 2]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-     7.3.  Transport Parameters  . . . . . . . . . . . . . . . . . .  25
-       7.3.1.  Transport Parameter Definitions . . . . . . . . . . .  26
-       7.3.2.  Values of Transport Parameters for 0-RTT  . . . . . .  27
-       7.3.3.  New Transport Parameters  . . . . . . . . . . . . . .  28
-       7.3.4.  Version Negotiation Validation  . . . . . . . . . . .  28
-     7.4.  Stateless Retries . . . . . . . . . . . . . . . . . . . .  29
-     7.5.  Proof of Source Address Ownership . . . . . . . . . . . .  30
-       7.5.1.  Client Address Validation Procedure . . . . . . . . .  31
-       7.5.2.  Address Validation on Session Resumption  . . . . . .  31
-       7.5.3.  Address Validation Token Integrity  . . . . . . . . .  32
-     7.6.  Connection Migration  . . . . . . . . . . . . . . . . . .  32
-       7.6.1.  Privacy Implications of Connection Migration  . . . .  33
-       7.6.2.  Address Validation for Migrated Connections . . . . .  34
-     7.7.  Connection Termination  . . . . . . . . . . . . . . . . .  34
-       7.7.1.  Draining Period . . . . . . . . . . . . . . . . . . .  34
-       7.7.2.  Application Close . . . . . . . . . . . . . . . . . .  35
-       7.7.3.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  35
-       7.7.4.  Immediate Close . . . . . . . . . . . . . . . . . . .  35
-       7.7.5.  Stateless Reset . . . . . . . . . . . . . . . . . . .  36
-   8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  39
-     8.1.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  39
-     8.2.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  39
-     8.3.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  40
-     8.4.  MAX_DATA Frame  . . . . . . . . . . . . . . . . . . . . .  40
-     8.5.  MAX_STREAM_DATA Frame . . . . . . . . . . . . . . . . . .  41
-     8.6.  MAX_STREAM_ID Frame . . . . . . . . . . . . . . . . . . .  42
-     8.7.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  43
-     8.8.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  43
-     8.9.  STREAM_BLOCKED Frame  . . . . . . . . . . . . . . . . . .  43
-     8.10. STREAM_ID_BLOCKED Frame . . . . . . . . . . . . . . . . .  44
-     8.11. NEW_CONNECTION_ID Frame . . . . . . . . . . . . . . . . .  44
-     8.12. STOP_SENDING Frame  . . . . . . . . . . . . . . . . . . .  45
-     8.13. ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  45
-       8.13.1.  ACK Block Section  . . . . . . . . . . . . . . . . .  48
-       8.13.2.  Timestamp Section  . . . . . . . . . . . . . . . . .  48
-       8.13.3.  ACK Frames and Packet Protection . . . . . . . . . .  50
-     8.14. STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  51
+       7.2.2.  Handling Version Negotiation Packets  . . . . . . . .  24
+       7.2.3.  Using Reserved Versions . . . . . . . . . . . . . . .  24
+     7.3.  Cryptographic and Transport Handshake . . . . . . . . . .  25
+     7.4.  Transport Parameters  . . . . . . . . . . . . . . . . . .  26
+       7.4.1.  Transport Parameter Definitions . . . . . . . . . . .  28
+       7.4.2.  Values of Transport Parameters for 0-RTT  . . . . . .  29
+       7.4.3.  New Transport Parameters  . . . . . . . . . . . . . .  29
+       7.4.4.  Version Negotiation Validation  . . . . . . . . . . .  30
+     7.5.  Stateless Retries . . . . . . . . . . . . . . . . . . . .  31
+     7.6.  Proof of Source Address Ownership . . . . . . . . . . . .  32
+       7.6.1.  Client Address Validation Procedure . . . . . . . . .  32
+       7.6.2.  Address Validation on Session Resumption  . . . . . .  33
+       7.6.3.  Address Validation Token Integrity  . . . . . . . . .  34
+     7.7.  Connection Migration  . . . . . . . . . . . . . . . . . .  34
+       7.7.1.  Privacy Implications of Connection Migration  . . . .  34
+       7.7.2.  Address Validation for Migrated Connections . . . . .  36
+     7.8.  Connection Termination  . . . . . . . . . . . . . . . . .  36
+       7.8.1.  Draining Period . . . . . . . . . . . . . . . . . . .  36
+       7.8.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  36
+       7.8.3.  Immediate Close . . . . . . . . . . . . . . . . . . .  37
+       7.8.4.  Stateless Reset . . . . . . . . . . . . . . . . . . .  37
+   8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  40
+     8.1.  PADDING Frame . . . . . . . . . . . . . . . . . . . . . .  40
+     8.2.  RST_STREAM Frame  . . . . . . . . . . . . . . . . . . . .  40
+     8.3.  CONNECTION_CLOSE frame  . . . . . . . . . . . . . . . . .  41
+     8.4.  APPLICATION_CLOSE frame . . . . . . . . . . . . . . . . .  42
+     8.5.  MAX_DATA Frame  . . . . . . . . . . . . . . . . . . . . .  42
+     8.6.  MAX_STREAM_DATA Frame . . . . . . . . . . . . . . . . . .  43
+     8.7.  MAX_STREAM_ID Frame . . . . . . . . . . . . . . . . . . .  44
+     8.8.  PING frame  . . . . . . . . . . . . . . . . . . . . . . .  44
+     8.9.  BLOCKED Frame . . . . . . . . . . . . . . . . . . . . . .  45
+     8.10. STREAM_BLOCKED Frame  . . . . . . . . . . . . . . . . . .  45
+     8.11. STREAM_ID_BLOCKED Frame . . . . . . . . . . . . . . . . .  45
+     8.12. NEW_CONNECTION_ID Frame . . . . . . . . . . . . . . . . .  46
+     8.13. STOP_SENDING Frame  . . . . . . . . . . . . . . . . . . .  46
+     8.14. ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  47
+       8.14.1.  ACK Block Section  . . . . . . . . . . . . . . . . .  49
+       8.14.2.  ACK Frames and Packet Protection . . . . . . . . . .  51
+     8.15. STREAM Frame  . . . . . . . . . . . . . . . . . . . . . .  52
    9.  Packetization and Reliability . . . . . . . . . . . . . . . .  53
-     9.1.  Special Considerations for PMTU Discovery . . . . . . . .  55
-   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  55
-     10.1.  Stream Identifiers . . . . . . . . . . . . . . . . . . .  56
+     9.1.  Special Considerations for PMTU Discovery . . . . . . . .  56
+   10. Streams: QUIC's Data Structuring Abstraction  . . . . . . . .  56
+     10.1.  Stream Identifiers . . . . . . . . . . . . . . . . . . .  57
      10.2.  Life of a Stream . . . . . . . . . . . . . . . . . . . .  57
-       10.2.1.  idle . . . . . . . . . . . . . . . . . . . . . . . .  58
-       10.2.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  58
-       10.2.3.  half-closed (local)  . . . . . . . . . . . . . . . .  59
+       10.2.1.  idle . . . . . . . . . . . . . . . . . . . . . . . .  59
+       10.2.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  59
+       10.2.3.  half-closed (local)  . . . . . . . . . . . . . . . .  60
        10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  60
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                 [Page 3]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
        10.2.5.  closed . . . . . . . . . . . . . . . . . . . . . . .  61
      10.3.  Solicited State Transitions  . . . . . . . . . . . . . .  61
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 3]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-     10.4.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  61
-     10.5.  Sending and Receiving Data . . . . . . . . . . . . . . .  62
+     10.4.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  62
+     10.5.  Sending and Receiving Data . . . . . . . . . . . . . . .  63
      10.6.  Stream Prioritization  . . . . . . . . . . . . . . . . .  63
    11. Flow Control  . . . . . . . . . . . . . . . . . . . . . . . .  64
      11.1.  Edge Cases and Other Considerations  . . . . . . . . . .  65
-       11.1.1.  Response to a RST_STREAM . . . . . . . . . . . . . .  65
+       11.1.1.  Response to a RST_STREAM . . . . . . . . . . . . . .  66
        11.1.2.  Data Limit Increments  . . . . . . . . . . . . . . .  66
-     11.2.  Stream Limit Increment . . . . . . . . . . . . . . . . .  66
-       11.2.1.  Blocking on Flow Control . . . . . . . . . . . . . .  66
+     11.2.  Stream Limit Increment . . . . . . . . . . . . . . . . .  67
+       11.2.1.  Blocking on Flow Control . . . . . . . . . . . . . .  67
      11.3.  Stream Final Offset  . . . . . . . . . . . . . . . . . .  67
-   12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  67
+   12. Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  68
      12.1.  Connection Errors  . . . . . . . . . . . . . . . . . . .  68
-     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  68
-     12.3.  Error Codes  . . . . . . . . . . . . . . . . . . . . . .  69
-   13. Security and Privacy Considerations . . . . . . . . . . . . .  70
-     13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  70
+     12.2.  Stream Errors  . . . . . . . . . . . . . . . . . . . . .  69
+     12.3.  Transport Error Codes  . . . . . . . . . . . . . . . . .  69
+     12.4.  Application Protocol Error Codes . . . . . . . . . . . .  71
+   13. Security and Privacy Considerations . . . . . . . . . . . . .  71
+     13.1.  Spoofed ACK Attack . . . . . . . . . . . . . . . . . . .  71
      13.2.  Slowloris Attacks  . . . . . . . . . . . . . . . . . . .  71
-     13.3.  Stream Fragmentation and Reassembly Attacks  . . . . . .  71
+     13.3.  Stream Fragmentation and Reassembly Attacks  . . . . . .  72
      13.4.  Stream Commitment Attack . . . . . . . . . . . . . . . .  72
-   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  72
-     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  72
-   15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  73
-     15.1.  Normative References . . . . . . . . . . . . . . . . . .  73
-     15.2.  Informative References . . . . . . . . . . . . . . . . .  74
-     15.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  75
-   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  76
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  76
-   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  76
-     C.1.  Since draft-ietf-quic-transport-06  . . . . . . . . . . .  76
-     C.2.  Since draft-ietf-quic-transport-05  . . . . . . . . . . .  76
-     C.3.  Since draft-ietf-quic-transport-04  . . . . . . . . . . .  77
-     C.4.  Since draft-ietf-quic-transport-03  . . . . . . . . . . .  77
-     C.5.  Since draft-ietf-quic-transport-02  . . . . . . . . . . .  77
-     C.6.  Since draft-ietf-quic-transport-01  . . . . . . . . . . .  78
-     C.7.  Since draft-ietf-quic-transport-00  . . . . . . . . . . .  80
-     C.8.  Since draft-hamilton-quic-transport-protocol-01 . . . . .  81
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  81
+   14. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  73
+     14.1.  QUIC Transport Parameter Registry  . . . . . . . . . . .  73
+     14.2.  QUIC Transport Error Codes Registry  . . . . . . . . . .  74
+   15. References  . . . . . . . . . . . . . . . . . . . . . . . . .  76
+     15.1.  Normative References . . . . . . . . . . . . . . . . . .  76
+     15.2.  Informative References . . . . . . . . . . . . . . . . .  77
+     15.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  78
+   Appendix A.  Contributors . . . . . . . . . . . . . . . . . . . .  78
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  78
+   Appendix C.  Change Log . . . . . . . . . . . . . . . . . . . . .  79
+     C.1.  Since draft-ietf-quic-transport-06  . . . . . . . . . . .  79
+     C.2.  Since draft-ietf-quic-transport-05  . . . . . . . . . . .  79
+     C.3.  Since draft-ietf-quic-transport-04  . . . . . . . . . . .  79
+     C.4.  Since draft-ietf-quic-transport-03  . . . . . . . . . . .  80
+     C.5.  Since draft-ietf-quic-transport-02  . . . . . . . . . . .  80
+     C.6.  Since draft-ietf-quic-transport-01  . . . . . . . . . . .  81
+     C.7.  Since draft-ietf-quic-transport-00  . . . . . . . . . . .  83
+     C.8.  Since draft-hamilton-quic-transport-protocol-01 . . . . .  83
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  83
 
 1.  Introduction
 
@@ -214,18 +218,18 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    of UDP.  QUIC aims to provide a flexible set of features that allow
    it to be a general-purpose transport for multiple applications.
 
-   QUIC implements techniques learned from experience with TCP, SCTP and
-   other transport protocols.  QUIC uses UDP as substrate so as to not
-   require changes to legacy client operating systems and middleboxes to
-   be deployable.  QUIC authenticates all of its headers and encrypts
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                 [Page 4]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 4]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
+   QUIC implements techniques learned from experience with TCP, SCTP and
+   other transport protocols.  QUIC uses UDP as substrate so as to not
+   require changes to legacy client operating systems and middleboxes to
+   be deployable.  QUIC authenticates all of its headers and encrypts
    most of the data it exchanges, including its signaling.  This allows
    the protocol to evolve without incurring a dependency on upgrades to
    middleboxes.  This document describes the core QUIC protocol,
@@ -271,16 +275,16 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    [x]  Indicates that x is optional
 
-   {x}  Indicates that x is encrypted
-
-   x (A)  Indicates that x is A bits long
 
 
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 5]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 5]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
+
+   {x}  Indicates that x is encrypted
+
+   x (A)  Indicates that x is A bits long
 
    x (A/B/C) ...  Indicates that x is one of A, B, or C bits long
 
@@ -326,17 +330,18 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    application multiplexes many streams atop TCP's single-bytestream
    abstraction, a loss of a TCP segment results in blocking of all
    subsequent segments until a retransmission arrives, irrespective of
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                 [Page 6]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    the application streams that are encapsulated in subsequent segments.
    QUIC ensures that lost packets carrying data for an individual stream
    only impact that specific stream.  Data received on other streams can
    continue to be reassembled and delivered to the application.
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 6]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
 3.3.  Rich Signaling for Congestion Control and Loss Recovery
 
@@ -382,18 +387,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    transport protocol, as has been observed in the design of MPTCP
    [RFC6824] and in its subsequent deployability issues.
 
-   Generally, QUIC packets are always authenticated and the payload is
-   typically fully encrypted.  The parts of the packet header which are
-   not encrypted are still authenticated by the receiver, so as to
-   thwart any packet injection or manipulation by third parties.  Some
 
 
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 7]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 7]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
+   Generally, QUIC packets are always authenticated and the payload is
+   typically fully encrypted.  The parts of the packet header which are
+   not encrypted are still authenticated by the receiver, so as to
+   thwart any packet injection or manipulation by third parties.  Some
    early handshake packets, such as the Version Negotiation packet, are
    not encrypted, but information sent in these unencrypted handshake
    packets is later verified as part of cryptographic processing.
@@ -416,7 +420,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    QUIC version negotiation allows for multiple versions of the protocol
    to be deployed and used concurrently.  Version negotiation is
-   described in Section 7.1.
+   described in Section 7.2.
 
 4.  Versions
 
@@ -438,18 +442,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    client or server MAY advertise support for any of these reserved
    versions.
 
-   Reserved version numbers will probably never represent a real
-   protocol; a client MAY use one of these version numbers with the
-   expectation that the server will initiate version negotiation; a
 
 
 
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 8]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 8]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
+   Reserved version numbers will probably never represent a real
+   protocol; a client MAY use one of these version numbers with the
+   expectation that the server will initiate version negotiation; a
    server MAY advertise support for one of these versions and can expect
    that clients ignore the value.
 
@@ -498,10 +501,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                 [Page 9]
+Iyengar & Thomson        Expires April 16, 2018                 [Page 9]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -557,7 +557,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 10]
+Iyengar & Thomson        Expires April 16, 2018                [Page 10]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -590,8 +590,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Section 5.8 for details on how packets from different versions of
    QUIC are interpreted.
 
-   (TODO: Should the list of packet types be version-independent?)
-
    The interpretation of the fields and the payload are specific to a
    version and packet type.  Type-specific semantics for this version
    are described in the following sections.
@@ -613,7 +611,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 11]
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 11]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -644,7 +644,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       whether the Connection ID field is present.  If set to 1, then the
       Connection ID field is present; if set to 0, the Connection ID
       field is omitted.  The Connection ID field can only be omitted if
-      the omit_connection_id transport parameter (Section 7.3.1) is
+      the omit_connection_id transport parameter (Section 7.4.1) is
       specified by the intended recipient of the packet.
 
    Key Phase Bit:  The third bit (0x20) of octet 0 indicates the key
@@ -669,7 +669,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 12]
+Iyengar & Thomson        Expires April 16, 2018                [Page 12]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -725,7 +725,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 13]
+Iyengar & Thomson        Expires April 16, 2018                [Page 13]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -744,7 +744,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
                    Figure 3: Version Negotiation Packet
 
-   See Section 7.1 for a description of the version negotiation process.
+   See Section 7.2 for a description of the version negotiation process.
 
 5.4.  Cleartext Packets
 
@@ -754,8 +754,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    All cleartext packets contain the current QUIC version in the version
    field.
 
-   The payload of cleartext packets also includes an integrity check,
-   which is described in [QUIC-TLS].
+   In order to prevent tampering by version-unaware middleboxes,
+   Cleartext packets are protected with a connection and version
+   specific key, as described in [QUIC-TLS].  This protection does not
+   provide confidentiality or integrity against on-path attackers, but
+   provides some level of protection against off-path attackers.
 
 5.4.1.  Client Initial Packet
 
@@ -775,16 +778,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The payload of a Client Initial packet consists of a STREAM frame (or
    frames) for stream 0 containing a cryptographic handshake message,
    with enough PADDING frames that the packet is at least 1200 octets
-   (see Section 9).  The stream in this packet always starts at an
-   offset of 0 (see Section 7.4) and the complete cryptographic
-   handshake message MUST fit in a single packet (see Section 7.2).
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 14]
+Iyengar & Thomson        Expires April 16, 2018                [Page 14]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
+
+   (see Section 9).  The stream in this packet always starts at an
+   offset of 0 (see Section 7.5) and the complete cryptographic
+   handshake message MUST fit in a single packet (see Section 7.3).
 
    The client uses the Client Initial Packet type for any packet that
    contains an initial cryptographic handshake message.  This includes
@@ -798,7 +802,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A Server Stateless Retry packet uses long headers with a type value
    of 0x03.  It carries cryptographic handshake messages and
    acknowledgments.  It is used by a server that wishes to perform a
-   stateless retry (see Section 7.4).
+   stateless retry (see Section 7.5).
 
    The packet number and connection ID fields echo the corresponding
    fields from the triggering client packet.  This allows a client to
@@ -820,27 +824,29 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    attacker cannot force a downgrade of any cryptographic parameters.
    In addition to continuing the cryptographic handshake, the client
    MUST remember the results of any version negotiation that occurred
-   (see Section 7.1).  The client MAY also retain any observed RTT or
+   (see Section 7.2).  The client MAY also retain any observed RTT or
    congestion state that it has accumulated for the flow, but other
    transport state MUST be discarded.
 
-   The payload of the Server Stateless Retry packet contains STREAM
-   frames and could contain PADDING and ACK frames.  A server can only
-   send a single Server Stateless Retry packet in response to each
-   Client Initial packet that is receives.
+   The payload of the Server Stateless Retry packet contains a single
+   STREAM frame on stream 0 with offset 0 containing the server's
+   cryptographic stateless retry material.  It MUST NOT contain any
+   other frames.  The next STREAM frame sent by the server will also
+   start at stream offset 0.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 15]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
 5.4.3.  Server Cleartext Packet
 
    A Server Cleartext packet uses long headers with a type value of
    0x04.  It is used to carry acknowledgments and cryptographic
    handshake messages from the server.
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 15]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    The connection ID field in a Server Cleartext packet contains a
    connection ID that is chosen by the server (see Section 5.6).
@@ -883,21 +889,21 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The client can send 0-RTT packets after having received a packet from
    the server if that packet does not complete the handshake.  Even if
    the client receives a different connection ID from the server, it
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 16]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    MUST NOT update the connection ID it uses for 0-RTT packets.  This
    enables consistent routing for all 0-RTT packets.
 
    Packets protected with 1-RTT keys that use long headers use a type
    value of 0x07 for key phase 0 and 0x08 for key phase 1; see
    [QUIC-TLS] for more details on the use of key phases.  The connection
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 16]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    ID field for these packet types MUST contain the value selected by
    the server, see Section 5.6.
 
@@ -940,22 +946,22 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The packet number is a 64-bit unsigned number and is used as part of
    a cryptographic nonce for packet encryption.  Each endpoint maintains
    a separate packet number for sending and receiving.  The packet
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 17]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    number for sending MUST increase by at least one after sending any
    packet, unless otherwise specified (see Section 5.7.1).
 
    A QUIC endpoint MUST NOT reuse a packet number within the same
    connection (that is, under the same cryptographic keys).  If the
    packet number for sending reaches 2^64 - 1, the sender MUST close the
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 17]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    connection without sending a CONNECTION_CLOSE frame or any further
-   packets; a server MAY send a Stateless Reset (Section 7.7.5) in
+   packets; a server MAY send a Stateless Reset (Section 7.8.4) in
    response to further packets that it receives.
 
    To reduce the number of bits required to represent the packet number
@@ -994,21 +1000,22 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    (Section 5.4.2) packets have special rules for populating the packet
    number field.
 
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 18]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
 5.7.1.  Initial Packet Number
 
    The initial value for packet number MUST be selected from an uniform
    random distribution between 0 and 2^31-1.  That is, the lower 31 bits
    of the packet number are randomized.  [RFC4086] provides guidance on
    the generation of random values.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 18]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    The first set of packets sent by an endpoint MUST include the low
    32-bits of the packet number.  Once any packet has been acknowledged,
@@ -1026,9 +1033,12 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    o  the location and size of the Connection ID field in both header
       forms,
 
-   o  the location and size of the Version field in long headers, and
+   o  the location and size of the Version field in long headers,
 
-   o  the location and size of the Packet Number field in long headers.
+   o  the location and size of the Packet Number field in long headers,
+      and
+
+   o  the type, format and semantics of the Version Negotiation packet.
 
    Implementations MUST assume that an unsupported version uses an
    unknown packet format.  All other fields MUST be ignored when
@@ -1039,6 +1049,22 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The payload of cleartext packets and the plaintext after decryption
    of protected payloads consists of a sequence of frames, as shown in
    Figure 4.
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 19]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1056,15 +1082,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Protected payloads MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 19]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC
    packet boundary.  Each frame begins with a Frame Type byte,
@@ -1100,24 +1117,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 20]
+Iyengar & Thomson        Expires April 16, 2018                [Page 20]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
@@ -1131,27 +1131,29 @@ Internet-Draft           QUIC Transport Protocol            October 2017
             |             |                   |              |
             | 0x02        | CONNECTION_CLOSE  | Section 8.3  |
             |             |                   |              |
-            | 0x04        | MAX_DATA          | Section 8.4  |
+            | 0x03        | APPLICATION_CLOSE | Section 8.4  |
             |             |                   |              |
-            | 0x05        | MAX_STREAM_DATA   | Section 8.5  |
+            | 0x04        | MAX_DATA          | Section 8.5  |
             |             |                   |              |
-            | 0x06        | MAX_STREAM_ID     | Section 8.6  |
+            | 0x05        | MAX_STREAM_DATA   | Section 8.6  |
             |             |                   |              |
-            | 0x07        | PING              | Section 8.7  |
+            | 0x06        | MAX_STREAM_ID     | Section 8.7  |
             |             |                   |              |
-            | 0x08        | BLOCKED           | Section 8.8  |
+            | 0x07        | PING              | Section 8.8  |
             |             |                   |              |
-            | 0x09        | STREAM_BLOCKED    | Section 8.9  |
+            | 0x08        | BLOCKED           | Section 8.9  |
             |             |                   |              |
-            | 0x0a        | STREAM_ID_BLOCKED | Section 8.10 |
+            | 0x09        | STREAM_BLOCKED    | Section 8.10 |
             |             |                   |              |
-            | 0x0b        | NEW_CONNECTION_ID | Section 8.11 |
+            | 0x0a        | STREAM_ID_BLOCKED | Section 8.11 |
             |             |                   |              |
-            | 0x0c        | STOP_SENDING      | Section 8.12 |
+            | 0x0b        | NEW_CONNECTION_ID | Section 8.12 |
             |             |                   |              |
-            | 0xa0 - 0xbf | ACK               | Section 8.13 |
+            | 0x0c        | STOP_SENDING      | Section 8.13 |
             |             |                   |              |
-            | 0xc0 - 0xff | STREAM            | Section 8.14 |
+            | 0xa0 - 0xbf | ACK               | Section 8.14 |
+            |             |                   |              |
+            | 0xc0 - 0xff | STREAM            | Section 8.15 |
             +-------------+-------------------+--------------+
 
                            Table 3: Frame Types
@@ -1161,78 +1163,148 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A QUIC connection is a single conversation between two QUIC
    endpoints.  QUIC's connection establishment intertwines version
    negotiation with the cryptographic and transport handshakes to reduce
-   connection establishment latency, as described in Section 7.2.  Once
+   connection establishment latency, as described in Section 7.3.  Once
    established, a connection may migrate to a different IP or port at
    either endpoint, due to NAT rebinding or mobility, as described in
-   Section 7.6.  Finally a connection may be terminated by either
-   endpoint, as described in Section 7.7.
+   Section 7.7.  Finally a connection may be terminated by either
+   endpoint, as described in Section 7.8.
 
 
 
 
 
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 21]
+Iyengar & Thomson        Expires April 16, 2018                [Page 21]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-7.1.  Version Negotiation
+7.1.  Matching Packets to Connections
+
+   Incoming packets are classified on receipt.  Packets can either be
+   associated with an existing connection, be discarded, or - for
+   servers - potentially create a new connection.
+
+   Packets that can be associated with an existing connection are
+   handled according to the current state of that connection.  Packets
+   are associated with existing connections using connection ID if it is
+   present; this might include connection IDs that were advertised using
+   NEW_CONNECTION_ID (Section 8.12).  Packets without connection IDs and
+   long-form packets for connections that have incomplete cryptographic
+   handshakes are associated with an existing connection using the tuple
+   of source and destination IP addresses and ports.
+
+   A packet that uses the short header could be associated with an
+   existing connection with an incomplete cryptographic handshake.  Such
+   a packet could be a valid packet that has been reordered with respect
+   to the long-form packets that will complete the cryptographic
+   handshake.  This might happen after the final set of cryptographic
+   handshake messages from either peer.  These packets are expected to
+   be correlated with a connection using the tuple of IP addresses and
+   ports.  Packets that might be reordered in this fashion SHOULD be
+   buffered in anticipation of the handshake completing.
+
+   0-RTT packets might be received prior to a Client Initial packet at a
+   server.  If the version of these packets is acceptable to the server,
+   it MAY buffer these packets in anticipation of receiving a reordered
+   Client Initial packet.
+
+   Buffering ensures that data is not lost, which improves performance;
+   conversely, discarding these packets could create false loss signals
+   for the congestion controllers.  However, limiting the number and
+   size of buffered packets might be needed to prevent exposure to
+   denial of service.
+
+   For clients, any packet that cannot be associated with an existing
+   connection SHOULD be discarded if it is not buffered.  Discarded
+   packets MAY be logged for diagnostic or security purposes.
+
+   For servers, packets that aren't associated with a connection
+   potentially create a new connection.  However, only packets that use
+   the long packet header and that are at least the minimum size defined
+   for the protocol version can be initial packets.  A server MAY
+   discard packets with a short header or packets that are smaller than
+   the smallest minimum size for any version that the server supports.
+   A server that discards a packet that cannot be associated with a
+   connection MAY also generate a stateless reset (Section 7.8.4).
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 22]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   This version of QUIC defines a minimum size for initial packets of
+   1200 octets (see Section 9).  Versions of QUIC that define smaller
+   minimum initial packet sizes need to be aware that initial packets
+   will be discarded without action by servers that only support
+   versions with larger minimums.  Clients that support multiple QUIC
+   versions can avoid this problem by ensuring that they increase the
+   size of their initial packets to the largest minimum size across all
+   of the QUIC versions they support.  Servers need to recognize initial
+   packets that are the minimum size of all QUIC versions they support.
+
+7.2.  Version Negotiation
 
    QUIC's connection establishment begins with version negotiation,
    since all communication between the endpoints, including packet and
    frame formats, relies on the two endpoints agreeing on a version.
 
-   A QUIC connection begins with a client sending a handshake packet.
-   The details of the handshake mechanisms are described in Section 7.2,
-   but all of the initial packets sent from the client to the server
-   MUST use the long header format and MUST specify the version of the
-   protocol being used.
+   A QUIC connection begins with a client sending a Client Initial
+   packet (Section 5.4.1).  The details of the handshake mechanisms are
+   described in Section 7.3, but all of the initial packets sent from
+   the client to the server MUST use the long header format - which
+   includes the version of the protocol being used - and they MUST be
+   padded to at least 1200 octets.
 
-   When the server receives a packet from a client with the long header
-   format, it compares the client's version to the versions it supports.
-
-   If the version selected by the client is not acceptable to the
-   server, the server discards the incoming packet and responds with a
-   Version Negotiation packet (Section 5.3).  This includes a list of
-   versions that the server will accept.
-
-   To avoid packet amplification attacks a server MUST NOT send a
-   Version Negotiation packet that is larger than the packet it responds
-   to.  It is anticipated that this is ample space for all QUIC versions
-   that a single server might need to advertise.
-
-   A server sends a Version Negotiation packet for every packet that it
-   receives with an unacceptable version.  This allows a server to
-   process packets with unsupported versions without retaining state.
-   Though either the initial client packet or the version negotiation
-   packet that is sent in response could be lost, the client will send
-   new packets until it successfully receives a response.
+   The server receives this packet and determines whether it potentially
+   creates a new connection (see Section 7.1).  If the packet might
+   generate a new connection, the server then checks whether it
+   understands the version that the client has selected.
 
    If the packet contains a version that is acceptable to the server,
-   the server proceeds with the handshake (Section 7.2).  This commits
+   the server proceeds with the handshake (Section 7.3).  This commits
    the server to the version that the client selected.
 
-   When the client receives a Version Negotiation packet from the
-   server, it should select an acceptable protocol version.  If the
-   server lists an acceptable version, the client selects that version
-   and reattempts to create a connection using that version.  Though the
-   contents of a subsequent Client Initial packet might not change, a
-   client MUST increase the packet number by one for every packet it
-   sends in response to version negotiation.  Packets MUST continue to
-   use long headers and MUST include the new negotiated protocol
-   version.
+7.2.1.  Sending Version Negotiation Packets
+
+   If the version selected by the client is not acceptable to the
+   server, the server responds with a Version Negotiation packet
+   (Section 5.3).  This includes a list of versions that the server will
+   accept.
+
+   A server sends a Version Negotiation packet for any packet with an
+   unacceptable version if that packet could create a new connection.
+   This allows a server to process packets with unsupported versions
+   without retaining state.  Though either the Client Initial packet or
+   the version negotiation packet that is sent in response could be
+   lost, the client will send new packets until it successfully receives
+   a response or it abandons the connection attempt.
 
 
 
 
 
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 22]
+Iyengar & Thomson        Expires April 16, 2018                [Page 23]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
+
+7.2.2.  Handling Version Negotiation Packets
+
+   When the client receives a Version Negotiation packet, it first
+   checks that the packet number and connection ID match the values the
+   client sent in a previous packet on the same connection.  If this
+   check fails, the packet MUST be discarded.
+
+   Once the Version Negotiation packet is determined to be valid, the
+   client then selects an acceptable protocol version from the list
+   provided by the server.  The client then attempts to create a
+   connection using that version.  Though the contents of the Client
+   Initial packet the client sends might not change in response to
+   version negotiation, a client MUST increase the packet number it uses
+   on every packet it sends.  Packets MUST continue to use long headers
+   and MUST include the new negotiated protocol version.
 
    The client MUST use the long header format and include its selected
    version on all packets until it has 1-RTT keys and it has received a
@@ -1241,7 +1313,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A client MUST NOT change the version it uses unless it is in response
    to a Version Negotiation packet from the server.  Once a client
    receives a packet from the server which is not a Version Negotiation
-   packet, it MUST ignore other Version Negotiation packets on the same
+   packet, it MUST discard other Version Negotiation packets on the same
    connection.  Similarly, a client MUST ignore a Version Negotiation
    packet if it has already received and acted on a Version Negotiation
    packet.
@@ -1249,11 +1321,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A client MUST ignore a Version Negotiation packet that lists the
    client's chosen version.
 
-   Version negotiation uses unprotected data.  The result of the
-   negotiation MUST be revalidated as part of the cryptographic
-   handshake (see Section 7.3.4).
+   Version negotiation packets have no cryptographic protection.  The
+   result of the negotiation MUST be revalidated as part of the
+   cryptographic handshake (see Section 7.4.4).
 
-7.1.1.  Using Reserved Versions
+7.2.3.  Using Reserved Versions
 
    For a server to use a new version in the future, clients must
    correctly handle unsupported versions.  To help ensure this, a server
@@ -1265,7 +1337,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    However, when the server generates a Version Negotiation packet, it
    cannot randomly generate a reserved version number.  This is because
    the server is required to include the same value in its transport
-   parameters (see Section 7.3.4).  To avoid the selected version number
+   parameters (see Section 7.4.4).  To avoid the selected version number
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 24]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    changing during connection establishment, the reserved version SHOULD
    be generated as a function of values that will be available to the
    server when later generating its handshake packets.
@@ -1277,19 +1357,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A client MAY send a packet using a reserved version number.  This can
    be used to solicit a list of supported versions from a server.
 
-7.2.  Cryptographic and Transport Handshake
+7.3.  Cryptographic and Transport Handshake
 
    QUIC relies on a combined cryptographic and transport handshake to
    minimize connection establishment latency.  QUIC allocates stream 0
    for the cryptographic handshake.  Version 0x00000001 of QUIC uses TLS
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 23]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    1.3 as described in [QUIC-TLS]; a different QUIC version number could
    indicate that a different cryptographic handshake protocol is in use.
 
@@ -1310,17 +1382,25 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       *  1-RTT keys have forward secrecy
 
    o  authenticated values for the transport parameters of the peer (see
-      Section 7.3)
+      Section 7.4)
 
    o  authenticated confirmation of version negotiation (see
-      Section 7.3.4)
+      Section 7.4.4)
 
    o  authenticated negotiation of an application protocol (TLS uses
       ALPN [RFC7301] for this purpose)
 
    o  for the server, the ability to carry data that provides assurance
       that the client can receive packets that are addressed with the
-      transport address that is claimed by the client (see Section 7.5)
+      transport address that is claimed by the client (see Section 7.6)
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 25]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    The initial cryptographic handshake message MUST be sent in a single
    packet.  Any second attempt that is triggered by address validation
@@ -1337,16 +1417,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Details of how TLS is integrated with QUIC is provided in more detail
    in [QUIC-TLS].
 
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 24]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-7.3.  Transport Parameters
+7.4.  Transport Parameters
 
    During connection establishment, both endpoints make authenticated
    declarations of their transport parameters.  These declarations are
@@ -1357,6 +1428,35 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The format of the transport parameters is the TransportParameters
    struct from Figure 6.  This is described using the presentation
    language from Section 3 of [I-D.ietf-tls-tls13].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 26]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
       uint32 QuicVersion;
 
@@ -1393,15 +1493,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
                 Figure 6: Definition of TransportParameters
 
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 25]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    The "extension_data" field of the quic_transport_parameters extension
    defined in [QUIC-TLS] contains a TransportParameters value.  TLS
    encoding rules are therefore used to encode the transport parameters.
@@ -1411,16 +1502,25 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    completes, the transport parameters declared by the peer are
    available.  Each endpoint validates the value provided by its peer.
    In particular, version negotiation MUST be validated (see
-   Section 7.3.4) before the connection establishment is considered
+   Section 7.4.4) before the connection establishment is considered
    properly complete.
 
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 27]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    Definitions for each of the defined transport parameters are included
-   in Section 7.3.1.  Any given parameter MUST appear at most once in a
+   in Section 7.4.1.  Any given parameter MUST appear at most once in a
    given transport parameters extension.  An endpoint MUST treat receipt
    of duplicate transport parameters as a connection error of type
    TRANSPORT_PARAMETER_ERROR.
 
-7.3.1.  Transport Parameter Definitions
+7.4.1.  Transport Parameter Definitions
 
    An endpoint MUST include the following parameters in its encoded
    TransportParameters:
@@ -1429,7 +1529,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       parameter contains the initial value for the maximum data that can
       be sent on any newly created stream.  This parameter is encoded as
       an unsigned 32-bit integer in units of octets.  This is equivalent
-      to an implicit MAX_STREAM_DATA frame (Section 8.5) being sent on
+      to an implicit MAX_STREAM_DATA frame (Section 8.6) being sent on
       all streams immediately after opening.
 
    initial_max_data (0x0001):  The initial maximum data parameter
@@ -1437,31 +1537,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       be sent on the connection.  This parameter is encoded as an
       unsigned 32-bit integer in units of 1024 octets.  That is, the
       value here is multiplied by 1024 to determine the actual maximum
-      value.  This is equivalent to sending a MAX_DATA (Section 8.4) for
+      value.  This is equivalent to sending a MAX_DATA (Section 8.5) for
       the connection immediately after completing the handshake.
 
    initial_max_stream_id (0x0002):  The initial maximum stream ID
       parameter contains the initial maximum stream number the peer may
       initiate, encoded as an unsigned 32-bit integer.  This is
-      equivalent to sending a MAX_STREAM_ID (Section 8.6) immediately
+      equivalent to sending a MAX_STREAM_ID (Section 8.7) immediately
       after completing the handshake.
 
    idle_timeout (0x0003):  The idle timeout is a value in seconds that
       is encoded as an unsigned 16-bit integer.  The maximum value is
       600 seconds (10 minutes).
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 26]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    A server MUST include the following transport parameters:
 
    stateless_reset_token (0x0006):  The Stateless Reset Token is used in
-      verifying a stateless reset, see Section 7.7.5.  This parameter is
+      verifying a stateless reset, see Section 7.8.4.  This parameter is
       a sequence of 16 octets.
 
    A client MUST NOT include a stateless reset token.  A server MUST
@@ -1469,6 +1561,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    connection error of type TRANSPORT_PARAMETER_ERROR.
 
    An endpoint MAY use the following transport parameters:
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 28]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    omit_connection_id (0x0004):  The omit connection identifier
       parameter indicates that packets sent to the endpoint that
@@ -1487,7 +1587,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       Values below 1200 are invalid.  This limit only applies to
       protected packets (Section 5.5).
 
-7.3.2.  Values of Transport Parameters for 0-RTT
+7.4.2.  Values of Transport Parameters for 0-RTT
 
    Transport parameters from the server MUST be remembered by the client
    for use with 0-RTT data.  If the TLS NewSessionTicket message
@@ -1506,14 +1606,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    data is accepted by the server, the server MUST NOT reduce any limits
    or alter any values that might be violated by the client with its
    0-RTT data.  In particular, a server that accepts 0-RTT data MUST NOT
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 27]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    set values for initial_max_data or initial_max_stream_data that are
    smaller than the remembered value of those parameters.  Similarly, a
    server MUST NOT reduce the value of initial_max_stream_id.
@@ -1521,26 +1613,35 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A server MUST reject 0-RTT data or even abort a handshake if the
    implied values for transport parameters cannot be supported.
 
-7.3.3.  New Transport Parameters
+7.4.3.  New Transport Parameters
 
    New transport parameters can be used to negotiate new protocol
    behavior.  An endpoint MUST ignore transport parameters that it does
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 29]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    not support.  Absence of a transport parameter therefore disables any
    optional protocol feature that is negotiated using the parameter.
 
    New transport parameters can be registered according to the rules in
    Section 14.1.
 
-7.3.4.  Version Negotiation Validation
+7.4.4.  Version Negotiation Validation
 
    The transport parameters include three fields that encode version
    information.  These retroactively authenticate the version
-   negotiation (see Section 7.1) that is performed prior to the
+   negotiation (see Section 7.2) that is performed prior to the
    cryptographic handshake.
 
    The cryptographic handshake provides integrity protection for the
    negotiated version as part of the transport parameters (see
-   Section 7.3).  As a result, modification of version negotiation
+   Section 7.4).  As a result, modification of version negotiation
    packets by an attacker can be detected.
 
    The client includes two fields in the transport parameters:
@@ -1561,15 +1662,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    remember how version negotiation was performed and validate the
    initial_version value.
 
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 28]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    A server that does not maintain state for every packet it receives
    (i.e., a stateless server) uses a different process.  If the initial
    and negotiated versions are the same, a stateless server can accept
@@ -1582,6 +1674,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    included in the initial_version and the value differs from the value
    of negotiated_version, the server MUST terminate the connection with
    a VERSION_NEGOTIATION_ERROR error.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 30]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    The server includes a list of versions that it would send in any
    version negotiation packet (Section 5.3) in supported_versions.  The
@@ -1609,23 +1708,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    that a new format could be introduced is to define a TLS extension
    with a different codepoint.
 
-7.4.  Stateless Retries
+7.5.  Stateless Retries
 
    A server can process an initial cryptographic handshake messages from
    a client without committing any state.  This allows a server to
-   perform address validation (Section 7.5, or to defer connection
+   perform address validation (Section 7.6, or to defer connection
    establishment costs.
 
    A server that generates a response to an initial packet without
    retaining connection state MUST use the Server Stateless Retry packet
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 29]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    (Section 5.4.2).  This packet causes a client to reset its transport
    state and to continue the connection attempt with new connection
    state while maintaining the state of the cryptographic handshake.
@@ -1637,7 +1728,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    In TLS, the Server Stateless Retry packet type is used to carry the
    HelloRetryRequest message.
 
-7.5.  Proof of Source Address Ownership
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 31]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+7.6.  Proof of Source Address Ownership
 
    Transport protocols commonly spend a round trip checking that a
    client owns the transport address (IP and port) that it claims.
@@ -1673,25 +1774,25 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Source address validation is therefore performed during the
    establishment of a connection.  TLS provides the tools that support
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 30]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    the feature, but basic validation is performed by the core transport
    protocol.
 
-7.5.1.  Client Address Validation Procedure
+7.6.1.  Client Address Validation Procedure
 
    QUIC uses token-based address validation.  Any time the server wishes
    to validate a client address, it provides the client with a token.
-   As long as the token cannot be easily guessed (see Section 7.5.3), if
+   As long as the token cannot be easily guessed (see Section 7.6.3), if
    the client is able to return that token, it proves to the server that
    it received the token.
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 32]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    During the processing of the cryptographic handshake messages from a
    client, TLS will request that QUIC make a decision about whether to
@@ -1722,21 +1823,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    cryptographic handshake implicitly provides proof that the client has
    received packets from the server.
 
-7.5.2.  Address Validation on Session Resumption
+7.6.2.  Address Validation on Session Resumption
 
    A server MAY provide clients with an address validation token during
    one connection that can be used on a subsequent connection.  Address
    validation is especially important with 0-RTT because a server
    potentially sends a significant amount of data to a client in
    response to 0-RTT data.
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 31]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    A different type of token is needed when resuming.  Unlike the token
    that is created during a handshake, there might be some time between
@@ -1749,12 +1842,20 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    This token can be provided to the cryptographic handshake immediately
    after establishing a connection.  QUIC might also generate an updated
    token if significant time passes or the client address changes for
-   any reason (see Section 7.6).  The cryptographic handshake is
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 33]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   any reason (see Section 7.7).  The cryptographic handshake is
    responsible for providing the client with the token.  In TLS the
    token is included in the ticket that is used for resumption and
    0-RTT, which is carried in a NewSessionTicket message.
 
-7.5.3.  Address Validation Token Integrity
+7.6.3.  Address Validation Token Integrity
 
    An address validation token MUST be difficult to guess.  Including a
    large enough random value in the token would be sufficient, but this
@@ -1778,7 +1879,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    abort the connection if the integrity check fails with a
    PROTOCOL_VIOLATION error code.
 
-7.6.  Connection Migration
+7.7.  Connection Migration
 
    QUIC connections are identified by their 64-bit Connection ID.
    QUIC's consistent connection ID allows connections to survive changes
@@ -1786,24 +1887,25 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    server migrating to a new network.  Connection migration allows a
    client to retain any shared state with a connection when they move
    networks.  This includes state that can be hard to recover such as
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 32]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    outstanding requests, which might otherwise be lost with no easy way
    to retry them.
 
-7.6.1.  Privacy Implications of Connection Migration
+7.7.1.  Privacy Implications of Connection Migration
 
    Using a stable connection ID on multiple network paths allows a
    passive observer to correlate activity between those paths.  A client
    that moves between networks might not wish to have their activity
    correlated by any entity other than a server.  The NEW_CONNECTION_ID
    message can be sent by a server to provide an unlinkable connection
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 34]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    ID for use in case the client wishes to explicitly break linkability
    between two points of network attachment.
 
@@ -1818,7 +1920,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A client which wishes to break linkability upon changing networks
    MUST use the connection ID provided by the server as well as
    incrementing the packet sequence number by an externally
-   unpredictable value computed as described in Section 7.6.1.1.  Packet
+   unpredictable value computed as described in Section 7.7.1.1.  Packet
    number gaps are cumulative.  A client might skip connection IDs, but
    it MUST ensure that it applies the associated packet number gaps for
    connection IDs that it skips in addition to the packet number gap
@@ -1835,20 +1937,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    new connection ID to start at 18.  A packet with the new connection
    ID and a packet number of 17 is discarded as being in error.
 
-7.6.1.1.  Packet Number Gap
+7.7.1.1.  Packet Number Gap
 
    In order to avoid linkage, the packet number gap MUST be externally
    indistinguishable from random.  The packet number gap for a
    connection ID with sequence number is computed by encoding the
    sequence number as a 32-bit integer in big-endian format, and then
    computing:
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 33]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    Gap = HKDF-Expand-Label(packet_number_secret,
                            "QUIC packet sequence gap", sequence, 4)
@@ -1857,25 +1952,33 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    number. "packet_number_secret" is derived from the TLS key exchange,
    as described in Section 5.6 of [QUIC-TLS].
 
-7.6.2.  Address Validation for Migrated Connections
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 35]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+7.7.2.  Address Validation for Migrated Connections
 
    TODO: see issue #161
 
-7.7.  Connection Termination
+7.8.  Connection Termination
 
    Connections should remain open until they become idle for a pre-
    negotiated period of time.  A QUIC connection, once established, can
-   be terminated in one of four ways:
+   be terminated in one of three ways:
 
-   o  application close (Section 7.7.2)
+   o  idle timeout (Section 7.8.2)
 
-   o  idle timeout (Section 7.7.3)
+   o  immediate close (Section 7.8.3)
 
-   o  immediate close (Section 7.7.4)
+   o  stateless reset (Section 7.8.4)
 
-   o  stateless reset (Section 7.7.5)
-
-7.7.1.  Draining Period
+7.8.1.  Draining Period
 
    After a connection is closed for any reason, an endpoint might
    receive packets from its peer.  These packets might have been sent
@@ -1889,49 +1992,31 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Different treatment is given to packets that are received while a
    connection is in the draining period depending on how the connection
-   was closed.  In all cases, it is possible to acknowledge packets that
-   are received as normal, but other reactions might be preferable
-   depending on how the connection was closed.  An endpoint that is in a
-   draining period MUST NOT send packets containing frames other than
-   ACK, PADDING, or CONNECTION_CLOSE.
+   was closed.
+
+   An endpoint that is in a draining period MUST NOT send packets unless
+   they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame.
 
    Once the draining period has ended, an endpoint SHOULD discard per-
    connection state.  This results in new packets on the connection
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 34]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    being discarded.  An endpoint MAY send a stateless reset in response
    to any further incoming packets.
 
    The draining period does not apply when a stateless reset
-   (Section 7.7.5) is used.
+   (Section 7.8.4) is sent.
 
-7.7.2.  Application Close
-
-   An application protocol can arrange to close a connection.  This
-   might be after negotiating a graceful shutdown.  The application
-   protocol exchanges whatever messages that are needed to cause both
-   endpoints to agree to close the connection, after which the
-   application requests that the connection be closed.  A negotiated
-   shutdown might not result in exchanging messages that are visible to
-   the transport.
-
-   In the draining period, an endpoint that has been closed by an
-   application SHOULD generate and send ACK frames as normal.  This
-   allows the peer to receive acknowledgements where previous
-   acknowledgements were lost.
-
-7.7.3.  Idle Timeout
+7.8.2.  Idle Timeout
 
    A connection that remains idle for longer than the idle timeout (see
-   Section 7.3.1) becomes closed.  Either peer removes connection state
+   Section 7.4.1) becomes closed.  Either peer removes connection state
    if they have neither sent nor received a packet for this time.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 36]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    The time at which an idle timeout takes effect won't be perfectly
    synchronized on peers.  A connection enters the draining period when
@@ -1940,30 +2025,22 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Alternatively, an endpoint that receives packets MAY signal the
    timeout using an immediate close.
 
-7.7.4.  Immediate Close
+7.8.3.  Immediate Close
 
-   An endpoint sends a CONNECTION_CLOSE frame to terminate the
-   connection immediately.  A CONNECTION_CLOSE causes all open streams
-   to immediately become closed; open streams can be assumed to be
-   implicitly reset.  After sending or receiving a CONNECTION_CLOSE
+   An endpoint sends a CONNECTION_CLOSE or APPLICATION_CLOSE frame to
+   terminate the connection immediately.  Either frame causes all open
+   streams to immediately become closed; open streams can be assumed to
+   be implicitly reset.  After sending or receiving a CONNECTION_CLOSE
    frame, endpoints immediately enter a draining period.
 
    During the draining period, an endpoint that sends a CONNECTION_CLOSE
-   frame SHOULD respond to any subsequent packet that it receives with
-   another packet containing a CONNECTION_CLOSE frame.  To reduce the
-   state that an endpoint maintains in this case, it MAY send the exact
-   same packet.  However, endpoints SHOULD limit the number of
-   CONNECTION_CLOSE messages they generate.  For instance, an endpoint
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 35]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-   could progressively increase the number of packets that it receives
-   before sending additional CONNECTION_CLOSE frames.
+   or APPLICATION_CLOSE frame SHOULD respond to any subsequent packet
+   that it receives with another packet containing either close frame.
+   To reduce the state that an endpoint maintains in this case, it MAY
+   send the exact same packet.  However, endpoints SHOULD limit the
+   number of packets they generate containing either close frame.  For
+   instance, an endpoint could progressively increase the number of
+   packets that it receives before sending additional packets.
 
    Note:  Allowing retransmission of a packet contradicts other advice
       in this document that recommends the creation of new packet
@@ -1972,18 +2049,33 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       not expected to be relevant for a closed connection.
       Retransmitting the final packet requires less state.
 
-   An endpoint can cease sending CONNECTION_CLOSE frames if it receives
-   either a CONNECTION_CLOSE or an acknowledgement for a packet that
-   contained a CONNECTION_CLOSE.
+   An immediate close can be used after an application protocol has
+   arranged to close a connection.  This might be after the application
+   protocols negotiates a graceful shutdown.  The application protocol
+   exchanges whatever messages that are needed to cause both endpoints
+   to agree to close the connection, after which the application
+   requests that the connection be closed.  The application protocol can
+   use an APPLICATION_CLOSE message with an appropriate error code to
+   signal closure.
 
-7.7.5.  Stateless Reset
+7.8.4.  Stateless Reset
 
    A stateless reset is provided as an option of last resort for a
    server that does not have access to the state of a connection.  A
    server crash or outage might result in clients continuing to send
    data to a server that is unable to properly continue the connection.
    A server that wishes to communicate a fatal connection error MUST use
-   a CONNECTION_CLOSE frame if it has sufficient state to do so.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 37]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   a CONNECTION_CLOSE or APPLICATION_CLOSE frame if it has sufficient
+   state to do so.
 
    To support this process, the server sends a stateless_reset_token
    value during the handshake in the transport parameters.  This value
@@ -1992,31 +2084,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A server that receives packets that it cannot process sends a packet
    in the following layout:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 36]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2027,6 +2094,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    +                     [Connection ID (64)]                      +
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                     Packet Number (8/16/32)                   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                        Random Octets (*)                    ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                                                               |
    +                                                               +
    |                                                               |
@@ -2035,56 +2106,59 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    +                                                               +
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Random Octets (*)                    ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-   This packet SHOULD use the short header form with the shortest
-   possible packet number encoding.  This minimizes the perceived gap
-   between the last packet that the server sent and this packet.  The
-   leading octet of the Stateless Reset Token will be interpreted as a
-   packet number.  A server MAY use a different short header type,
-   indicating a different packet number length, but this allows for the
-   message to be identified as a stateless reset more easily using
-   heuristics.
 
    A server copies the connection ID field from the packet that triggers
    the stateless reset.  A server omits the connection ID if explicitly
    configured to do so, or if the client packet did not include a
    connection ID.
 
+   The Packet Number field is set to a randomized value.  The server
+   SHOULD send a packet with a short header and a type of 0x01.  This
+   produces the shortest possible packet number encoding, which
+   minimizes the perceived gap between the last packet that the server
+   sent and this packet.  A server MAY use a different short header
+   type, indicating a different packet number length, but a longer
+   packet number encoding might allow this message to be identified as a
+   stateless reset more easily using heuristics.
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 38]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    After the first short header octet and optional connection ID, the
    server includes the value of the Stateless Reset Token that it
    included in its transport parameters.
 
-   After the Stateless Reset Token, the server pads the message with an
+   After the Packet Number, the server pads the message with an
    arbitrary number of octets containing random values.
+
+   Finally, the last 16 octets of the packet are set to the value of the
+   Stateless Reset Token.
 
    This design ensures that a stateless reset packet is - to the extent
    possible - indistinguishable from a regular packet.
 
    A stateless reset is not appropriate for signaling error conditions.
    An endpoint that wishes to communicate a fatal connection error MUST
-   use a CONNECTION_CLOSE frame if it has sufficient state to do so.
+   use a CONNECTION_CLOSE or APPLICATION_CLOSE frame if it has
+   sufficient state to do so.
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 37]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-7.7.5.1.  Detecting a Stateless Reset
+7.8.4.1.  Detecting a Stateless Reset
 
    A client detects a potential stateless reset when a packet with a
-   short header cannot be decrypted.  The client then performs a
-   constant-time comparison of the 16 octets that follow the Connection
-   ID with the Stateless Reset Token provided by the server in its
-   transport parameters.  If this comparison is successful, the
-   connection MUST be terminated immediately.  Otherwise, the packet can
-   be discarded.
+   short header either cannot be decrypted or is marked as a duplicate
+   packet.  The client then compares the last 16 octets of the packet
+   with the Stateless Reset Token provided by the server in its
+   transport parameters.  If these values are identical, the client MUST
+   enter the draining period and not send any further packets on this
+   connection.  If the comparison fails, the packet can be discarded.
 
-7.7.5.2.  Calculating a Stateless Reset Token
+7.8.4.2.  Calculating a Stateless Reset Token
 
    The stateless reset token MUST be difficult to guess.  In order to
    create a Stateless Reset Token, a server could randomly generate
@@ -2105,6 +2179,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    output of this function is truncated to 16 octets to produce the
    Stateless Reset Token for that connection.
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 39]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    A server that loses state can use the same method to generate a valid
    Stateless Reset Secret.  The connection ID comes from the packet that
    the server receives.
@@ -2113,7 +2194,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    its packets so that the server can use the connection ID from a
    packet to reset the connection.  A server that uses this design
    cannot allow clients to omit a connection ID (that is, it cannot use
-   the truncate_connection_id transport parameter Section 7.3.1).
+   the truncate_connection_id transport parameter Section 7.4.1).
 
    Revealing the Stateless Reset Token allows any entity to terminate
    the connection, so a value can only be used once.  This method for
@@ -2121,17 +2202,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    server instance, connection ID, and static key cannot occur for
    another connection.  A connection ID from a connection that is reset
    by revealing the Stateless Reset Token cannot be reused for new
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 38]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    connections at the same server without first changing to use a
    different static key or server identifier.
+
+   Note that Stateless Reset messages do not have any cryptographic
+   protection.
 
 8.  Frame Types and Formats
 
@@ -2160,6 +2235,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    of RST_STREAM can discard any data that it already received on that
    stream.
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 40]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    The RST_STREAM frame is as follows:
 
     0                   1                   2                   3
@@ -2167,7 +2249,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Error Code (32)                        |
+   |  Application Error Code (16)  |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                                                               |
    +                       Final Offset (64)                       +
@@ -2178,40 +2260,48 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Stream ID:  The 32-bit Stream ID of the stream being terminated.
 
+   Application Protocol Error Code:  A 16-bit application protocol error
+      code (see Section 12.4) which indicates why the stream is being
+      closed.
 
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 39]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-   Error code:  A 32-bit error code which indicates why the stream is
-      being closed.
-
-   Final offset:  A 64-bit unsigned integer indicating the absolute byte
+   Final Offset:  A 64-bit unsigned integer indicating the absolute byte
       offset of the end of data written on this stream by the RST_STREAM
       sender.
 
 8.3.  CONNECTION_CLOSE frame
 
    An endpoint sends a CONNECTION_CLOSE frame (type=0x02) to notify its
-   peer that the connection is being closed.  If there are open streams
-   that haven't been explicitly closed, they are implicitly closed when
-   the connection is closed.  The frame is as follows:
+   peer that the connection is being closed.  CONNECTION_CLOSE is used
+   to signal errors at the QUIC layer, or the absence of errors (with
+   the NO_ERROR code).
+
+   If there are open streams that haven't been explicitly closed, they
+   are implicitly closed when the connection is closed.
+
+   The CONNECTION_CLOSE frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Error Code (32)                        |
+   |           Error Code (16)     |   Reason Phrase Length (16)   |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |   Reason Phrase Length (16)   |      [Reason Phrase (*)]    ...
+   |                        Reason Phrase (*)                    ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
    The fields of a CONNECTION_CLOSE frame are as follows:
 
-   Error Code:  A 32-bit error code which indicates the reason for
-      closing this connection.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 41]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   Error Code:  A 16-bit error code which indicates the reason for
+      closing this connection.  CONNECTION_CLOSE uses codes from the
+      space defined in Section 12.3 (APPLICATION_CLOSE uses codes from
+      the application protocol error code space, see Section 12.4).
 
    Reason Phrase Length:  A 16-bit unsigned number specifying the length
       of the reason phrase in bytes.  Note that a CONNECTION_CLOSE frame
@@ -2224,23 +2314,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       give details beyond the Error Code.  This SHOULD be a UTF-8
       encoded string [RFC3629].
 
-8.4.  MAX_DATA Frame
+8.4.  APPLICATION_CLOSE frame
+
+   An APPLICATION_CLOSE frame (type=0x03) uses the same format as the
+   CONNECTION_CLOSE frame (Section 8.3), except that it uses error codes
+   from the application protocol error code space (Section 12.4) instead
+   of the transport error code space.
+
+   Other than the error code space, the format and semantics of the
+   APPLICATION_CLOSE frame are identical to the CONNECTION_CLOSE frame.
+
+8.5.  MAX_DATA Frame
 
    The MAX_DATA frame (type=0x04) is used in flow control to inform the
    peer of the maximum amount of data that can be sent on the connection
    as a whole.
 
    The frame is as follows:
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 40]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2257,6 +2347,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       of 1024 octets.  That is, the updated connection-level data limit
       is determined by multiplying the encoded value by 1024.
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 42]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    All data sent in STREAM frames counts toward this limit, with the
    exception of data on stream 0.  The sum of the largest received
    offsets on all streams - including closed streams, but excluding
@@ -2264,9 +2361,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    endpoint MUST terminate a connection with a
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more
    data than the maximum data value that it has sent, unless this is a
-   result of a change in the initial limits (see Section 7.3.2).
+   result of a change in the initial limits (see Section 7.4.2).
 
-8.5.  MAX_STREAM_DATA Frame
+8.6.  MAX_STREAM_DATA Frame
 
    The MAX_STREAM_DATA frame (type=0x05) is used in flow control to
    inform a peer of the maximum amount of data that can be sent on a
@@ -2288,16 +2385,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Stream ID:  The stream ID of the stream that is affected.
 
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 41]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    Maximum Stream Data:  A 64-bit unsigned integer indicating the
       maximum amount of data that can be sent on the identified stream,
       in units of octets.
@@ -2314,9 +2401,16 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    connection with a FLOW_CONTROL_ERROR error if it receives more data
    than the largest maximum stream data that it has sent for the
    affected stream, unless this is a result of a change in the initial
-   limits (see Section 7.3.2).
+   limits (see Section 7.4.2).
 
-8.6.  MAX_STREAM_ID Frame
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 43]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+8.7.  MAX_STREAM_ID Frame
 
    The MAX_STREAM_ID frame (type=0x06) informs the peer of the maximum
    stream ID that they are permitted to open.
@@ -2344,17 +2438,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    terminate a connection with a STREAM_ID_ERROR error if a peer
    initiates a stream with a higher stream ID than it has sent, unless
    this is a result of a change in the initial limits (see
-   Section 7.3.2).
+   Section 7.4.2).
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 42]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-8.7.  PING frame
+8.8.  PING frame
 
    Endpoints can use PING frames (type=0x07) to verify that their peers
    are still alive or to check reachability to the peer.  The PING frame
@@ -2372,15 +2458,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    frames without coordination can produce an excessive number of
    packets and poor performance.
 
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 44]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    A connection will time out if no packets are sent or received for a
    period longer than the time specified in the idle_timeout transport
-   parameter (see Section 7.7).  However, state in middleboxes might
+   parameter (see Section 7.8).  However, state in middleboxes might
    time out earlier than that.  Though REQ-5 in [RFC4787] recommends a 2
    minute timeout interval, experience shows that sending packets every
    15 to 30 seconds is necessary to prevent the majority of middleboxes
    from losing state for UDP flows.
 
-8.8.  BLOCKED Frame
+8.9.  BLOCKED Frame
 
    A sender sends a BLOCKED frame (type=0x08) when it wishes to send
    data, but is unable to due to connection-level flow control (see
@@ -2389,11 +2483,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    The BLOCKED frame does not contain a payload.
 
-8.9.  STREAM_BLOCKED Frame
+8.10.  STREAM_BLOCKED Frame
 
    A sender sends a STREAM_BLOCKED frame (type=0x09) when it wishes to
    send data, but is unable to due to stream-level flow control.  This
-   frame is analogous to BLOCKED (Section 8.8).
+   frame is analogous to BLOCKED (Section 8.9).
 
    The STREAM_BLOCKED frame is as follows:
 
@@ -2403,33 +2497,36 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 43]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    The STREAM_BLOCKED frame contains a single field:
 
    Stream ID:  A 32-bit unsigned number indicating the stream which is
       flow control blocked.
 
-8.10.  STREAM_ID_BLOCKED Frame
+8.11.  STREAM_ID_BLOCKED Frame
 
    A sender MAY send a STREAM_ID_BLOCKED frame (type=0x0a) when it
    wishes to open a stream, but is unable to due to the maximum stream
-   ID limit set by its peer (see Section 8.6).  This does not open the
+   ID limit set by its peer (see Section 8.7).  This does not open the
    stream, but informs the peer that a new stream was needed, but the
    stream limit prevented the creation of the stream.
 
    The STREAM_ID_BLOCKED frame does not contain a payload.
 
-8.11.  NEW_CONNECTION_ID Frame
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 45]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+8.12.  NEW_CONNECTION_ID Frame
 
    A server sends a NEW_CONNECTION_ID frame (type=0x0b) to provide the
    client with alternative connection IDs that can be used to break
-   linkability when migrating connections (see Section 7.6.1).
+   linkability when migrating connections (see Section 7.7.1).
 
    The NEW_CONNECTION_ID is as follows:
 
@@ -2458,14 +2555,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       server.  The sequence value can wrap; the value 65535 is followed
       by 0.  When wrapping the sequence field, the server MUST ensure
       that a value with the same sequence has been received and
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 44]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
       acknowledged by the client.  The connection ID that is assigned
       during the handshake is assumed to have a sequence of 65535.
 
@@ -2473,55 +2562,57 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Stateless Reset Token:  A 128-bit value that will be used to for a
       stateless reset when the associated connection ID is used (see
-      Section 7.7.5).
+      Section 7.8.4).
 
-8.12.  STOP_SENDING Frame
+8.13.  STOP_SENDING Frame
 
    An endpoint may use a STOP_SENDING frame (type=0x0c) to communicate
    that incoming data is being discarded on receipt at application
    request.  This signals a peer to abruptly terminate transmission on a
-   stream.  The frame is as follows:
+   stream.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 46]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   The STOP_SENDING frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                        Stream ID (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Error Code (32)                        |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Application Error Code (16)  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
    The fields are:
 
    Stream ID:  The 32-bit Stream ID of the stream being ignored.
 
-   Error Code:  The application-specified reason the sender is ignoring
-      the stream.
+   Application Error Code:  A 16-bit, application-specified reason the
+      sender is ignoring the stream (see Section 12.4).
 
-8.13.  ACK Frame
+8.14.  ACK Frame
 
    Receivers send ACK frames to inform senders which packets they have
    received and processed, as well as which packets are considered
    missing.  The ACK frame contains between 1 and 256 ACK blocks.  ACK
-   blocks are ranges of acknowledged packets.  Implementations SHOULD
-   NOT generate ACK packets in response to packets which only contain
-   ACKs.  However, they SHOULD ACK those packets when sending ACKs for
-   other packets.
+   blocks are ranges of acknowledged packets.  Implementations MUST NOT
+   generate packets that only contain ACK frames in response to packets
+   which only contain ACK frames.  However, they SHOULD acknowledge
+   packets containing only ACK frames when sending ACK frames in
+   response to other packets.
 
    To limit ACK blocks to those that have not yet been received by the
    sender, the receiver SHOULD track which ACK frames have been
    acknowledged by its peer.  Once an ACK frame has been acknowledged,
-   the packets it acknowledges SHOULD not be acknowledged again.
+   the packets it acknowledges SHOULD NOT be acknowledged again.
 
    A receiver that is only sending ACK frames will not receive
    acknowledgments for its packets.  Sending an occasional MAX_DATA or
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 45]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    MAX_STREAM_DATA frame as data is received will ensure that
    acknowledgements are generated by a peer.  Otherwise, an endpoint MAY
    send a PING frame once per RTT to solicit an acknowledgment.
@@ -2534,6 +2625,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    newly received packets and stop acknowledging packets received in the
    past.
 
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 47]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    Unlike TCP SACKs, QUIC ACK blocks are irrevocable.  Once a packet has
    been acknowledged, even if it does not appear in a future ACK frame,
    it remains acknowledged.
@@ -2541,15 +2641,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A client MUST NOT acknowledge Version Negotiation or Server Stateless
    Retry packets.  These packet types contain packet numbers selected by
    the client, not the server.
-
-   QUIC ACK frames contain a timestamp section with up to 255
-   timestamps.  Timestamps enable better congestion control, but are not
-   required for correct loss recovery, and old timestamps are less
-   valuable, so it is not guaranteed every timestamp will be received by
-   the sender.  A receiver SHOULD send a timestamp exactly once for each
-   received packet containing retransmittable frames.  A receiver MAY
-   send timestamps for non-retransmittable packets.  A receiver MUST not
-   send timestamps in unprotected packets.
 
    A sender MAY intentionally skip packet numbers to introduce entropy
    into the connection, to avoid opportunistic acknowledgement attacks.
@@ -2569,15 +2660,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    o  The "N" bit indicates whether the frame contains a Num Blocks
       field.
 
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 46]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    o  The two "LL" bits encode the length of the Largest Acknowledged
       field.  The values 00, 01, 02, and 03 indicate lengths of 8, 16,
       32, and 64 bits respectively.
@@ -2588,18 +2670,36 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    An ACK frame is shown below.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 48]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Num Blocks(8)]|   NumTS (8)   |
+   |[Num Blocks(8)]|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                Largest Acknowledged (8/16/32/64)            ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |        ACK Delay (16)         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                     ACK Block Section (*)                   ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                     Timestamp Section (*)                   ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                         Figure 7: ACK Frame Format
@@ -2610,9 +2710,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       number of additional ACK blocks (besides the required First ACK
       Block) in this ACK frame.  Only present if the 'N' flag bit is 1.
 
-   Num Timestamps:  An unsigned 8-bit number specifying the total number
-      of <packet number, timestamp> pairs in the Timestamp Section.
-
    Largest Acknowledged:  A variable-sized unsigned value representing
       the largest packet number the peer is acknowledging in this packet
       (typically the largest that the peer has seen thus far.)
@@ -2622,25 +2719,32 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       peer to when this ACK was sent.
 
    ACK Block Section:  Contains one or more blocks of packet numbers
-      which have been successfully received, see Section 8.13.1.
+      which have been successfully received, see Section 8.14.1.
 
-   Timestamp Section:  Contains zero or more timestamps reporting
-      transit delay of received packets.  See Section 8.13.2.
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 47]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-8.13.1.  ACK Block Section
+8.14.1.  ACK Block Section
 
    The ACK Block Section contains between one and 256 blocks of packet
    numbers which have been successfully received.  If the Num Blocks
    field is absent, only the First ACK Block length is present in this
    section.  Otherwise, the Num Blocks field indicates how many
    additional blocks follow the First ACK Block Length field.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 49]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2673,78 +2777,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       starting after the end of the previous gap.  Repeated "Num Blocks"
       times.
 
-8.13.2.  Timestamp Section
-
-   The Timestamp Section contains between zero and 255 measurements of
-   packet receive times relative to the beginning of the connection.
-
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 48]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+
-   | [Delta LA (8)]|
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    [First Timestamp (32)]                     |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Delta LA 1(8)]| [Time Since Previous 1 (16)]  |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Delta LA 2(8)]| [Time Since Previous 2 (16)]  |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                          ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |[Delta LA N(8)]| [Time Since Previous N (16)]  |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-                        Figure 9: Timestamp Section
-
-   The fields in the Timestamp Section are:
-
-   Delta Largest Acknowledged (opt):  An optional 8-bit unsigned packet
-      number delta specifying the delta between the largest acknowledged
-      and the first packet whose timestamp is being reported.  In other
-      words, this first packet number may be computed as (Largest
-      Acknowledged - Delta Largest Acknowledged.)
-
-   First Timestamp (opt):  An optional 32-bit unsigned value specifying
-      the time delta in microseconds, from the beginning of the
-      connection to the arrival of the packet indicated by Delta Largest
-      Acknowledged.
-
-   Delta Largest Acked 1..N (opt, repeated):  This field has the same
-      semantics and format as "Delta Largest Acknowledged".  Repeated
-      "Num Timestamps - 1" times.
-
-   Time Since Previous Timestamp 1..N(opt, repeated):  An optional
-      16-bit unsigned value specifying time delta from the previous
-      reported timestamp.  It is encoded in the same format as the ACK
-      Delay.  Repeated "Num Timestamps - 1" times.
-
-   The timestamp section lists packet receipt timestamps ordered by
-   timestamp.
-
-8.13.2.1.  Time Format
+8.14.1.1.  Time Format
 
    DISCUSS_AND_REPLACE: Perhaps make this format simpler.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 49]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    The time format used in the ACK frame above is a 16-bit unsigned
    float with 11 explicit bits of mantissa and 5 bits of explicit
@@ -2758,10 +2793,19 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    mantissa of 0, but then has an effective mantissa of 4096 (12th bit
    is assumed to be 1).  Additionally, the actual exponent is one-less
    than the explicit exponent, and the value represents 4096
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 50]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    microseconds.  Any values larger than the representable range are
    clamped to 0xFFFF.
 
-8.13.3.  ACK Frames and Packet Protection
+8.14.2.  ACK Frames and Packet Protection
 
    ACK frames that acknowledge protected packets MUST be carried in a
    packet that has an equivalent or greater level of packet protection.
@@ -2794,14 +2838,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    handshake, both peers send unprotected packets containing
    cryptographic handshake messages followed by packets protected by
    1-RTT keys.  An endpoint SHOULD acknowledge the unprotected packets
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 50]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    that complete the cryptographic handshake in a protected packet,
    because its peer is guaranteed to have access to 1-RTT packet
    protection keys.
@@ -2814,7 +2850,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    protected packets, because it is certain that the server is able to
    decipher the packet.
 
-8.14.  STREAM Frame
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 51]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+8.15.  STREAM Frame
 
    STREAM frames implicitly create a stream and carry stream data.  The
    type byte for a STREAM frame contains embedded flags, and is
@@ -2843,21 +2887,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A STREAM frame is shown below.
 
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 51]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -2868,7 +2897,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    |       [Data Length (16)]      |        Stream Data (*)      ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-                      Figure 10: STREAM Frame Format
+                       Figure 9: STREAM Frame Format
 
    The STREAM frame contains the following fields:
 
@@ -2877,6 +2906,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Offset:  A variable-sized unsigned number specifying the byte offset
       in the stream for the data in this STREAM frame.  When the offset
       length is 0, the offset is 0.  The first byte in the stream has an
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 52]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
       offset of 0.  The largest offset delivered on a stream - the sum
       of the re-constructed offset and data length - MUST be less than
       2^64.
@@ -2906,14 +2943,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    advised to bundle as few streams as necessary in outgoing packets
    without losing transmission efficiency to underfilled packets.
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 52]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
 9.  Packetization and Reliability
 
    The Path Maximum Transmission Unit (PMTU) is the maximum size of the
@@ -2924,7 +2953,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    All QUIC packets SHOULD be sized to fit within the estimated PMTU to
    avoid IP fragmentation or packet drops.  To optimize bandwidth
    efficiency, endpoints SHOULD use Packetization Layer PMTU Discovery
-   ([RFC4821]) and MAY use PMTU Discovery ([RFC1191], [RFC1981]) for
+   ([PLPMTUD]) and MAY use PMTU Discovery ([PMTUDv4], [PMTUDv6]) for
    detecting the PMTU, setting the PMTU appropriately, and storing the
    result of previous PMTU determinations.
 
@@ -2932,6 +2961,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    packets larger than 1280 octets.  Assuming the minimum IP header
    size, this results in a QUIC packet size of 1232 octets for IPv6 and
    1252 octets for IPv4.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 53]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    QUIC endpoints that implement any kind of PMTU discovery SHOULD
    maintain an estimate for each combination of local and remote IP
@@ -2962,14 +2999,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    If a QUIC endpoint determines that the PMTU between any pair of local
    and remote IP addresses has fallen below 1280 octets, it MUST
    immediately cease sending QUIC packets on the affected path.  This
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 53]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    could result in termination of the connection if an alternative path
    cannot be found.
 
@@ -2989,6 +3018,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Regular QUIC packets are "containers" of frames; a packet is never
    retransmitted whole.  How an endpoint handles the loss of the frame
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 54]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    depends on the type of the frame.  Some frames are simply
    retransmitted, some have their contents moved to new frames, and
    others are never retransmitted.
@@ -3004,10 +3041,18 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    o  ACK and PADDING frames MUST NOT be retransmitted.  ACK frames
       containing updated information will be sent as described in
-      Section 8.13.
+      Section 8.14.
 
    o  STOP_SENDING frames MUST be retransmitted, unless the stream has
       become closed in the appropriate direction.  See Section 10.3.
+
+   o  The most recent MAX_STREAM_DATA frame for a stream MUST be
+      retransmitted.  Any previous unacknowledged MAX_STREAM_DATA frame
+      for the same stream SHOULD NOT be retransmitted since a newer
+      MAX_STREAM_DATA frame for a stream obviates the need for
+      delivering older ones.  Similarly, the most recent MAX_DATA frame
+      MUST be retransmitted; previous unacknowledged ones SHOULD NOT be
+      retransmitted.
 
    o  All other frames MUST be retransmitted.
 
@@ -3018,14 +3063,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A packet MUST NOT be acknowledged until packet protection has been
    successfully removed and all frames contained in the packet have been
    processed.  For STREAM frames, this means the data has been queued
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 54]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
    frames have occurred.  Once the packet has been fully processed, a
@@ -3037,6 +3074,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    PADDING frames, even if there are packet gaps which precede the
    received packet.  The endpoint MUST acknowledge packets containing
    only ACK or PADDING frames in the next ACK frame that it sends.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 55]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Strategies and implications of the frequency of generating
    acknowledgments are discussed in more detail in [QUIC-RECOVERY].
@@ -3074,14 +3118,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Streams in QUIC provide a lightweight, ordered, and bidirectional
    byte-stream abstraction modeled closely on HTTP/2 streams [RFC7540].
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 55]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    Streams can be created either by the client or the server, can
    concurrently send data interleaved with other streams, and can be
    cancelled.
@@ -3094,6 +3130,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    bandwidth and computational cost.  A single STREAM frame may create,
    carry data for, and terminate a stream, or a stream may last the
    entire duration of a connection.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 56]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Streams are individually flow controlled, allowing an endpoint to
    limit memory commitment and to apply back pressure.  The creation of
@@ -3126,17 +3169,8 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    same direction being counted as open.
 
    Stream IDs are usually encoded as a 32-bit integer, though the STREAM
-   frame (Section 8.14) permits a shorter encoding when the leading bits
+   frame (Section 8.15) permits a shorter encoding when the leading bits
    of the stream ID are zero.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 56]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
 10.2.  Life of a Stream
 
@@ -3146,6 +3180,19 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 57]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
                                +--------+
                                |        |
@@ -3183,16 +3230,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       MSD:    MAX_STREAM_DATA frame
       SB:     STREAM_BLOCKED frame
 
-                     Figure 11: Lifecycle of a stream
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 57]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
+                     Figure 10: Lifecycle of a stream
 
    Note that this diagram shows stream state transitions and the frames
    and flags that affect those transitions only.  It is possible for a
@@ -3204,6 +3242,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The recipient of a frame that changes stream state will have a
    delayed view of the state of a stream while the frame is in transit.
    Endpoints do not coordinate the creation of streams; they are created
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 58]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    unilaterally by either endpoint.  Endpoints can use acknowledgments
    to understand the peer's subjective view of stream state at any given
    time.
@@ -3232,7 +3278,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    An endpoint MUST NOT send a STREAM or RST_STREAM frame for a stream
    ID that is higher than the peers advertised maximum stream ID (see
-   Section 8.6).
+   Section 8.7).
 
 10.2.2.  open
 
@@ -3240,15 +3286,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    of any type.  In this state, endpoints can send MAX_STREAM_DATA and
    MUST observe the value advertised by its receiving peer (see
    Section 11).
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 58]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    Opening a stream causes all lower-numbered streams in the same
    direction to become open.  Thus, opening an odd-numbered stream
@@ -3261,6 +3298,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    flag set, which causes the stream to transition into one of the
    "half-closed" states.  This flag can be set on the frame that opens
    the stream, which causes the stream to immediately become "half-
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 59]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    closed".  Once an endpoint has completed sending all stream data and
    a STREAM frame with a FIN flag, the stream state becomes "half-closed
    (local)".  When an endpoint receives all stream data and a FIN flag
@@ -3298,14 +3343,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    An endpoint can receive any frame that mentions a stream ID in this
    state.  Providing flow-control credit using MAX_STREAM_DATA frames is
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 59]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    necessary to continue receiving flow-controlled frames.  In this
    state, a receiver MAY ignore MAX_STREAM_DATA frames for this stream,
    which might arrive for a short period after a frame bearing the FIN
@@ -3317,6 +3354,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    used by the peer to send any data.  An endpoint will have either
    received all data that a peer has sent or will have received a
    RST_STREAM frame and discarded any received data.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 60]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Once all data has been either received or discarded, a sender is no
    longer obligated to update the maximum received data for the
@@ -3351,17 +3395,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    A stream also becomes "closed" when the endpoint sends a RST_STREAM
    frame.
 
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 60]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
 10.2.5.  closed
 
    The "closed" state is the terminal state for a stream.  Reordering
@@ -3373,11 +3406,19 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 10.3.  Solicited State Transitions
 
-   If an endpoint is no longer interested in the data being received, it
-   MAY send a STOP_SENDING frame on a stream in the "open" or "half-
-   closed (local)" state to prompt closure of the stream in the opposite
-   direction.  This typically indicates that the receiving application
-   is no longer reading from the stream, but is not a guarantee that
+   If an endpoint is no longer interested in the data it is receiving on
+   a stream, it MAY send a STOP_SENDING frame identifying that stream to
+   prompt closure of the stream in the opposite direction.  This
+   typically indicates that the receiving application is no longer
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 61]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   reading data it receives from the stream, but is not a guarantee that
    incoming data will be ignored.
 
    STREAM frames received after sending STOP_SENDING are still counted
@@ -3385,12 +3426,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    these frames will be discarded upon receipt.  This avoids potential
    ambiguity about which STREAM frames count toward flow control.
 
-   Upon receipt of a STOP_SENDING frame on a stream in the "open" or
-   "half-closed (remote)" states, an endpoint MUST send a RST_STREAM
-   with an error code of QUIC_RECEIVED_RST.  If the STOP_SENDING frame
-   is received on a stream that is already in the "half-closed (local)"
-   or "closed" states, a RST_STREAM frame MAY still be sent in order to
-   cancel retransmission of previously-sent STREAM frames.
+   STOP_SENDING can only be sent for any stream that is not "idle",
+   however it is mostly useful for streams in the "open" or "half-closed
+   (local)" states.  A STOP_SENDING frame requests that the receiving
+   endpoint send a RST_STREAM frame.  An endpoint that receives a
+   STOP_SENDING frame MUST send a RST_STREAM frame for that stream with
+   an error code of STOPPING.  If the STOP_SENDING frame is received on
+   a stream that is already in the "half-closed (local)" or "closed"
+   states, a RST_STREAM frame MAY still be sent in order to cancel
+   retransmission of previously-sent STREAM frames.
 
    While STOP_SENDING frames are retransmittable, an implementation MAY
    choose not to retransmit a lost STOP_SENDING frame if the stream has
@@ -3401,8 +3445,8 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    An endpoint limits the number of concurrently active incoming streams
    by adjusting the maximum stream ID.  An initial value is set in the
-   transport parameters (see Section 7.3.1) and is subsequently
-   increased by MAX_STREAM_ID frames (see Section 8.6).
+   transport parameters (see Section 7.4.1) and is subsequently
+   increased by MAX_STREAM_ID frames (see Section 8.7).
 
    The maximum stream ID is specific to each endpoint and applies only
    to the peer that receives the setting.  That is, clients specify the
@@ -3411,24 +3455,24 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    on streams initiated by the other peer, regardless of whether it is
    permitted to initiated new streams.
 
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 61]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    Endpoints MUST NOT exceed the limit set by their peer.  An endpoint
    that receives a STREAM frame with an ID greater than the limit it has
    sent MUST treat this as a stream error of type STREAM_ID_ERROR
    (Section 12), unless this is a result of a change in the initial
-   offsets (see Section 7.3.2).
+   offsets (see Section 7.4.2).
 
    A receiver MUST NOT renege on an advertisement; that is, once a
    receiver advertises a stream ID via a MAX_STREAM_ID frame, it MUST
    NOT subsequently advertise a smaller maximum ID.  A sender may
    receive MAX_STREAM_ID frames out of order; a sender MUST therefore
    ignore any MAX_STREAM_ID that does not increase the maximum.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 62]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
 10.5.  Sending and Receiving Data
 
@@ -3453,26 +3497,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    An endpoint MUST NOT send data on any stream without ensuring that it
    is within the data limits set by its peer.  The cryptographic
    handshake stream, Stream 0, is exempt from the connection-level data
-   limits established by MAX_DATA.  Data on stream 0 other than the TLS
-   ClientHello is still subject to stream-level data limits and
-   MAX_STREAM_DATA.  The TLS ClientHello is exempt from flow control
-   because it needs to be sent in a single packet regardless of the
-   server's flow control state.  This rule applies even for 0-RTT
-   handshakes where the remembered value of MAX_STREAM_DATA does not
-   permit sending a full ClientHello.
+   limits established by MAX_DATA.  Data on stream 0 other than the
+   initial cryptographic handshake message is still subject to stream-
+   level data limits and MAX_STREAM_DATA.  This message is exempt from
+   flow control because it needs to be sent in a single packet
+   regardless of the server's flow control state.  This rule applies
+   even for 0-RTT handshakes where the remembered value of
+   MAX_STREAM_DATA would not permit sending a full initial cryptographic
+   handshake message.
 
    Flow control is described in detail in Section 11, and congestion
    control is described in the companion document [QUIC-RECOVERY].
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 62]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
 10.6.  Stream Prioritization
 
@@ -3487,6 +3522,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    from the application that uses QUIC.  Protocols that use QUIC are
    able to define any prioritization scheme that suits their application
    semantics.  A protocol might define explicit messages for signaling
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 63]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    priority, such as those defined in HTTP/2; it could define rules that
    allow an endpoint to determine priority based on context; or it could
    leave the determination to the application.
@@ -3518,18 +3561,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    allows the peer to consume already received data and free up flow
    control window.
 
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 63]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
 11.  Flow Control
 
    It is necessary to limit the amount of data that a sender may have
@@ -3546,6 +3577,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    receiver's buffer capacity for the connection, and (ii) Stream flow
    control, which prevents a single stream from consuming the entire
    receive buffer for a connection.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 64]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    A data receiver sends MAX_STREAM_DATA or MAX_DATA frames to the
    sender to advertise additional credit.  MAX_STREAM_DATA frames send
@@ -3578,14 +3617,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    the sender receives an update before running out of flow control
    credit, even if one of the packets is lost.
 
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 64]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    Connection flow control is a limit to the total bytes of stream data
    sent in STREAM frames on all streams.  A receiver advertises credit
    for a connection by sending a MAX_DATA frame.  A receiver maintains a
@@ -3601,6 +3632,15 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    endpoints must agree on flow control state.  If one end believes it
    can send more than the other end is willing to receive, the
    connection will be torn down when too much data arrives.
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 65]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    Conversely if a sender believes it is blocked, while endpoint B
    expects more data can be received, then the connection can be in a
@@ -3633,15 +3673,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    case that upon receipt of a RST_STREAM an endpoint will choose to
    stop sending data in its own direction.  If the sender of a
    RST_STREAM wishes to explicitly state that no future data will be
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 65]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    processed, that endpoint MAY send a STOP_SENDING frame at the same
    time.
 
@@ -3659,6 +3690,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A receiver MAY use an autotuning mechanism to tune the frequency and
    amount that it increases data limits based on a roundtrip time
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 66]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    estimate and the rate at which the receiving application consumes
    data, similar to common TCP implementations.
 
@@ -3690,14 +3729,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    considered best to not let the sender go into quiescence if
    avoidable.  To avoid blocking a sender, and to reasonably account for
    the possibiity of loss, a receiver should send a MAX_DATA or
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 66]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    MAX_STREAM_DATA frame at least two roundtrips before it expects the
    sender to get blocked.
 
@@ -3714,6 +3745,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    offset is carried explicitly in the RST_STREAM frame.  Otherwise, the
    final offset is the offset of the end of the data carried in STREAM
    frame marked with a FIN flag.
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 67]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
    An endpoint will know the final offset for a stream when the stream
    enters the "half-closed (remote)" state.  However, if there is
@@ -3744,43 +3783,49 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    identifies error conditions, it also identifies the error code that
    is used.
 
-   A stateless reset (Section 7.7.5) is not suitable for any error that
-   can be signaled with a CONNECTION_CLOSE or RST_STREAM frame.  A
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 67]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-   stateless reset MUST NOT be used by an endpoint that has the state
-   necessary to send a frame on the connection.
+   A stateless reset (Section 7.8.4) is not suitable for any error that
+   can be signaled with a CONNECTION_CLOSE, APPLICATION_CLOSE, or
+   RST_STREAM frame.  A stateless reset MUST NOT be used by an endpoint
+   that has the state necessary to send a frame on the connection.
 
 12.1.  Connection Errors
 
    Errors that result in the connection being unusable, such as an
    obvious violation of protocol semantics or corruption of state that
    affects an entire connection, MUST be signaled using a
-   CONNECTION_CLOSE frame (Section 8.3).  An endpoint MAY close the
-   connection in this manner, even if the error only affects a single
-   stream.
+   CONNECTION_CLOSE or APPLICATION_CLOSE frame (Section 8.3,
+   Section 8.4).  An endpoint MAY close the connection in this manner
+   even if the error only affects a single stream.
 
-   A CONNECTION_CLOSE frame could be sent in a packet that is lost.  An
-   endpoint SHOULD be prepared to retransmit a packet containing a
-   CONNECTION_CLOSE frame if it receives more packets on a terminated
-   connection.  Limiting the number of retransmissions and the time over
-   which this final packet is sent limits the effort expended on
-   terminated connections.
+   Application protocols can signal application-specific protocol errors
+   using the APPLICATION_CLOSE frame.  Errors that are specific to the
+   transport, including all those described in this document, are
+   carried in a CONNECTION_CLOSE frame.  Other than the type of error
+   code they carry, these frames are identical in format and semantics.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 68]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   A CONNECTION_CLOSE or APPLICATION_CLOSE frame could be sent in a
+   packet that is lost.  An endpoint SHOULD be prepared to retransmit a
+   packet containing either frame type if it receives more packets on a
+   terminated connection.  Limiting the number of retransmissions and
+   the time over which this final packet is sent limits the effort
+   expended on terminated connections.
 
    An endpoint that chooses not to retransmit packets containing
-   CONNECTION_CLOSE risks a peer missing the first such packet.  The
-   only mechanism available to an endpoint that continues to receive
-   data for a terminated connection is to use the stateless reset
-   process (Section 7.7.5).
+   CONNECTION_CLOSE or APPLICATION_CLOSE risks a peer missing the first
+   such packet.  The only mechanism available to an endpoint that
+   continues to receive data for a terminated connection is to use the
+   stateless reset process (Section 7.8.4).
 
-   An endpoint that receives an invalid CONNECTION_CLOSE frame MUST NOT
-   signal the existence of the error to its peer.
+   An endpoint that receives an invalid CONNECTION_CLOSE or
+   APPLICATION_CLOSE frame MUST NOT signal the existence of the error to
+   its peer.
 
 12.2.  Stream Errors
 
@@ -3794,79 +3839,47 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    the FIN flag, an endpoint MUST generate a connection error of type
    PROTOCOL_VIOLATION.
 
-   Some application protocols make other streams critical to that
-   protocol.  An application protocol does not need to inform the
-   transport that a stream is critical; it can instead generate
-   appropriate errors in response to being notified that the critical
-   stream is closed.
+   RST_STREAM MUST be instigated by the application and MUST carry an
+   application error code.  Resetting a stream without knowledge of the
+   application protocol could cause the protocol to enter an
+   unrecoverable state.  Application protocols might require certain
+   streams to be reliably delivered in order to guarantee consistent
+   state between endpoints.
 
-   An endpoint MAY send a RST_STREAM frame in the same packet as a
-   CONNECTION_CLOSE frame.
+12.3.  Transport Error Codes
 
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 68]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
-12.3.  Error Codes
-
-   Error codes are 32 bits long, with the first two bits indicating the
-   source of the error code:
-
-   0x00000000-0x3FFFFFFF:  Application-specific error codes.  Defined by
-      each application-layer protocol.
-
-   0x40000000-0x7FFFFFFF:  Reserved for host-local error codes.  These
-      codes MUST NOT be sent to a peer, but MAY be used in API return
-      codes and logs.
-
-   0x80000000-0xBFFFFFFF:  QUIC transport error codes, including packet
-      protection errors.  Applicable to all uses of QUIC.
-
-   0xC0000000-0xFFFFFFFF:  Cryptographic error codes.  Defined by the
-      cryptographic handshake protocol in use.
+   QUIC error codes are 16-bit unsigned integers.
 
    This section lists the defined QUIC transport error codes that may be
-   used in a CONNECTION_CLOSE or RST_STREAM frame.  Error codes share a
-   common code space.  Some error codes apply only to either streams or
-   the entire connection and have no defined semantics in the other
-   context.
+   used in a CONNECTION_CLOSE frame.  These errors apply to the entire
+   connection.
 
-   NO_ERROR (0x80000000):  An endpoint uses this with CONNECTION_CLOSE
-      to signal that the connection is being closed abruptly in the
-      absence of any error.  An endpoint uses this with RST_STREAM to
-      signal that the stream is no longer wanted or in response to the
-      receipt of a RST_STREAM for that stream.
-
-   INTERNAL_ERROR (0x80000001):  The endpoint encountered an internal
-      error and cannot continue with the connection.
-
-   CANCELLED (0x80000002):  An endpoint sends this with RST_STREAM to
-      indicate that the stream is not wanted and that no application
-      action was taken for the stream.  This error code is not valid for
-      use with CONNECTION_CLOSE.
-
-   FLOW_CONTROL_ERROR (0x80000003):  An endpoint received more data than
-      it permitted in its advertised data limits (see Section 11).
-
-   STREAM_ID_ERROR (0x80000004):  An endpoint received a frame for a
-      stream identifier that exceeded its advertised maximum stream ID.
-
-   STREAM_STATE_ERROR (0x80000005):  An endpoint received a frame for a
-      stream that was not in a state that permitted that frame (see
-      Section 10.2).
+   NO_ERROR (0x0):  An endpoint uses this with CONNECTION_CLOSE to
+      signal that the connection is being closed abruptly in the absence
+      of any error.
 
 
 
 
-Iyengar & Thomson        Expires April 13, 2018                [Page 69]
+Iyengar & Thomson        Expires April 16, 2018                [Page 69]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   FINAL_OFFSET_ERROR (0x80000006):  An endpoint received a STREAM frame
+   INTERNAL_ERROR (0x1):  The endpoint encountered an internal error and
+      cannot continue with the connection.
+
+   FLOW_CONTROL_ERROR (0x3):  An endpoint received more data than it
+      permitted in its advertised data limits (see Section 11).
+
+   STREAM_ID_ERROR (0x4):  An endpoint received a frame for a stream
+      identifier that exceeded its advertised maximum stream ID.
+
+   STREAM_STATE_ERROR (0x5):  An endpoint received a frame for a stream
+      that was not in a state that permitted that frame (see
+      Section 10.2).
+
+   FINAL_OFFSET_ERROR (0x6):  An endpoint received a STREAM frame
       containing data that exceeded the previously established final
       offset.  Or an endpoint received a RST_STREAM frame containing a
       final offset that was lower than the maximum offset of data that
@@ -3874,34 +3887,53 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       containing a different final offset to the one already
       established.
 
-   FRAME_FORMAT_ERROR (0x80000007):  An endpoint received a frame that
-      was badly formatted.  For instance, an empty STREAM frame that
-      omitted the FIN flag, or an ACK frame that has more acknowledgment
-      ranges than the remainder of the packet could carry.  This is a
-      generic error code; an endpoint SHOULD use the more specific frame
-      format error codes (0x800001XX) if possible.
+   FRAME_FORMAT_ERROR (0x7):  An endpoint received a frame that was
+      badly formatted.  For instance, an empty STREAM frame that omitted
+      the FIN flag, or an ACK frame that has more acknowledgment ranges
+      than the remainder of the packet could carry.  This is a generic
+      error code; an endpoint SHOULD use the more specific frame format
+      error codes (0x1XX) if possible.
 
-   TRANSPORT_PARAMETER_ERROR (0x80000008):  An endpoint received
-      transport parameters that were badly formatted, included an
-      invalid value, was absent even though it is mandatory, was present
-      though it is forbidden, or is otherwise in error.
+   TRANSPORT_PARAMETER_ERROR (0x8):  An endpoint received transport
+      parameters that were badly formatted, included an invalid value,
+      was absent even though it is mandatory, was present though it is
+      forbidden, or is otherwise in error.
 
-   VERSION_NEGOTIATION_ERROR (0x80000009):  An endpoint received
-      transport parameters that contained version negotiation parameters
-      that disagreed with the version negotiation that it performed.
-      This error code indicates a potential version downgrade attack.
+   VERSION_NEGOTIATION_ERROR (0x9):  An endpoint received transport
+      parameters that contained version negotiation parameters that
+      disagreed with the version negotiation that it performed.  This
+      error code indicates a potential version downgrade attack.
 
-   PROTOCOL_VIOLATION (0x8000000A):  An endpoint detected an error with
+   PROTOCOL_VIOLATION (0xA):  An endpoint detected an error with
       protocol compliance that was not covered by more specific error
       codes.
 
-   QUIC_RECEIVED_RST (0x80000035):  Terminating stream because peer sent
-      a RST_STREAM or STOP_SENDING.
+   FRAME_ERROR (0x1XX):  An endpoint detected an error in a specific
+      frame type.  The frame type is included as the last octet of the
+      error code.  For example, an error in a MAX_STREAM_ID frame would
+      be indicated with the code (0x106).
 
-   FRAME_ERROR (0x800001XX):  An endpoint detected an error in a
-      specific frame type.  The frame type is included as the last octet
-      of the error code.  For example, an error in a MAX_STREAM_ID frame
-      would be indicated with the code (0x80000106).
+   See Section 14.2 for details of registering new error codes.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 70]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+12.4.  Application Protocol Error Codes
+
+   Application protocol error codes are 16-bit unsigned integers, but
+   the management of application error codes are left to application
+   protocols.  Application protocol error codes are used for the
+   RST_STREAM (Section 8.2) and APPLICATION_CLOSE (Section 8.4) frames.
+
+   There is no restriction on the use of the 16-bit error code space for
+   application protocols.  However, QUIC reserves the error code with a
+   value of 0 to mean STOPPING.  The application error code of STOPPING
+   (0) is used by the transport to cancel a stream in response to
+   receipt of a STOP_SENDING frame.
 
 13.  Security and Privacy Considerations
 
@@ -3914,13 +3946,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    the victim's behalf.  The attacker then spoofs ACK frames to the
    server which cause the server to potentially drown the victim in
    data.
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 70]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    There are two possible mitigations to this attack.  The simplest one
    is that a server can unilaterally create a gap in packet-number
@@ -3945,6 +3970,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    The attacks commonly known as Slowloris [SLOWLORIS] try to keep many
    connections to the target endpoint open and hold them open as long as
    possible.  These attacks can be executed against a QUIC endpoint by
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 71]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    generating the minimum amount of activity necessary to avoid being
    closed for inactivity.  This might involve sending small amounts of
    data, gradually opening flow control windows in order to control the
@@ -3969,15 +4002,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    available memory.  However, some receivers will over-commit memory
    and advertise flow control offsets in the aggregate that exceed
    actual available memory.  The over-commitment strategy can lead to
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 71]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    better performance when endpoints are well behaved, but renders
    endpoints vulnerable to the stream fragmentation attack.
 
@@ -4002,6 +4026,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Thus, on a new connection, opening stream 2000001 opens 1 million
    streams, as required by the specification.
 
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 72]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    The number of active streams is limited by the concurrent stream
    limit transport parameter, as explained in Section 10.4.  If chosen
    judisciously, this limit mitigates the effect of the stream
@@ -4019,20 +4051,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    This space is split into two spaces that are governed by different
    policies.  Values with the first byte in the range 0x00 to 0xfe (in
    hexadecimal) are assigned via the Specification Required policy
-   [RFC5226].  Values with the first byte 0xff are reserved for Private
-   Use [RFC5226].
+   [RFC8126].  Values with the first byte 0xff are reserved for Private
+   Use [RFC8126].
 
    Registrations MUST include the following fields:
 
    Value:  The numeric value of the assignment (registrations will be
       between 0x0000 and 0xfeff).
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 72]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    Parameter Name:  A short mnemonic for the parameter.
 
@@ -4047,25 +4072,135 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    The initial contents of this registry are shown in Table 4.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 73]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
            +--------+-------------------------+---------------+
            | Value  | Parameter Name          | Specification |
            +--------+-------------------------+---------------+
-           | 0x0000 | initial_max_stream_data | Section 7.3.1 |
+           | 0x0000 | initial_max_stream_data | Section 7.4.1 |
            |        |                         |               |
-           | 0x0001 | initial_max_data        | Section 7.3.1 |
+           | 0x0001 | initial_max_data        | Section 7.4.1 |
            |        |                         |               |
-           | 0x0002 | initial_max_stream_id   | Section 7.3.1 |
+           | 0x0002 | initial_max_stream_id   | Section 7.4.1 |
            |        |                         |               |
-           | 0x0003 | idle_timeout            | Section 7.3.1 |
+           | 0x0003 | idle_timeout            | Section 7.4.1 |
            |        |                         |               |
-           | 0x0004 | omit_connection_id      | Section 7.3.1 |
+           | 0x0004 | omit_connection_id      | Section 7.4.1 |
            |        |                         |               |
-           | 0x0005 | max_packet_size         | Section 7.3.1 |
+           | 0x0005 | max_packet_size         | Section 7.4.1 |
            |        |                         |               |
-           | 0x0006 | stateless_reset_token   | Section 7.3.1 |
+           | 0x0006 | stateless_reset_token   | Section 7.4.1 |
            +--------+-------------------------+---------------+
 
             Table 4: Initial QUIC Transport Parameters Entries
+
+14.2.  QUIC Transport Error Codes Registry
+
+   IANA [SHALL add/has added] a registry for "QUIC Transport Error
+   Codes" under a "QUIC Protocol" heading.
+
+   The "QUIC Transport Error Codes" registry governs a 16-bit space.
+   This space is split into two spaces that are governed by different
+   policies.  Values with the first byte in the range 0x00 to 0xfe (in
+   hexadecimal) are assigned via the Specification Required policy
+   [RFC8126].  Values with the first byte 0xff are reserved for Private
+   Use [RFC8126].
+
+   Registrations MUST include the following fields:
+
+   Value:  The numeric value of the assignment (registrations will be
+      between 0x0000 and 0xfeff).
+
+   Code:  A short mnemonic for the parameter.
+
+   Description:  A brief description of the error code semantics, which
+      MAY be a summary if a specification reference is provided.
+
+   Specification:  A reference to a publicly available specification for
+      the value.
+
+   The initial contents of this registry are shown in Table 5.  Note
+   that FRAME_ERROR takes the range from 0x100 to 0x1FF and private use
+   occupies the range from 0xFE00 to 0xFFFF.
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 74]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
+   +-----------+------------------------+---------------+--------------+
+   | Value     | Error                  | Description   | Specificatio |
+   |           |                        |               | n            |
+   +-----------+------------------------+---------------+--------------+
+   | 0x0       | NO_ERROR               | No error      | Section 12.3 |
+   |           |                        |               |              |
+   | 0x1       | INTERNAL_ERROR         | Implementatio | Section 12.3 |
+   |           |                        | n error       |              |
+   |           |                        |               |              |
+   | 0x3       | FLOW_CONTROL_ERROR     | Flow control  | Section 12.3 |
+   |           |                        | error         |              |
+   |           |                        |               |              |
+   | 0x4       | STREAM_ID_ERROR        | Invalid       | Section 12.3 |
+   |           |                        | stream ID     |              |
+   |           |                        |               |              |
+   | 0x5       | STREAM_STATE_ERROR     | Frame         | Section 12.3 |
+   |           |                        | received in   |              |
+   |           |                        | invalid       |              |
+   |           |                        | stream state  |              |
+   |           |                        |               |              |
+   | 0x6       | FINAL_OFFSET_ERROR     | Change to     | Section 12.3 |
+   |           |                        | final stream  |              |
+   |           |                        | offset        |              |
+   |           |                        |               |              |
+   | 0x7       | FRAME_FORMAT_ERROR     | Generic frame | Section 12.3 |
+   |           |                        | format error  |              |
+   |           |                        |               |              |
+   | 0x8       | TRANSPORT_PARAMETER_ER | Error in      | Section 12.3 |
+   |           | ROR                    | transport     |              |
+   |           |                        | parameters    |              |
+   |           |                        |               |              |
+   | 0x9       | VERSION_NEGOTIATION_ER | Version       | Section 12.3 |
+   |           | ROR                    | negotiation   |              |
+   |           |                        | failure       |              |
+   |           |                        |               |              |
+   | 0xA       | PROTOCOL_VIOLATION     | Generic       | Section 12.3 |
+   |           |                        | protocol      |              |
+   |           |                        | violation     |              |
+   |           |                        |               |              |
+   | 0x100-0x1 | FRAME_ERROR            | Specific      | Section 12.3 |
+   | FF        |                        | frame format  |              |
+   |           |                        | error         |              |
+   +-----------+------------------------+---------------+--------------+
+
+            Table 5: Initial QUIC Transport Error Codes Entries
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 75]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
 
 15.  References
 
@@ -4076,19 +4211,23 @@ Internet-Draft           QUIC Transport Protocol            October 2017
               Version 1.3", draft-ietf-tls-tls13-21 (work in progress),
               July 2017.
 
+   [PLPMTUD]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
+              Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
+              <https://www.rfc-editor.org/info/rfc4821>.
+
+   [PMTUDv4]  Mogul, J. and S. Deering, "Path MTU discovery", RFC 1191,
+              DOI 10.17487/RFC1191, November 1990,
+              <https://www.rfc-editor.org/info/rfc1191>.
+
+   [PMTUDv6]  McCann, J., Deering, S., Mogul, J., and R. Hinden, Ed.,
+              "Path MTU Discovery for IP version 6", STD 87, RFC 8201,
+              DOI 10.17487/RFC8201, July 2017,
+              <https://www.rfc-editor.org/info/rfc8201>.
+
    [QUIC-RECOVERY]
               Iyengar, J., Ed. and I. Swett, Ed., "QUIC Loss Detection
               and Congestion Control", draft-ietf-quic-recovery (work in
               progress), October 2017.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 73]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    [QUIC-TLS]
               Thomson, M., Ed. and S. Turner, Ed., "Using Transport
@@ -4099,10 +4238,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
               DOI 10.17487/RFC1191, November 1990,
               <https://www.rfc-editor.org/info/rfc1191>.
 
-   [RFC1981]  McCann, J., Deering, S., and J. Mogul, "Path MTU Discovery
-              for IP version 6", RFC 1981, DOI 10.17487/RFC1981, August
-              1996, <https://www.rfc-editor.org/info/rfc1981>.
-
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997,
@@ -4112,19 +4247,26 @@ Internet-Draft           QUIC Transport Protocol            October 2017
               10646", STD 63, RFC 3629, DOI 10.17487/RFC3629, November
               2003, <https://www.rfc-editor.org/info/rfc3629>.
 
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 76]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    [RFC4086]  Eastlake 3rd, D., Schiller, J., and S. Crocker,
               "Randomness Requirements for Security", BCP 106, RFC 4086,
               DOI 10.17487/RFC4086, June 2005,
               <https://www.rfc-editor.org/info/rfc4086>.
 
-   [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
-              Discovery", RFC 4821, DOI 10.17487/RFC4821, March 2007,
-              <https://www.rfc-editor.org/info/rfc4821>.
-
-   [RFC5226]  Narten, T. and H. Alvestrand, "Guidelines for Writing an
-              IANA Considerations Section in RFCs", RFC 5226,
-              DOI 10.17487/RFC5226, May 2008,
-              <https://www.rfc-editor.org/info/rfc5226>.
+   [RFC8126]  Cotton, M., Leiba, B., and T. Narten, "Guidelines for
+              Writing an IANA Considerations Section in RFCs", BCP 26,
+              RFC 8126, DOI 10.17487/RFC8126, June 2017,
+              <https://www.rfc-editor.org/info/rfc8126>.
 
 15.2.  Informative References
 
@@ -4136,15 +4278,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
               Hashing for Message Authentication", RFC 2104,
               DOI 10.17487/RFC2104, February 1997,
               <https://www.rfc-editor.org/info/rfc2104>.
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 74]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    [RFC2360]  Scott, G., "Guide for Internet Standards Writers", BCP 22,
               RFC 2360, DOI 10.17487/RFC2360, June 1998,
@@ -4170,6 +4303,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
               Negotiation Extension", RFC 7301, DOI 10.17487/RFC7301,
               July 2014, <https://www.rfc-editor.org/info/rfc7301>.
 
+
+
+
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 77]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
               DOI 10.17487/RFC7540, May 2015,
@@ -4193,14 +4337,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    [3] https://github.com/quicwg/base-drafts/labels/transport
 
    [4] https://github.com/quicwg/base-drafts/wiki/QUIC-Versions
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 75]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
 Appendix A.  Contributors
 
@@ -4226,6 +4362,14 @@ Appendix B.  Acknowledgments
    discussions and public ones on the quic@ietf.org and proto-
    quic@chromium.org mailing lists.  Our thanks to all.
 
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 78]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
 Appendix C.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
@@ -4235,7 +4379,7 @@ Appendix C.  Change Log
 
 C.1.  Since draft-ietf-quic-transport-06
 
-   Nothing yet.
+   o  Replaced FNV-1a with AES-GCM for all "Cleartext" packets.
 
 C.2.  Since draft-ietf-quic-transport-05
 
@@ -4249,14 +4393,6 @@ C.2.  Since draft-ietf-quic-transport-05
    o  Clarify when and what to ack (#736)
 
    o  Renamed STREAM_ID_NEEDED to STREAM_ID_BLOCKED
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 76]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    o  Clarify Keep-alive requirements (#729)
 
@@ -4282,6 +4418,14 @@ C.3.  Since draft-ietf-quic-transport-04
 
    o  Reordered bits and fields in STREAM frame (#620)
 
+
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 79]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    o  Clarifications to the stream state machine (#572, #571)
 
    o  Increased the maximum length of the Largest Acknowledged field in
@@ -4304,15 +4448,6 @@ C.5.  Since draft-ietf-quic-transport-02
 
    o  The size of the initial packet payload has a fixed minimum (#267,
       #472)
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 77]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    o  Define when Version Negotiation packets are ignored (#284, #294,
       #241, #143, #474)
@@ -4340,6 +4475,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
       *  WINDOW_UPDATE split into MAX_DATA and MAX_STREAM_DATA (#450)
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 80]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
       *  BLOCKED split to match WINDOW_UPDATE split (#454)
 
       *  Define STREAM_ID_NEEDED frame (#455)
@@ -4360,15 +4502,6 @@ C.6.  Since draft-ietf-quic-transport-01
    o  Defined short and long packet headers (#40, #148, #361)
 
    o  Defined a versioning scheme and stable fields (#51, #361)
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 78]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    o  Define reserved version values for "greasing" negotiation (#112,
       #278)
@@ -4398,6 +4531,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    o  Path MTU Discovery (#64, #106)
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 81]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    o  The initial handshake packet from the client needs to fit in a
       single packet (#338)
 
@@ -4418,13 +4558,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    o  Error handling definitions (#335)
 
    o  Split error codes into four sections (#74)
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 79]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    o  Forbid the use of Public Reset where CONNECTION_CLOSE is possible
       (#289)
@@ -4454,6 +4587,13 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    o  Moved length-determining fields to the start of STREAM and ACK
       (#168, #277)
 
+
+
+Iyengar & Thomson        Expires April 16, 2018                [Page 82]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
    o  Added the ability to pad between frames (#158, #276)
 
    o  Remove error code and reason phrase from GOAWAY (#352, #355)
@@ -4473,14 +4613,6 @@ C.7.  Since draft-ietf-quic-transport-00
    o  Defined versioning
 
    o  Reworked description of packet and frame layout
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 80]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
 
    o  Error code space is divided into regions for each component
 
@@ -4513,24 +4645,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Thomson        Expires April 13, 2018                [Page 81]
+Iyengar & Thomson        Expires April 16, 2018                [Page 83]

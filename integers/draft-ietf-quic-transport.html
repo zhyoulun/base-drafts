@@ -402,7 +402,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-10-13" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-10-15" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -426,12 +426,12 @@ address {
 <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-<td class="left">Expires: April 16, 2018</td>
+<td class="left">Expires: April 18, 2018</td>
 <td class="right">Mozilla</td>
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">October 13, 2017</td>
+<td class="right">October 15, 2017</td>
 </tr>
 
     	
@@ -450,7 +450,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on April 16, 2018.</p>
+<p>This Internet-Draft will expire on April 18, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2017 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -1059,9 +1059,9 @@ address {
 <h2 id="rfc.section.5.7">
 <a href="#rfc.section.5.7">5.7.</a> <a href="#packet-numbers" id="packet-numbers">Packet Numbers</a>
 </h2>
-<p id="rfc.section.5.7.p.1">The packet number is a 64-bit unsigned number and is used as part of a cryptographic nonce for packet encryption.  Only the low 62 bits of this value are used (see <a href="#integer-encoding" class="xref">Section 8.1</a> for details).  Each endpoint maintains a separate packet number for sending and receiving.  The packet number for sending MUST increase by at least one after sending any packet, unless otherwise specified (see <a href="#initial-packet-number" class="xref">Section 5.7.1</a>).</p>
+<p id="rfc.section.5.7.p.1">The packet number is an integer in the range 0 to 2^62-1. The value is used in determining the cryptographic nonce for packet encryption.  Each endpoint maintains a separate packet number for sending and receiving.  The packet number for sending MUST increase by at least one after sending any packet, unless otherwise specified (see <a href="#initial-packet-number" class="xref">Section 5.7.1</a>).</p>
 <p id="rfc.section.5.7.p.2">A QUIC endpoint MUST NOT reuse a packet number within the same connection (that is, under the same cryptographic keys).  If the packet number for sending reaches 2^62 - 1, the sender MUST close the connection without sending a CONNECTION_CLOSE frame or any further packets; a server MAY send a Stateless Reset (<a href="#stateless-reset" class="xref">Section 7.8.4</a>) in response to further packets that it receives.</p>
-<p id="rfc.section.5.7.p.3">To reduce the number of bits required to represent the packet number over the wire, only the least significant bits of the packet number are transmitted.  The actual packet number for each packet is reconstructed at the receiver based on the largest packet number received on a successfully authenticated packet.</p>
+<p id="rfc.section.5.7.p.3">For the packet header, the number of bits required to represent the packet number are reduced by including only the least significant bits of the packet number.  The actual packet number for each packet is reconstructed at the receiver based on the largest packet number received on a successfully authenticated packet.</p>
 <p id="rfc.section.5.7.p.4">A packet number is decoded by finding the packet number value that is closest to the next expected packet.  The next expected packet is the highest received packet number plus one.  For example, if the highest successfully authenticated packet had a packet number of 0xaa82f30e, then a packet containing a 16-bit value of 0x1f94 will be decoded as 0xaa831f94.</p>
 <p id="rfc.section.5.7.p.5">The sender MUST use a packet number size able to represent more than twice as large a range than the difference between the largest acknowledged packet and packet number being sent.  A peer receiving the packet will then correctly decode the packet number, unless the packet is delayed in transit such that it arrives after many higher-numbered packets have been received.  An endpoint SHOULD use a large enough packet number encoding to allow the packet number to be recovered even if the packet arrives after packets that are sent afterwards.</p>
 <p id="rfc.section.5.7.p.6">As a result, the size of the packet number encoding is at least one more than the base 2 logarithm of the number of contiguous unacknowledged packet numbers, including the new packet.</p>
@@ -1294,7 +1294,7 @@ address {
       omit_connection_id(4),
       max_packet_size(5),
       stateless_reset_token(6),
-      ack_delay_scale(7),
+      ack_delay_exponent(7),
       (65535)
    } TransportParameterId;
 
@@ -1542,7 +1542,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a href="#rfc.section.8.1">8.1.</a> <a href="#integer-encoding" id="integer-encoding">Variable-Length Integer Encoding</a>
 </h2>
 <p id="rfc.section.8.1.p.1">QUIC frames use a common variable-length encoding for all non-negative integer values.  This encoding ensures that smaller integer values need fewer octets to encode.</p>
-<p id="rfc.section.8.1.p.2">The QUIC variable-length integer encoding reserves the two most significant bits of the first octet to encode a length value.  The length of the integer is two to the power of the integer value of those two bits, in octets.  The integer value is encoded on the remaining bits, in network byte order.</p>
+<p id="rfc.section.8.1.p.2">The QUIC variable-length integer encoding reserves the two most significant bits of the first octet to encode the base 2 logarithm of the integer encoding length in octets.  The integer value is encoded on the remaining bits, in network byte order.</p>
 <p id="rfc.section.8.1.p.3">This means that integers are encoded on 1, 2, 4, or 8 octets and can encode 6, 14, 30, or 62 bit values respectively.  <a href="#integer-summary" class="xref">Table 4</a> summarizes the encoding properties.</p>
 <div id="rfc.table.4"></div>
 <div id="integer-summary"></div>
@@ -1837,7 +1837,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 
 <dl>
 <dt>Largest Acknowledged:</dt>
-<dd style="margin-left: 8">A variable-length integer representing the largest packet number the peer is acknowledging.  Typically, this is the largest packet number that the peer has received prior to generating the ACK frame.</dd>
+<dd style="margin-left: 8">A variable-length integer representing the largest packet number the peer is acknowledging; this is usually the largest packet number that the peer has received prior to generating the ACK frame.</dd>
 <dt>ACK Delay:</dt>
 <dd style="margin-left: 8">A variable-length integer including the time in microseconds that the largest acknowledged packet, as indicated in the Largest Acknowledged field, was received by this peer to when this ACK was sent.  The value of the ACK Delay field is scaled by multiplying the encoded value by the 2 to the power of the value of the <samp>ack_delay_exponent</samp> transport parameter set by the sender of the ACK frame.  The <samp>ack_delay_exponent</samp> defaults to 3, or a multiplier of 8 (see <a href="#transport-parameter-definitions" class="xref">Section 7.4.1</a>).  Scaling in this fashion allows for a larger range of values with a shorter encoding at the cost of lower resolution.</dd>
 <dt>ACK Blocks:</dt>
@@ -1847,7 +1847,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a href="#rfc.section.8.15.1">8.15.1.</a> <a href="#ack-block-section" id="ack-block-section">ACK Block Section</a>
 </h3>
 <p id="rfc.section.8.15.1.p.1">The ACK Block Section consists of alternating ACK Blocks and Gaps.  A First Ack Block is followed by a variable number of alternating Gap and Additional ACK Blocks.  The sequence ends with a Gap that is set to 0.</p>
-<p id="rfc.section.8.15.1.p.2">ACK Blocks and Gaps use a relative integer encoding for efficiency.  As long as contiguous ranges of packets are small, the variable-length integer encoding ensures that each range can be expressed in a minimal number of octets.</p>
+<p id="rfc.section.8.15.1.p.2">ACK Blocks and Gaps use a relative integer encoding for efficiency.  As long as contiguous ranges of packets are small, the variable-length integer encoding ensures that each range can be expressed in a small number of octets.</p>
 <div id="rfc.figure.8"></div>
 <div id="ack-block-format"></div>
 <pre>
@@ -1887,12 +1887,12 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 
 <dl>
 <dt>First ACK Block:</dt>
-<dd style="margin-left: 8">A variable-length indicating the number of contiguous packets in addition to the Largest Acknowledged that are being acknowledged.</dd>
+<dd style="margin-left: 8">A variable-length indicating the number of contiguous packets preceding the Largest Acknowledged that are being acknowledged.</dd>
 <dt>Gap (repeated):</dt>
 <dd style="margin-left: 8">A non-zero, variable-length integer indicating specifying the number of contiguous unacknowledged packets, starting from the packet number one lower than the smallest in the preceding ACK Block.</dd>
 <dt>ACK Block (repeated):</dt>
-<dd style="margin-left: 8">A variable-length integer indicating the number of contiguous acknowledged packets in addition to the largest packet number, as determined by the preceding Gap.</dd>
-<dt>Final Gap (repeated):</dt>
+<dd style="margin-left: 8">A variable-length integer indicating the number of contiguous acknowledged packets preceding the largest packet number, as determined by the preceding Gap.</dd>
+<dt>Final Gap:</dt>
 <dd style="margin-left: 8">A zero-valued, variable-length integer indicating the end of the ACK frame.</dd>
 </dl>
 <h3 id="rfc.section.8.15.2">
@@ -1908,13 +1908,13 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h2 id="rfc.section.8.16">
 <a href="#rfc.section.8.16">8.16.</a> <a href="#frame-stream" id="frame-stream">STREAM Frames</a>
 </h2>
-<p id="rfc.section.8.16.p.1">STREAM frames implicitly create a stream and carry stream data.  There are eight types of STREAM frame from 0x10 to 0x17.  The value of the three low-order bits of the frame type determine the fields that are present in the frame.</p>
+<p id="rfc.section.8.16.p.1">STREAM frames implicitly create a stream and carry stream data.  The STREAM frame takes the form 0b00010XXX (or the set of values from 0x10 to 0x17).  The value of the three low-order bits of the frame type determine the fields that are present in the frame.</p>
 <p></p>
 
 <ul>
-<li>The FIN bit (0x01) of the frame type is set only on frames that contain the final offset of the stream.  Setting this bit indicates that the frame contains the end of the stream data.</li>
+<li>The FIN bit (0x01) of the frame type is set only on frames that contain the final offset of the stream.  Setting this bit indicates that the frame marks the end of the stream.</li>
 <li>The LEN bit (0x02) in the frame type is set to indicate that there is a Length field present.  If this bit is set to 0, the Length field is absent and the Stream Data field extends to the end of the packet.  If this bit is set to 1, the Length field is present.</li>
-<li>The OFF bit (0x04) in the frame type is set to indicate that there is an Offset field present.  When set to 1, the Offset field is present; when set to 0, the Offset field is absent and the Stream Data starts at an offset of 0 (that is, the frame contains the first octets of the stream).</li>
+<li>The OFF bit (0x04) in the frame type is set to indicate that there is an Offset field present.  When set to 1, the Offset field is present; when set to 0, the Offset field is absent and the Stream Data starts at an offset of 0 (that is, the frame contains the first octets of the stream, or the end of a stream that includes no data).</li>
 </ul>
 <p id="rfc.section.8.16.p.3">A STREAM frame is shown below.</p>
 <div id="rfc.figure.9"></div>
@@ -1940,9 +1940,9 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dt>Stream ID:</dt>
 <dd style="margin-left: 8">A variable-length integer indicating the stream ID of the stream (see <a href="#stream-id" class="xref">Section 10.1</a>).</dd>
 <dt>Offset:</dt>
-<dd style="margin-left: 8">A variable-sized integer specifying the byte offset in the stream for the data in this STREAM frame.  THis field is present when the OFF bit is set to 1.  When the Offset field is absent, the offset is 0.</dd>
+<dd style="margin-left: 8">A variable-sized integer specifying the byte offset in the stream for the data in this STREAM frame.  This field is present when the OFF bit is set to 1.  When the Offset field is absent, the offset is 0.</dd>
 <dt>Length:</dt>
-<dd style="margin-left: 8">An variable-length integer specifying the length of the Stream Data field in this STREAM frame.  This field is present when the LEN bit is set to 1.</dd>
+<dd style="margin-left: 8">A variable-length integer specifying the length of the Stream Data field in this STREAM frame.  This field is present when the LEN bit is set to 1.  When the LEN bit is set to 0, the Stream Data field consumes all the remaining octets in the packet.</dd>
 <dt>Stream Data:</dt>
 <dd style="margin-left: 8">The bytes from the designated stream to be delivered.</dd>
 </dl>
@@ -2006,7 +2006,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.10.1.p.1">Streams are identified by an unsigned 62-bit integer, referred to as the Stream ID.  To avoid Stream ID collision, clients MUST initiate streams using odd-numbered Stream IDs; servers MUST initiate streams using even-numbered Stream IDs. If an endpoint receives a frame which corresponds to a stream which is allocated to it (i.e., odd-numbered for the client or even-numbered for the server) but which it has not yet created, it MUST close the connection with error code STREAM_STATE_ERROR.</p>
 <p id="rfc.section.10.1.p.2">Stream ID 0 (0x0) is reserved for the cryptographic handshake.  Stream 0 MUST NOT be used for application data, and is the first client-initiated stream.</p>
 <p id="rfc.section.10.1.p.3">A QUIC endpoint MUST NOT reuse a Stream ID.  Streams MUST be created in sequential order.  Open streams can be used in any order.  Streams that are used out of order result in lower-numbered streams in the same direction being counted as open.</p>
-<p id="rfc.section.10.1.p.4">Stream IDs are usually encoded as a variable-length integer (see <a href="#integer-encoding" class="xref">Section 8.1</a>).</p>
+<p id="rfc.section.10.1.p.4">Stream IDs are encoded as a variable-length integer (see <a href="#integer-encoding" class="xref">Section 8.1</a>).</p>
 <h2 id="rfc.section.10.2">
 <a href="#rfc.section.10.2">10.2.</a> <a href="#stream-states" id="stream-states">Life of a Stream</a>
 </h2>

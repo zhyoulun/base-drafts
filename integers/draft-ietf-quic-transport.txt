@@ -2877,18 +2877,18 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
 8.16.1.  ACK Block Section
 
-   The ACK Block Section consists of alternating ACK Blocks and Gaps.  A
-   First Ack Block is followed by a variable number of alternating Gap
-   and Additional ACK Blocks.  The number of Additional ACK Blocks and
-   Gaps is determined by the ACK Block Count field.
+   The ACK Block Section consists of alternating Gap and ACK Block
+   fields in descending packet number order.  A First Ack Block field is
+   followed by a variable number of alternating Gap and Additional ACK
+   Blocks.  The number of Gap and Additional ACK Block fields is
+   determined by the ACK Block Count field.
 
-   ACK Blocks and Gaps use a relative integer encoding for efficiency.
-   Though each encoded value is positive, the values are subtracted, so
-   that ACK Blocks describe progressively lower-numbered packets.  As
-   long as contiguous ranges of packets are small, the variable-length
-   integer encoding ensures that each range can be expressed in a small
-   number of octets.
-
+   Gap and ACK Block fields use a relative integer encoding for
+   efficiency.  Though each encoded value is positive, the values are
+   subtracted, so that each ACK Block describes progressively lower-
+   numbered packets.  As long as contiguous ranges of packets are small,
+   the variable-length integer encoding ensures that each range can be
+   expressed in a small number of octets.
 
 
 
@@ -2937,7 +2937,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
                         Figure 8: ACK Block Section
 
    Each ACK Block acknowledges a contiguous range of packets by
-   indicating the number of packets that acknowledged preceding the
+   indicating the number of acknowledged packets that precede the
    largest packet number in that block.  A value of zero indicates that
    only the largest packet number is acknowledged.  Larger ACK Block
    values indicate a larger range, with corresponding lower values for
@@ -2979,25 +2979,17 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    The fields in the ACK Block Section are:
 
-   First ACK Block:  A variable-length indicating the number of
+   First ACK Block:  A variable-length integer indicating the number of
       contiguous packets preceding the Largest Acknowledged that are
       being acknowledged.
 
-   Gap (repeated):  A non-zero, variable-length integer indicating
-      specifying the number of contiguous unacknowledged packets
-      preceding the packet number one lower than the smallest in the
-      preceding ACK Block.
+   Gap (repeated):  A variable-length integer indicating specifying the
+      number of contiguous unacknowledged packets preceding the packet
+      number one lower than the smallest in the preceding ACK Block.
 
    ACK Block (repeated):  A variable-length integer indicating the
       number of contiguous acknowledged packets preceding the largest
       packet number, as determined by the preceding Gap.
-
-   If the repeated Gap and ACK Block fields do not end precisely at the
-   end of sequence of octets indicated by the ACK Frame Length field, or
-   the ACK Frame Length field indicates a length that exceeds the space
-   available in the packet, an endpoint MUST generate a connection error
-   of type FRAME_ERROR indicating an error in an ACK frame (that is,
-   0x10d)
 
 8.16.2.  ACK Frames and Packet Protection
 
@@ -3019,18 +3011,20 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Note that the same limitation applies to other data sent by the
    server protected by the 1-RTT keys.
 
+   Unprotected packets, such as those that carry the initial
+   cryptographic handshake messages, MAY be acknowledged in unprotected
+   packets.  Unprotected packets are vulnerable to falsification or
+   modification.  Unprotected packets can be acknowledged along with
+   protected packets in a protected packet.
+
+
+
 
 
 Iyengar & Thomson        Expires April 22, 2018                [Page 54]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   Unprotected packets, such as those that carry the initial
-   cryptographic handshake messages, MAY be acknowledged in unprotected
-   packets.  Unprotected packets are vulnerable to falsification or
-   modification.  Unprotected packets can be acknowledged along with
-   protected packets in a protected packet.
 
    An endpoint SHOULD acknowledge packets containing cryptographic
    handshake messages in the next unprotected packet that it sends,
@@ -3074,6 +3068,12 @@ Internet-Draft           QUIC Transport Protocol            October 2017
       first octets of the stream, or the end of a stream that includes
       no data).
 
+   A STREAM frame is shown below.
+
+
+
+
+
 
 
 
@@ -3081,8 +3081,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 55]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   A STREAM frame is shown below.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -3103,7 +3101,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    Stream ID:  A variable-length integer indicating the stream ID of the
       stream (see Section 10.1).
 
-   Offset:  A variable-sized integer specifying the byte offset in the
+   Offset:  A variable-length integer specifying the byte offset in the
       stream for the data in this STREAM frame.  This field is present
       when the OFF bit is set to 1.  When the Offset field is absent,
       the offset is 0.
@@ -3130,6 +3128,8 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    Implementation note: One of the benefits of QUIC is avoidance of
    head-of-line blocking across multiple streams.  When a packet loss
+   occurs, only streams with data in that packet are blocked waiting for
+   a retransmission to be received, while other streams can continue
 
 
 
@@ -3138,8 +3138,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 56]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   occurs, only streams with data in that packet are blocked waiting for
-   a retransmission to be received, while other streams can continue
    making progress.  Note that when data from multiple streams is
    bundled into a single QUIC packet, loss of that packet blocks all
    those streams from making progress.  An implementation is therefore
@@ -3185,6 +3183,8 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    unless the client has a reasonable assurance that the PMTU is larger.
    Sending a packet of this size ensures that the network path supports
    an MTU of this size and helps reduce the amplitude of amplification
+   attacks caused by server responses toward an unverified client
+   address.
 
 
 
@@ -3193,9 +3193,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 57]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   attacks caused by server responses toward an unverified client
-   address.
 
    Servers MUST ignore an initial plaintext packet from a client if its
    total size is less than 1200 octets.
@@ -3242,6 +3239,9 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    o  STOP_SENDING frames MUST be retransmitted, unless the stream has
       become closed in the appropriate direction.  See Section 10.3.
 
+   o  The most recent MAX_STREAM_DATA frame for a stream MUST be
+      retransmitted.  Any previous unacknowledged MAX_STREAM_DATA frame
+      for the same stream SHOULD NOT be retransmitted since a newer
 
 
 
@@ -3250,9 +3250,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 58]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-   o  The most recent MAX_STREAM_DATA frame for a stream MUST be
-      retransmitted.  Any previous unacknowledged MAX_STREAM_DATA frame
-      for the same stream SHOULD NOT be retransmitted since a newer
       MAX_STREAM_DATA frame for a stream obviates the need for
       delivering older ones.  Similarly, the most recent MAX_DATA frame
       MUST be retransmitted; previous unacknowledged ones SHOULD NOT be
@@ -3297,7 +3294,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    As a result, endpoints that implement PMTUD in IPv4 SHOULD take steps
    to mitigate this risk.  For instance, an application could:
 
-
+   o  Set the IPv4 Don't Fragment (DF) bit on a small proportion of
+      packets, so that most invalid ICMP messages arrive when there are
+      no DF packets outstanding, and can therefore be identified as
+      spurious.
 
 
 
@@ -3305,11 +3305,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 59]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   o  Set the IPv4 Don't Fragment (DF) bit on a small proportion of
-      packets, so that most invalid ICMP messages arrive when there are
-      no DF packets outstanding, and can therefore be identified as
-      spurious.
 
    o  Store additional information from the IP or UDP headers from DF
       packets (for example, the IP ID or UDP checksum) to further
@@ -3354,6 +3349,11 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    streams using odd-numbered Stream IDs; servers MUST initiate streams
    using even-numbered Stream IDs.  If an endpoint receives a frame
    which corresponds to a stream which is allocated to it (i.e., odd-
+   numbered for the client or even-numbered for the server) but which it
+   has not yet created, it MUST close the connection with error code
+   STREAM_STATE_ERROR.
+
+
 
 
 
@@ -3361,10 +3361,6 @@ Iyengar & Thomson        Expires April 22, 2018                [Page 60]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
-
-   numbered for the client or even-numbered for the server) but which it
-   has not yet created, it MUST close the connection with error code
-   STREAM_STATE_ERROR.
 
    Stream ID 0 (0x0) is reserved for the cryptographic handshake.
    Stream 0 MUST NOT be used for application data, and is the first
@@ -3386,6 +3382,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    possibility of out-of-order delivery due to the use of multiple
    streams in QUIC.  The lifecycle of a QUIC stream is shown in the
    following figure and described below.
+
+
+
+
 
 
 

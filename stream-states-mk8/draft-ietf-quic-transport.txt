@@ -170,7 +170,7 @@ Iyengar & Thomson        Expires April 29, 2018                 [Page 3]
 Internet-Draft           QUIC Transport Protocol            October 2017
 
 
-       10.2.3.  Permitted Frame Types  . . . . . . . . . . . . . . .  64
+       10.2.3.  Permitted Frame Types  . . . . . . . . . . . . . . .  65
        10.2.4.  Bidirectional Stream States  . . . . . . . . . . . .  65
      10.3.  Solicited State Transitions  . . . . . . . . . . . . . .  66
      10.4.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  67
@@ -3477,6 +3477,7 @@ Internet-Draft           QUIC Transport Protocol            October 2017
           o
           | Recv STREAM / STREAM_BLOCKED / RST_STREAM
           | Open Paired Stream (bidirectional)
+          | Recv MAX_STREAM_DATA
           v
       +-------+
       | Recv  | Recv RST_STREAM
@@ -3517,11 +3518,10 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    bidirectional stream initiated by the endpoint (type 0 for a client,
    type 1 for a server) enters the "Open" state.
 
-   In the "Recv" state, the endpoint receives STREAM and STREAM_BLOCKED
-   frames.  Incoming data is buffered and reassembled into the correct
-   order for delivery to the application.  As data is consumed by the
-   application and buffer space becomes available, the endpoint sends
-   MAX_STREAM_DATA frames to allow the peer to send more data.
+   A bidirectional stream also opens when a MAX_STREAM_DATA frame is
+   received.  Receiving a MAX_STREAM_DATA frame implies that the remote
+   peer has opened the stream and is providing flow control credit.  A
+
 
 
 
@@ -3529,6 +3529,15 @@ Iyengar & Thomson        Expires April 29, 2018                [Page 63]
 
 Internet-Draft           QUIC Transport Protocol            October 2017
 
+
+   MAX_STREAM_DATA frame might arrive before a STREAM or STREAM_BLOCKED
+   frame if packets are lost or reordered.
+
+   In the "Recv" state, the endpoint receives STREAM and STREAM_BLOCKED
+   frames.  Incoming data is buffered and reassembled into the correct
+   order for delivery to the application.  As data is consumed by the
+   application and buffer space becomes available, the endpoint sends
+   MAX_STREAM_DATA frames to allow the peer to send more data.
 
    When a STREAM frame with a FIN bit is received, the final offset (see
    Section 11.3) is known.  The receive stream enters the "Size Known"
@@ -3569,6 +3578,14 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    the receive stream was reset, the receive stream transitions to the
    "Reset Read" state, which is a terminal state.
 
+
+
+
+Iyengar & Thomson        Expires April 29, 2018                [Page 64]
+
+Internet-Draft           QUIC Transport Protocol            October 2017
+
+
 10.2.3.  Permitted Frame Types
 
    The sender of a stream sends just three frame types that affect the
@@ -3578,14 +3595,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
 
    A sender MUST NOT send any of these frames from a terminal state
    ("Data Recvd" or "Reset Recvd").  A sender MUST NOT send STREAM or
-
-
-
-Iyengar & Thomson        Expires April 29, 2018                [Page 64]
-
-Internet-Draft           QUIC Transport Protocol            October 2017
-
-
    STREAM_BLOCKED after sending a RST_STREAM; that is, in the "Reset
    Sent" state in addition to the terminal states.  A receiver could
    receive any of these frames in any state, but only due to the
@@ -3617,15 +3626,6 @@ Internet-Draft           QUIC Transport Protocol            October 2017
    the same composite state.  Note that this is just one possibility for
    such a mapping; thi mapping requires that data is acknowledged before
    the transition to a "closed" or "half-closed" state.
-
-
-
-
-
-
-
-
-
 
 
 

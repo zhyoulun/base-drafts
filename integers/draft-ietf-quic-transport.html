@@ -1331,7 +1331,7 @@ address {
 <dt>initial_max_stream_data (0x0000):</dt>
 <dd style="margin-left: 8">The initial stream maximum data parameter contains the initial value for the maximum data that can be sent on any newly created stream.  This parameter is encoded as an unsigned 32-bit integer in units of octets.  This is equivalent to an implicit MAX_STREAM_DATA frame (<a href="#frame-max-stream-data" class="xref">Section 8.7</a>) being sent on all streams immediately after opening.</dd>
 <dt>initial_max_data (0x0001):</dt>
-<dd style="margin-left: 8">The initial maximum data parameter contains the initial value for the maximum amount of data that can be sent on the connection.  This parameter is encoded as an unsigned 32-bit integer in units of 1024 octets.  That is, the value here is multiplied by 1024 to determine the actual maximum value.  This is equivalent to sending a MAX_DATA (<a href="#frame-max-data" class="xref">Section 8.6</a>) for the connection immediately after completing the handshake.</dd>
+<dd style="margin-left: 8">The initial maximum data parameter contains the initial value for the maximum amount of data that can be sent on the connection.  This parameter is encoded as an unsigned 32-bit integer in units of octets.  This is equivalent to sending a MAX_DATA (<a href="#frame-max-data" class="xref">Section 8.6</a>) for the connection immediately after completing the handshake.</dd>
 <dt>initial_max_stream_id (0x0002):</dt>
 <dd style="margin-left: 8">The initial maximum stream ID parameter contains the initial maximum stream number the peer may initiate, encoded as an unsigned 32-bit integer.  This is equivalent to sending a MAX_STREAM_ID (<a href="#frame-max-stream-id" class="xref">Section 8.8</a>) immediately after completing the handshake.</dd>
 <dt>idle_timeout (0x0003):</dt>
@@ -1485,10 +1485,10 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a href="#rfc.section.7.9.1">7.9.1.</a> <a href="#draining" id="draining">Draining Period</a>
 </h3>
 <p id="rfc.section.7.9.1.p.1">After a connection is closed for any reason, an endpoint might receive packets from its peer.  These packets might have been sent prior to receiving any close signal, or they might be retransmissions of packets for which acknowledgments were lost.</p>
-<p id="rfc.section.7.9.1.p.2">The draining period persists for three times the current Retransmission Timeout (RTO) interval as defined in <a href="#QUIC-RECOVERY" class="xref">[QUIC-RECOVERY]</a>.  During this period, new packets can be acknowledged, but no new application data can be sent on the connection.</p>
-<p id="rfc.section.7.9.1.p.3">Different treatment is given to packets that are received while a connection is in the draining period depending on how the connection was closed.</p>
-<p id="rfc.section.7.9.1.p.4">An endpoint that is in a draining period MUST NOT send packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame.</p>
-<p id="rfc.section.7.9.1.p.5">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being discarded.  An endpoint MAY send a stateless reset in response to any further incoming packets.</p>
+<p id="rfc.section.7.9.1.p.2">The draining period exists to ensure that delayed or reordered packets are properly discarded.  This state SHOULD persist for three times the current Retransmission Timeout (RTO) interval as defined in <a href="#QUIC-RECOVERY" class="xref">[QUIC-RECOVERY]</a>.  During this period no new application data can be sent on the connection.</p>
+<p id="rfc.section.7.9.1.p.3">Different treatment is given to packets that are received while a connection is in the draining period depending on how the connection was closed.  An endpoint that is in a draining period MUST NOT send packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame.</p>
+<p id="rfc.section.7.9.1.p.4">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being discarded.  An endpoint MAY send a stateless reset in response to any further incoming packets.</p>
+<p id="rfc.section.7.9.1.p.5">An endpoint MAY exit the draining period earlier if it can guarantee that its peer is also draining.  Receiving a CONNECTION_CLOSE or APPLICATION_CLOSE frame is sufficient confirmation, as is receiving a stateless reset.  However, disposing of connection state could result in delayed or reordered packets to be handled poorly.  For endpoints that have some alternative means to ensure that late-arriving packets on the connection do not create QUIC state, such as by closing the UDP socket, an abbreviated draining period can allow for faster resource recovery.  Servers that retain an open port for accepting new connections SHOULD NOT exit the draining period early.</p>
 <p id="rfc.section.7.9.1.p.6">The draining period does not apply when a stateless reset (<a href="#stateless-reset" class="xref">Section 7.9.4</a>) is sent.</p>
 <h3 id="rfc.section.7.9.2">
 <a href="#rfc.section.7.9.2">7.9.2.</a> <a href="#idle-timeout" id="idle-timeout">Idle Timeout</a>
@@ -1517,7 +1517,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+
-|0|C|K|  00001  |
+|0|C|K|Type (5) |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                                                               |
 +                     [Connection ID (64)]                      +
@@ -1731,7 +1731,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 
 <dl>
 <dt>Maximum Stream ID:</dt>
-<dd style="margin-left: 8">ID of the maximum peer-initiated stream ID for the connection encoded as a variable-length integer.</dd>
+<dd style="margin-left: 8">ID of the maximum unidirectional or bidirectional peer-initiated stream ID for the connection encoded as a variable-length integer. The limit applies to unidirectional steams if the second least signification bit of the stream ID is 1, and applies to bidirectional streams if it is 0.</dd>
 </dl>
 <p id="rfc.section.8.8.p.5">Loss or reordering can mean that a MAX_STREAM_ID frame can be received which states a lower stream limit than the client has previously received.  MAX_STREAM_ID frames which do not increase the maximum stream ID MUST be ignored.</p>
 <p id="rfc.section.8.8.p.6">A peer MUST NOT initiate a stream with a higher stream ID than the greatest maximum stream ID it has received.  An endpoint MUST terminate a connection with a STREAM_ID_ERROR error if a peer initiates a stream with a higher stream ID than it has sent, unless this is a result of a change in the initial limits (see <a href="#zerortt-parameters" class="xref">Section 7.4.2</a>).</p>
@@ -2042,19 +2042,54 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h1 id="rfc.section.10">
 <a href="#rfc.section.10">10.</a> <a href="#streams" id="streams">Streams: QUIC&#8217;s Data Structuring Abstraction</a>
 </h1>
-<p id="rfc.section.10.p.1">Streams in QUIC provide a lightweight, ordered, and bidirectional byte-stream abstraction modeled closely on HTTP/2 streams <a href="#RFC7540" class="xref">[RFC7540]</a>.</p>
-<p id="rfc.section.10.p.2">Streams can be created either by the client or the server, can concurrently send data interleaved with other streams, and can be cancelled.</p>
-<p id="rfc.section.10.p.3">Data that is received on a stream is delivered in order within that stream, but there is no particular delivery order across streams.  Transmit ordering among streams is left to the implementation.</p>
-<p id="rfc.section.10.p.4">The creation and destruction of streams are expected to have minimal bandwidth and computational cost.  A single STREAM frame may create, carry data for, and terminate a stream, or a stream may last the entire duration of a connection.</p>
-<p id="rfc.section.10.p.5">Streams are individually flow controlled, allowing an endpoint to limit memory commitment and to apply back pressure.  The creation of streams is also flow controlled, with each peer declaring the maximum stream ID it is willing to accept at a given time.</p>
-<p id="rfc.section.10.p.6">An alternative view of QUIC streams is as an elastic &#8220;message&#8221; abstraction, similar to the way ephemeral streams are used in SST <a href="#SST" class="xref">[SST]</a>, which may be a more appealing description for some applications.</p>
+<p id="rfc.section.10.p.1">Streams in QUIC provide a lightweight, ordered byte-stream abstraction.</p>
+<p id="rfc.section.10.p.2">There are two basic types of stream in QUIC.  Unidirectional streams carry data in one direction only; bidirectional streams allow for data to be sent in both directions.  Different stream identifiers are used to distinguish between unidirectional and bidirectional streams, as well as to create a separation between streams that are initiated by the client and server (see <a href="#stream-id" class="xref">Section 10.1</a>).</p>
+<p id="rfc.section.10.p.3">Either type of stream can be created by either endpoint, can concurrently send data interleaved with other streams, and can be cancelled.</p>
+<p id="rfc.section.10.p.4">Data that is received on a stream is delivered in order within that stream, but there is no particular delivery order across streams.  Transmit ordering among streams is left to the implementation.</p>
+<p id="rfc.section.10.p.5">The creation and destruction of streams are expected to have minimal bandwidth and computational cost.  A single STREAM frame may create, carry data for, and terminate a stream, or a stream may last the entire duration of a connection.</p>
+<p id="rfc.section.10.p.6">Streams are individually flow controlled, allowing an endpoint to limit memory commitment and to apply back pressure.  The creation of streams is also flow controlled, with each peer declaring the maximum stream ID it is willing to accept at a given time.</p>
+<p id="rfc.section.10.p.7">An alternative view of QUIC streams is as an elastic &#8220;message&#8221; abstraction, similar to the way ephemeral streams are used in SST <a href="#SST" class="xref">[SST]</a>, which may be a more appealing description for some applications.</p>
 <h2 id="rfc.section.10.1">
 <a href="#rfc.section.10.1">10.1.</a> <a href="#stream-id" id="stream-id">Stream Identifiers</a>
 </h2>
-<p id="rfc.section.10.1.p.1">Streams are identified by an unsigned 62-bit integer, referred to as the Stream ID.  To avoid Stream ID collision, clients MUST initiate streams using odd-numbered Stream IDs; servers MUST initiate streams using even-numbered Stream IDs. If an endpoint receives a frame which corresponds to a stream which is allocated to it (i.e., odd-numbered for the client or even-numbered for the server) but which it has not yet created, it MUST close the connection with error code STREAM_STATE_ERROR.</p>
-<p id="rfc.section.10.1.p.2">Stream ID 0 (0x0) is reserved for the cryptographic handshake.  Stream 0 MUST NOT be used for application data, and is the first client-initiated stream.</p>
-<p id="rfc.section.10.1.p.3">A QUIC endpoint MUST NOT reuse a Stream ID.  Streams MUST be created in sequential order.  Open streams can be used in any order.  Streams that are used out of order result in lower-numbered streams in the same direction being counted as open.</p>
-<p id="rfc.section.10.1.p.4">Stream IDs are encoded as a variable-length integer (see <a href="#integer-encoding" class="xref">Section 8.1</a>).</p>
+<p id="rfc.section.10.1.p.1">Streams are identified by an unsigned 62-bit integer, referred to as the Stream ID.  The least significant two bits of the Stream ID are used to identify the type of stream (unidirectional or bidirectional) and the initiator of the stream.</p>
+<p id="rfc.section.10.1.p.2">The least significant bit (0x1) of the Stream ID identifies the initiator of the stream.  Clients initiate even-numbered streams (those with the least significant bit set to 0); servers initiate even-numbered streams (with the bit set to 1).  Separation of the stream identifiers ensures that client and server are able to open streams without the latency imposed by negotiating for an identifier.</p>
+<p id="rfc.section.10.1.p.3">If an endpoint receives a frame for a stream that it expects to initiate (i.e., odd-numbered for the client or even-numbered for the server), but which it has not yet opened, it MUST close the connection with error code STREAM_STATE_ERROR.</p>
+<p id="rfc.section.10.1.p.4">The second least significant bit (0x2) of the Stream ID differentiates between unidirectional streams and bidirectional streams. Unidirectional streams always have this bit set to 1 and bidirectional streams have this bit set to 0.</p>
+<p id="rfc.section.10.1.p.5">The two type bits from a Stream ID therefore identify streams as summarized in <a href="#stream-id-types" class="xref">Table 5</a>.</p>
+<div id="rfc.table.5"></div>
+<div id="stream-id-types"></div>
+<table cellpadding="3" cellspacing="0" class="tt full center">
+<caption>Stream ID Types</caption>
+<thead><tr>
+<th class="left">Low Bits</th>
+<th class="left">Stream Type</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="left">0x0</td>
+<td class="left">Client-Initiated, Bidirectional</td>
+</tr>
+<tr>
+<td class="left">0x1</td>
+<td class="left">Server-Initiated, Bidirectional</td>
+</tr>
+<tr>
+<td class="left">0x2</td>
+<td class="left">Client-Initiated, Unidirectional</td>
+</tr>
+<tr>
+<td class="left">0x3</td>
+<td class="left">Server-Initiated, Unidirectional</td>
+</tr>
+</tbody>
+</table>
+<p></p>
+
+<ul class="empty"><li><ul class="empty"><li><ul class="empty"><li><ul class="empty"><li><ul class="empty"><li><ul class="empty"><li><ul class="empty"><li>origin/master</li></ul></li></ul></li></ul></li></ul></li></ul></li></ul></li></ul>
+<p id="rfc.section.10.1.p.7">Stream ID 0 (0x0) is a client-initiated, bidirectional stream that is used for the cryptographic handshake.  Stream 0 MUST NOT be used for application data.</p>
+<p id="rfc.section.10.1.p.8">A QUIC endpoint MUST NOT reuse a Stream ID.  Streams MUST be created in sequential order.  Open streams can be used in any order.  Streams that are used out of order result in lower-numbered streams in the same direction being counted as open.</p>
+<p id="rfc.section.10.1.p.9">Stream IDs are encoded as a variable-length integer (see <a href="#integer-encoding" class="xref">Section 8.1</a>).</p>
 <h2 id="rfc.section.10.2">
 <a href="#rfc.section.10.2">10.2.</a> <a href="#stream-states" id="stream-states">Life of a Stream</a>
 </h2>
@@ -2074,6 +2109,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
                                  v
                  recv FIN/  +--------+    send FIN/
                  recv RST   |        |    send RST
+                 send UNI   |        |    recv UNI
                   ,---------|  open  |-----------.
                  /          |        |            \
                 v           +--------+             v
@@ -2093,6 +2129,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
    recv:   endpoint receives this frame
 
    STREAM: a STREAM frame
+   UNI:    a STREAM frame with a unidirectional stream ID
    FIN:    FIN flag in a STREAM frame
    RST:    RST_STREAM frame
    MSD:    MAX_STREAM_DATA frame
@@ -2121,7 +2158,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h3 id="rfc.section.10.2.3">
 <a href="#rfc.section.10.2.3">10.2.3.</a> <a href="#half-closed-local" id="half-closed-local">half-closed (local)</a>
 </h3>
-<p id="rfc.section.10.2.3.p.1">A stream that is in the &#8220;half-closed (local)&#8221; state MUST NOT be used for sending on new STREAM frames.  Retransmission of data that has already been sent on STREAM frames is permitted.  An endpoint MAY also send MAX_STREAM_DATA and STOP_SENDING in this state.</p>
+<p id="rfc.section.10.2.3.p.1">A stream that is in the &#8220;half-closed (local)&#8221; state MUST NOT be used for sending on new STREAM frames.  Retransmission of data that has already been sent on STREAM frames is permitted.  An endpoint MAY also send MAX_STREAM_DATA and STOP_SENDING in this state. Unidirectional streams created by the peer are immediately half-closed (local) to the receiver and are subsequently treated identically to a half-closed bidirectional stream.</p>
 <p id="rfc.section.10.2.3.p.2">An application can decide to abandon a stream in this state. An endpoint can send RST_STREAM for a stream that was closed with the FIN flag. The final offset carried in this RST_STREAM frame MUST be the same as the previously established final offset.</p>
 <p id="rfc.section.10.2.3.p.3">An endpoint that closes a stream MUST NOT send data beyond the final offset that it has chosen, see <a href="#state-closed" class="xref">Section 10.2.5</a> for details.</p>
 <p id="rfc.section.10.2.3.p.4">A stream transitions from this state to &#8220;closed&#8221; when a STREAM frame that contains a FIN flag is received and all prior data has arrived, or when a RST_STREAM frame is received.</p>
@@ -2129,7 +2166,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h3 id="rfc.section.10.2.4">
 <a href="#rfc.section.10.2.4">10.2.4.</a> <a href="#state-hc-remote" id="state-hc-remote">half-closed (remote)</a>
 </h3>
-<p id="rfc.section.10.2.4.p.1">A stream is &#8220;half-closed (remote)&#8221; when the stream is no longer being used by the peer to send any data.  An endpoint will have either received all data that a peer has sent or will have received a RST_STREAM frame and discarded any received data.</p>
+<p id="rfc.section.10.2.4.p.1">A stream is &#8220;half-closed (remote)&#8221; when the stream is no longer being used by the peer to send any data.  An endpoint will have either received all data that a peer has sent or will have received a RST_STREAM frame and discarded any received data. Unidirectional streams created locally are immediately half-closed (remote) to the creator.</p>
 <p id="rfc.section.10.2.4.p.2">Once all data has been either received or discarded, a sender is no longer obligated to update the maximum received data for the connection.</p>
 <p id="rfc.section.10.2.4.p.3">Due to reordering, an endpoint could continue receiving frames for the stream even after the stream is closed for sending.  Frames received after a peer closes a stream SHOULD be discarded.  An endpoint MAY choose to limit the period over which it ignores frames and treat frames that arrive after this time as being in error.</p>
 <p id="rfc.section.10.2.4.p.4">An endpoint may receive a RST_STREAM in this state, such as when the peer resets the stream after sending a FIN on it. In this case, the endpoint MAY discard any data that it already received on that stream. The endpoint SHOULD close the connection with a FINAL_OFFSET_ERROR if the received RST_STREAM carries a different offset from the one already established.</p>
@@ -2214,7 +2251,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h2 id="rfc.section.11.3">
 <a href="#rfc.section.11.3">11.3.</a> <a href="#final-offset" id="final-offset">Stream Final Offset</a>
 </h2>
-<p id="rfc.section.11.3.p.1">The final offset is the count of the number of octets that are transmitted on a stream.  For a stream that is reset, the final offset is carried explicitly in the RST_STREAM frame.  Otherwise, the final offset is the offset of the end of the data carried in STREAM frame marked with a FIN flag.</p>
+<p id="rfc.section.11.3.p.1">The final offset is the count of the number of octets that are transmitted on a stream.  For a stream that is reset, the final offset is carried explicitly in a RST_STREAM frame.  Otherwise, the final offset is the offset of the end of the data carried in a STREAM frame marked with a FIN flag, or 0 in the case of incoming unidirectional streams.</p>
 <p id="rfc.section.11.3.p.2">An endpoint will know the final offset for a stream when the stream enters the &#8220;half-closed (remote)&#8221; state.  However, if there is reordering or loss, an endpoint might learn the final offset prior to entering this state if it is carried on a STREAM frame.</p>
 <p id="rfc.section.11.3.p.3">An endpoint MUST NOT send data on a stream at or beyond the final offset.</p>
 <p id="rfc.section.11.3.p.4">Once a final offset for a stream is known, it cannot change.  If a RST_STREAM or STREAM frame causes the final offset to change for a stream, an endpoint SHOULD respond with a FINAL_OFFSET_ERROR error (see <a href="#error-handling" class="xref">Section 12</a>).  A receiver SHOULD treat receipt of data at or beyond the final offset as a FINAL_OFFSET_ERROR error, even after a stream is closed.  Generating these errors is not mandatory, but only because requiring that an endpoint generate these errors also means that the endpoint needs to maintain the final offset state for closed streams, which could mean a significant state commitment.</p>
@@ -2323,8 +2360,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dd style="margin-left: 8">A reference to a publicly available specification for the value.</dd>
 </dl>
 <p id="rfc.section.14.1.p.5">The nominated expert(s) verify that a specification exists and is readily accessible.  The expert(s) are encouraged to be biased towards approving registrations unless they are abusive, frivolous, or actively harmful (not merely aesthetically displeasing, or architecturally dubious).</p>
-<p id="rfc.section.14.1.p.6">The initial contents of this registry are shown in <a href="#iana-tp-table" class="xref">Table 5</a>.</p>
-<div id="rfc.table.5"></div>
+<p id="rfc.section.14.1.p.6">The initial contents of this registry are shown in <a href="#iana-tp-table" class="xref">Table 6</a>.</p>
+<div id="rfc.table.6"></div>
 <div id="iana-tp-table"></div>
 <table cellpadding="3" cellspacing="0" class="tt full center">
 <caption>Initial QUIC Transport Parameters Entries</caption>
@@ -2389,8 +2426,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dt>Specification:</dt>
 <dd style="margin-left: 8">A reference to a publicly available specification for the value.</dd>
 </dl>
-<p id="rfc.section.14.2.p.5">The initial contents of this registry are shown in <a href="#iana-error-table" class="xref">Table 6</a>.  Note that FRAME_ERROR takes the range from 0x100 to 0x1FF and private use occupies the range from 0xFE00 to 0xFFFF.</p>
-<div id="rfc.table.6"></div>
+<p id="rfc.section.14.2.p.5">The initial contents of this registry are shown in <a href="#iana-error-table" class="xref">Table 7</a>.  Note that FRAME_ERROR takes the range from 0x100 to 0x1FF and private use occupies the range from 0xFE00 to 0xFFFF.</p>
+<div id="rfc.table.7"></div>
 <div id="iana-error-table"></div>
 <table cellpadding="3" cellspacing="0" class="tt full center">
 <caption>Initial QUIC Transport Error Codes Entries</caption>

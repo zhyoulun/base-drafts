@@ -92,7 +92,7 @@ Table of Contents
      5.1.  Frame Layout  . . . . . . . . . . . . . . . . . . . . . .  11
      5.2.  Frame Definitions . . . . . . . . . . . . . . . . . . . .  11
        5.2.1.  DATA  . . . . . . . . . . . . . . . . . . . . . . . .  11
-       5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .  11
+       5.2.2.  HEADERS . . . . . . . . . . . . . . . . . . . . . . .  12
        5.2.3.  PRIORITY  . . . . . . . . . . . . . . . . . . . . . .  12
        5.2.4.  CANCEL_PUSH . . . . . . . . . . . . . . . . . . . . .  14
        5.2.5.  SETTINGS  . . . . . . . . . . . . . . . . . . . . . .  14
@@ -569,16 +569,25 @@ Internet-Draft               HTTP over QUIC                November 2017
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |           Length (16)         |     Type (8)  |   Flags (8)   |
+      |                           Length (i)                        ...
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-      |                       Frame Payload (*)                     ...
+      |    Type (8)   |   Flags (8)   |       Frame Payload (*)     ...
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                      Figure 2: HTTP/QUIC frame format
 
-   Note that the first four octets of the frame use a fixed-size
-   encoding; a variable-length integer encoding is used for the contents
-   of frames.
+   A frame includes the following fields:
+
+   Length:  A variable-length integer that describes the length of the
+      Frame Payload.  This length does not include the frame header.
+
+   Type:  An 8-bit type for the frame.
+
+   Flags:  An 8-bit field containing flags.  The Type field determines
+      the semantics of flags.
+
+   Frame Payload:  A payload, the semantics of which are determined by
+      the Type field.
 
 5.2.  Frame Definitions
 
@@ -598,17 +607,8 @@ Internet-Draft               HTTP over QUIC                November 2017
    is received with a payload length of zero, the recipient MUST respond
    with a stream error (Section 7) of type HTTP_MALFORMED_DATA.
 
-5.2.2.  HEADERS
 
-   The HEADERS frame (type=0x1) is used to carry part of a header set,
-   compressed using HPACK Section 4.2.1.
 
-   One flag is defined:
-
-   End Header Block (0x4):  This frame concludes a header block.
-
-   A HEADERS frame with any other flags set MUST be treated as a
-   connection error of type HTTP_MALFORMED_HEADERS.
 
 
 
@@ -618,16 +618,15 @@ Bishop                    Expires May 15, 2018                 [Page 11]
 Internet-Draft               HTTP over QUIC                November 2017
 
 
-   The next frame on the same stream after a HEADERS frame without the
-   EHB flag set MUST be another HEADERS frame.  A receiver MUST treat
-   the receipt of any other type of frame as a stream error of type
-   HTTP_INTERRUPTED_HEADERS.  (Note that QUIC can intersperse data from
-   other streams between frames, or even during transmission of frames,
-   so multiplexing is not blocked by this requirement.)
+5.2.2.  HEADERS
 
-   A full header block is contained in a sequence of zero or more
-   HEADERS frames without EHB set, followed by a HEADERS frame with EHB
-   set.
+   The HEADERS frame (type=0x1) is used to carry a header block,
+   compressed using HPACK Section 4.2.1.
+
+   No flags are defined for the HEADERS frame.
+
+   A HEADERS frame with any flags set MUST be treated as a connection
+   error of type HTTP_MALFORMED_HEADERS.
 
 5.2.3.  PRIORITY
 
@@ -666,6 +665,7 @@ Internet-Draft               HTTP over QUIC                November 2017
                      Figure 3: PRIORITY frame payload
 
    The PRIORITY frame payload has the following fields:
+
 
 
 

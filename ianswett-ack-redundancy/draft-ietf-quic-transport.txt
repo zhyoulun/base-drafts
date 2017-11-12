@@ -173,7 +173,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
        10.2.2.  open . . . . . . . . . . . . . . . . . . . . . . . .  64
        10.2.3.  half-closed (local)  . . . . . . . . . . . . . . . .  65
        10.2.4.  half-closed (remote) . . . . . . . . . . . . . . . .  66
-       10.2.5.  closed . . . . . . . . . . . . . . . . . . . . . . .  66
+       10.2.5.  closed . . . . . . . . . . . . . . . . . . . . . . .  67
      10.3.  Solicited State Transitions  . . . . . . . . . . . . . .  67
      10.4.  Stream Concurrency . . . . . . . . . . . . . . . . . . .  67
      10.5.  Sending and Receiving Data . . . . . . . . . . . . . . .  68
@@ -3027,7 +3027,10 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 
    newly received packets and stop acknowledging packets received in the
-   past.
+   past.  Standard QUIC [QUIC-RECOVERY] algorithms declare packets lost
+   after sufficiently newer packets are acknowledged.  Therefore,
+   receivers SHOULD NOT stop sending an ack block and then start sending
+   it again substantially later in an effort to save bytes sent.
 
 8.16.3.  ACK Frames and Packet Protection
 
@@ -3071,9 +3074,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    a TLS HelloRetryRequest in the packet containing a second TLS
    ClientHello.  The complete set of server handshake messages (TLS
    ServerHello through to Finished) might be acknowledged by a client in
-   protected packets, because it is certain that the server is able to
-   decipher the packet.
-
 
 
 
@@ -3081,6 +3081,9 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 55]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   protected packets, because it is certain that the server is able to
+   decipher the packet.
 
 8.17.  STREAM Frames
 
@@ -3126,10 +3129,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    Stream ID:  A variable-length integer indicating the stream ID of the
       stream (see Section 10.1).
 
-   Offset:  A variable-length integer specifying the byte offset in the
-      stream for the data in this STREAM frame.  This field is present
-      when the OFF bit is set to 1.  When the Offset field is absent,
-      the offset is 0.
+
 
 
 
@@ -3137,6 +3137,11 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 56]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   Offset:  A variable-length integer specifying the byte offset in the
+      stream for the data in this STREAM frame.  This field is present
+      when the OFF bit is set to 1.  When the Offset field is absent,
+      the offset is 0.
 
    Length:  A variable-length integer specifying the length of the
       Stream Data field in this STREAM frame.  This field is present
@@ -3182,17 +3187,17 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    detecting the PMTU, setting the PMTU appropriately, and storing the
    result of previous PMTU determinations.
 
-   In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
-   packets larger than 1280 octets.  Assuming the minimum IP header
-   size, this results in a QUIC packet size of 1232 octets for IPv6 and
-   1252 octets for IPv4.
-
 
 
 Iyengar & Thomson         Expires May 16, 2018                 [Page 57]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
+   packets larger than 1280 octets.  Assuming the minimum IP header
+   size, this results in a QUIC packet size of 1232 octets for IPv6 and
+   1252 octets for IPv4.
 
    QUIC endpoints that implement any kind of PMTU discovery SHOULD
    maintain an estimate for each combination of local and remote IP
@@ -3237,11 +3242,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    use heuristics about expected application sending behavior to
    determine whether and for how long to wait.  This waiting period is
    an implementation decision, and an implementation should be careful
-   to delay conservatively, since any delay is likely to increase
-   application-visible latency.
-
-   Regular QUIC packets are "containers" of frames; a packet is never
-   retransmitted whole.  How an endpoint handles the loss of the frame
 
 
 
@@ -3250,6 +3250,11 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 58]
 Internet-Draft           QUIC Transport Protocol           November 2017
 
 
+   to delay conservatively, since any delay is likely to increase
+   application-visible latency.
+
+   Regular QUIC packets are "containers" of frames; a packet is never
+   retransmitted whole.  How an endpoint handles the loss of the frame
    depends on the type of the frame.  Some frames are simply
    retransmitted, some have their contents moved to new frames, and
    others are never retransmitted.
@@ -3293,11 +3298,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    receiver acknowledges receipt by sending one or more ACK frames
    containing the packet number of the received packet.
 
-   To avoid creating an indefinite feedback loop, an endpoint MUST NOT
-   send an ACK frame in response to a packet containing only ACK or
-   PADDING frames, even if there are packet gaps which precede the
-   received packet.  The endpoint MUST acknowledge packets containing
-   only ACK or PADDING frames in the next ACK frame that it sends.
 
 
 
@@ -3305,6 +3305,12 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 59]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   To avoid creating an indefinite feedback loop, an endpoint MUST NOT
+   send an ACK frame in response to a packet containing only ACK or
+   PADDING frames, even if there are packet gaps which precede the
+   received packet.  The endpoint MUST acknowledge packets containing
+   only ACK or PADDING frames in the next ACK frame that it sends.
 
    Strategies and implications of the frequency of generating
    acknowledgments are discussed in more detail in [QUIC-RECOVERY].
@@ -3349,18 +3355,16 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    as well as to create a separation between streams that are initiated
    by the client and server (see Section 10.1).
 
-   Either type of stream can be created by either endpoint, can
-   concurrently send data interleaved with other streams, and can be
-   cancelled.
-
-
-
 
 
 Iyengar & Thomson         Expires May 16, 2018                 [Page 60]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   Either type of stream can be created by either endpoint, can
+   concurrently send data interleaved with other streams, and can be
+   cancelled.
 
    Data that is received on a stream is delivered in order within that
    stream, but there is no particular delivery order across streams.
@@ -3405,10 +3409,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    streams.  Unidirectional streams always have this bit set to 1 and
    bidirectional streams have this bit set to 0.
 
-   The two type bits from a Stream ID therefore identify streams as
-   summarized in Table 5.
-
-
 
 
 
@@ -3417,6 +3417,9 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 61]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   The two type bits from a Stream ID therefore identify streams as
+   summarized in Table 5.
 
               +----------+----------------------------------+
               | Low Bits | Stream Type                      |
@@ -3463,9 +3466,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    The semantics of QUIC streams is based on HTTP/2 streams, and the
    lifecycle of a QUIC stream therefore closely follows that of an
    HTTP/2 stream [RFC7540], with some differences to accommodate the
-   possibility of out-of-order delivery due to the use of multiple
-   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
-   following figure and described below.
 
 
 
@@ -3473,6 +3473,10 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 62]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   possibility of out-of-order delivery due to the use of multiple
+   streams in QUIC.  The lifecycle of a QUIC stream is shown in the
+   following figure and described below.
 
                                +--------+
                                |        |
@@ -3518,10 +3522,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    and flags that affect those transitions only.  It is possible for a
    single frame to cause two transitions: receiving a RST_STREAM frame,
    or a STREAM frame with the FIN flag cause the stream state to move
-   from "idle" to "open" and then immediately to one of the "half-
-   closed" states.
-
-
 
 
 
@@ -3529,6 +3529,9 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 63]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   from "idle" to "open" and then immediately to one of the "half-
+   closed" states.
 
    The recipient of a frame that changes stream state will have a
    delayed view of the state of a stream while the frame is in transit.
@@ -3574,9 +3577,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    direction to become open.  Thus, opening an odd-numbered stream
    causes all "idle", odd-numbered streams with a lower identifier to
    become open and the same applies to even numbered streams.  Endpoints
-   open streams in increasing numeric order, but loss or reordering can
-   cause packets that open streams to arrive out of order.
-
 
 
 
@@ -3585,6 +3585,9 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 64]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   open streams in increasing numeric order, but loss or reordering can
+   cause packets that open streams to arrive out of order.
 
    From the "open" state, either endpoint can send a frame with the FIN
    flag set, which causes the stream to transition into one of the
@@ -3631,9 +3634,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    An endpoint can receive any frame that mentions a stream ID in this
    state.  Providing flow-control credit using MAX_STREAM_DATA frames is
    necessary to continue receiving flow-controlled frames.  In this
-   state, a receiver MAY ignore MAX_STREAM_DATA frames for this stream,
-   which might arrive for a short period after a frame bearing the FIN
-   flag is sent.
 
 
 
@@ -3641,6 +3641,10 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 65]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   state, a receiver MAY ignore MAX_STREAM_DATA frames for this stream,
+   which might arrive for a short period after a frame bearing the FIN
+   flag is sent.
 
 10.2.4.  half-closed (remote)
 
@@ -3684,10 +3688,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    A stream also becomes "closed" when the endpoint sends a RST_STREAM
    frame.
 
-10.2.5.  closed
-
-   The "closed" state is the terminal state for a stream.  Reordering
-   might cause frames to be received after closing, see Section 10.2.4.
 
 
 
@@ -3697,6 +3697,11 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 66]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+10.2.5.  closed
+
+   The "closed" state is the terminal state for a stream.  Reordering
+   might cause frames to be received after closing, see Section 10.2.4.
 
    If the application resets a stream that is already in the "closed"
    state, a RST_STREAM frame MAY still be sent in order to cancel
@@ -3741,11 +3746,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    The maximum stream ID is specific to each endpoint and applies only
    to the peer that receives the setting.  That is, clients specify the
    maximum stream ID the server can initiate, and servers specify the
-   maximum stream ID the client can initiate.  Each endpoint may respond
-   on streams initiated by the other peer, regardless of whether it is
-   permitted to initiated new streams.
-
-
 
 
 
@@ -3753,6 +3753,10 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 67]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   maximum stream ID the client can initiate.  Each endpoint may respond
+   on streams initiated by the other peer, regardless of whether it is
+   permitted to initiated new streams.
 
    Endpoints MUST NOT exceed the limit set by their peer.  An endpoint
    that receives a STREAM frame with an ID greater than the limit it has
@@ -3798,10 +3802,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    MAX_STREAM_DATA would not permit sending a full initial cryptographic
    handshake message.
 
-   Flow control is described in detail in Section 11, and congestion
-   control is described in the companion document [QUIC-RECOVERY].
-
-
 
 
 
@@ -3809,6 +3809,9 @@ Iyengar & Thomson         Expires May 16, 2018                 [Page 68]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   Flow control is described in detail in Section 11, and congestion
+   control is described in the companion document [QUIC-RECOVERY].
 
 10.6.  Stream Prioritization
 
@@ -3853,9 +3856,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    otherwise.  Retransmitting lost stream data can fill in gaps, which
    allows the peer to consume already received data and free up flow
    control window.
-
-
-
 
 
 

@@ -5,7 +5,7 @@
 QUIC                                                     J. Iyengar, Ed.
 Internet-Draft                                             I. Swett, Ed.
 Intended status: Standards Track                                  Google
-Expires: May 20, 2018                                  November 16, 2017
+Expires: May 23, 2018                                  November 19, 2017
 
 
                QUIC Loss Detection and Congestion Control
@@ -41,7 +41,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on May 20, 2018.
+   This Internet-Draft will expire on May 23, 2018.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Iyengar & Swett           Expires May 20, 2018                  [Page 1]
+Iyengar & Swett           Expires May 23, 2018                  [Page 1]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -70,7 +70,7 @@ Table of Contents
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Notational Conventions  . . . . . . . . . . . . . . . . .   3
-   2.  Design of the QUIC Transmission Machinery . . . . . . . . . .   3
+   2.  Design of the QUIC Transmission Machinery . . . . . . . . . .   4
      2.1.  Relevant Differences Between QUIC and TCP . . . . . . . .   4
        2.1.1.  Monotonically Increasing Packet Numbers . . . . . . .   4
        2.1.2.  No Reneging . . . . . . . . . . . . . . . . . . . . .   5
@@ -78,7 +78,7 @@ Table of Contents
        2.1.4.  Explicit Correction For Delayed Acks  . . . . . . . .   5
    3.  Loss Detection  . . . . . . . . . . . . . . . . . . . . . . .   5
      3.1.  Computing the RTT estimate  . . . . . . . . . . . . . . .   5
-     3.2.  Ack-based Detection . . . . . . . . . . . . . . . . . . .   5
+     3.2.  Ack-based Detection . . . . . . . . . . . . . . . . . . .   6
        3.2.1.  Fast Retransmit . . . . . . . . . . . . . . . . . . .   6
        3.2.2.  Early Retransmit  . . . . . . . . . . . . . . . . . .   6
      3.3.  Timer-based Detection . . . . . . . . . . . . . . . . . .   7
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Iyengar & Swett           Expires May 20, 2018                  [Page 2]
+Iyengar & Swett           Expires May 23, 2018                  [Page 2]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -152,9 +152,23 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 1.1.  Notational Conventions
 
-   The words "MUST", "MUST NOT", "SHOULD", and "MAY" are used in this
-   document.  It's not shouting; when they are capitalized, they have
-   the special meaning defined in [RFC2119].
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+
+
+
+
+
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 3]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
 
 2.  Design of the QUIC Transmission Machinery
 
@@ -162,14 +176,6 @@ Internet-Draft             QUIC Loss Detection             November 2017
    includes a packet sequence number (referred to below as a packet
    number).  These packet numbers never repeat in the lifetime of a
    connection, and are monotonically increasing, which makes duplicate
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 3]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
-
    detection trivial.  This fundamental design decision obviates the
    need for disambiguating between transmissions and retransmissions and
    eliminates significant complexity from QUIC's interpretation of TCP
@@ -212,20 +218,19 @@ Internet-Draft             QUIC Loss Detection             November 2017
    QUIC's packet number is strictly increasing, and directly encodes
    transmission order.  A higher QUIC packet number signifies that the
    packet was sent later, and a lower QUIC packet number signifies that
+
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 4]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
+
    the packet was sent earlier.  When a packet containing frames is
    deemed lost, QUIC rebundles necessary frames in a new packet with a
    new packet number, removing ambiguity about which packet is
    acknowledged when an ACK is received.  Consequently, more accurate
    RTT measurements can be made, spurious retransmissions are trivially
-
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 4]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
-
    detected, and mechanisms such as Fast Retransmit can be applied
    universally, based only on packet number.
 
@@ -268,19 +273,21 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
    (To be filled)
 
+
+
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 5]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
+
 3.2.  Ack-based Detection
 
    Ack-based loss detection implements the spirit of TCP's Fast
    Retransmit [RFC5681], Early Retransmit [RFC5827], FACK, and SACK loss
    recovery [RFC6675].  This section provides an overview of how these
    algorithms are implemented in QUIC.
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 5]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
 
    (TODO: Define unacknowledged packet, ackable packet, outstanding
    bytes.)
@@ -322,6 +329,15 @@ Internet-Draft             QUIC Loss Detection             November 2017
    If there are unacknowledged ackable packets still pending, they ought
    to be marked as lost.  To compensate for the reduced reordering
    resilience, the sender SHOULD set an alarm for a small period of
+
+
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 6]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
+
    time.  If the unacknowledged ackable packets are not acknowledged
    during this time, then these packets MUST be marked as lost.
 
@@ -329,14 +345,6 @@ Internet-Draft             QUIC Loss Detection             November 2017
    no earlier than 1.25 * max(SRTT, latest_RTT) since when it was sent.
 
    Using max(SRTT, latest_RTT) protects from the two following cases:
-
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 6]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
 
    o  the latest RTT sample is lower than the SRTT, perhaps due to
       reordering where packet whose ack triggered the Early Retransit
@@ -379,20 +387,18 @@ Internet-Draft             QUIC Loss Detection             November 2017
    The alarm duration, or Probe Timeout (PTO), is set based on the
    following conditions:
 
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 7]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
+
    o  If there is exactly one unacknowledged packet, PTO SHOULD be
       scheduled for max(2_SRTT, 1.5_SRTT+kDelayedAckTimeout)
 
    o  If there are more than one unacknowledged packets, PTO SHOULD be
       scheduled for max(2*SRTT, 10ms).
-
-
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 7]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
 
    o  If RTO is earlier, schedule a TLP alarm in its place.  That is,
       PTO SHOULD be scheduled for min(RTO, PTO).
@@ -437,18 +443,16 @@ Internet-Draft             QUIC Loss Detection             November 2017
    bytes in flight, since a TLP adds network load without establishing
    packet loss.
 
-   A sender will commonly not know that a packet being sent is a tail
-   packet.  Consequently, a sender may have to arm or adjust the TLP
-   alarm on every sent ackable packet.
 
 
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 8]
+Iyengar & Swett           Expires May 23, 2018                  [Page 8]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
+
+   A sender will commonly not know that a packet being sent is a tail
+   packet.  Consequently, a sender may have to arm or adjust the TLP
+   alarm on every sent ackable packet.
 
 3.3.2.  Retransmission Timeout
 
@@ -493,18 +497,19 @@ Internet-Draft             QUIC Loss Detection             November 2017
    any packet loss, prior unacknowledged packets SHOULD NOT be marked as
    lost.
 
+
+
+
+
+Iyengar & Swett           Expires May 23, 2018                  [Page 9]
+
+Internet-Draft             QUIC Loss Detection             November 2017
+
+
    A packet sent on an RTO alarm MUST NOT be blocked by the sender's
    congestion controller.  A sender MUST however count these bytes as
    additional bytes in flight, since this packet adds network load
    without establishing packet loss.
-
-
-
-
-Iyengar & Swett           Expires May 20, 2018                  [Page 9]
-
-Internet-Draft             QUIC Loss Detection             November 2017
-
 
 3.3.3.  Handshake Timeout
 
@@ -549,18 +554,16 @@ Internet-Draft             QUIC Loss Detection             November 2017
    papers, and common practice.  Some may need to be changed or
    negotiated in order to better suit a variety of environments.
 
-   kMaxTLPs (default 2):  Maximum number of tail loss probes before an
-      RTO fires.
 
 
 
-
-
-
-Iyengar & Swett           Expires May 20, 2018                 [Page 10]
+Iyengar & Swett           Expires May 23, 2018                 [Page 10]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
+
+   kMaxTLPs (default 2):  Maximum number of tail loss probes before an
+      RTO fires.
 
    kReorderingThreshold (default 3):  Maximum reordering in packet
       number space before FACK style loss detection considers a packet
@@ -606,17 +609,17 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
    time_of_last_sent_packet:  The time the most recent packet was sent.
 
-   largest_sent_packet:  The packet number of the most recently sent
-      packet.
 
 
 
 
-
-Iyengar & Swett           Expires May 20, 2018                 [Page 11]
+Iyengar & Swett           Expires May 23, 2018                 [Page 11]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
+
+   largest_sent_packet:  The packet number of the most recently sent
+      packet.
 
    largest_acked_packet:  The largest packet number acknowledged in an
       ack frame.
@@ -666,10 +669,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-
-
-
-Iyengar & Swett           Expires May 20, 2018                 [Page 12]
+Iyengar & Swett           Expires May 23, 2018                 [Page 12]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -725,7 +725,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 13]
+Iyengar & Swett           Expires May 23, 2018                 [Page 13]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -781,7 +781,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 14]
+Iyengar & Swett           Expires May 23, 2018                 [Page 14]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -837,7 +837,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 15]
+Iyengar & Swett           Expires May 23, 2018                 [Page 15]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -893,7 +893,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 16]
+Iyengar & Swett           Expires May 23, 2018                 [Page 16]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -949,7 +949,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 17]
+Iyengar & Swett           Expires May 23, 2018                 [Page 17]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1005,7 +1005,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 18]
+Iyengar & Swett           Expires May 23, 2018                 [Page 18]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1061,7 +1061,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 19]
+Iyengar & Swett           Expires May 23, 2018                 [Page 19]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1117,7 +1117,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 20]
+Iyengar & Swett           Expires May 23, 2018                 [Page 20]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1173,7 +1173,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 21]
+Iyengar & Swett           Expires May 23, 2018                 [Page 21]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1229,7 +1229,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 22]
+Iyengar & Swett           Expires May 23, 2018                 [Page 22]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1285,7 +1285,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 23]
+Iyengar & Swett           Expires May 23, 2018                 [Page 23]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1313,6 +1313,10 @@ Internet-Draft             QUIC Loss Detection             November 2017
               RFC 6675, DOI 10.17487/RFC6675, August 2012,
               <https://www.rfc-editor.org/info/rfc6675>.
 
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
 6.2.  Informative References
 
    [LOSS-PROBE]
@@ -1337,11 +1341,7 @@ Internet-Draft             QUIC Loss Detection             November 2017
 
 
 
-
-
-
-
-Iyengar & Swett           Expires May 20, 2018                 [Page 24]
+Iyengar & Swett           Expires May 23, 2018                 [Page 24]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1397,7 +1397,7 @@ B.6.  Since draft-ietf-quic-recovery-01
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 25]
+Iyengar & Swett           Expires May 23, 2018                 [Page 25]
 
 Internet-Draft             QUIC Loss Detection             November 2017
 
@@ -1453,4 +1453,4 @@ Authors' Addresses
 
 
 
-Iyengar & Swett           Expires May 20, 2018                 [Page 26]
+Iyengar & Swett           Expires May 23, 2018                 [Page 26]

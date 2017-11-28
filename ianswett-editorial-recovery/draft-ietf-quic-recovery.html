@@ -523,7 +523,7 @@ address {
 <h2 id="rfc.section.1.1">
 <a href="#rfc.section.1.1">1.1.</a> <a href="#notational-conventions" id="notational-conventions">Notational Conventions</a>
 </h2>
-<p id="rfc.section.1.1.p.1">The words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, and &#8220;MAY&#8221; are used in this document.  It&#8217;s not shouting; when they are capitalized, they have the special meaning defined in <a href="#RFC2119" class="xref">[RFC2119]</a>.</p>
+<p id="rfc.section.1.1.p.1">The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;REQUIRED&#8221;, &#8220;SHALL&#8221;, &#8220;SHALL NOT&#8221;, &#8220;SHOULD&#8221;, &#8220;SHOULD NOT&#8221;, &#8220;RECOMMENDED&#8221;, &#8220;NOT RECOMMENDED&#8221;, &#8220;MAY&#8221;, and &#8220;OPTIONAL&#8221; in this document are to be interpreted as described in BCP 14 <a href="#RFC2119" class="xref">[RFC2119]</a> <a href="#RFC8174" class="xref">[RFC8174]</a> when, and only when, they appear in all capitals, as shown here.</p>
 <h1 id="rfc.section.2">
 <a href="#rfc.section.2">2.</a> <a href="#design-of-the-quic-transmission-machinery" id="design-of-the-quic-transmission-machinery">Design of the QUIC Transmission Machinery</a>
 </h1>
@@ -664,6 +664,8 @@ address {
 <dd style="margin-left: 8">Maximum reordering in packet number space before FACK style loss detection considers a packet lost.</dd>
 <dt>kTimeReorderingFraction (default 1/8):</dt>
 <dd style="margin-left: 8">Maximum reordering in time space before time based loss detection considers a packet lost.  In fraction of an RTT.</dd>
+<dt>kUsingTimeLossDetection (default false):</dt>
+<dd style="margin-left: 8">Whether time based loss detection is in use.  If false, uses FACK style loss detection.</dd>
 <dt>kMinTLPTimeout (default 10ms):</dt>
 <dd style="margin-left: 8">Minimum time in the future a tail loss probe alarm may be set for.</dd>
 <dt>kMinRTOTimeout (default 200ms):</dt>
@@ -722,7 +724,7 @@ address {
    handshake_count = 0
    tlp_count = 0
    rto_count = 0
-   if (UsingTimeLossDetection())
+   if (kUsingTimeLossDetection)
      reordering_threshold = infinite
      time_reordering_fraction = kTimeReorderingFraction
    else:
@@ -834,7 +836,9 @@ address {
 <p id="rfc.section.3.4.7.4.p.1">Pseudocode for SetLossDetectionAlarm follows:</p>
 <pre>
  SetLossDetectionAlarm():
-    if (retransmittable packets are not outstanding):
+    // Don't arm the alarm if there are no packets with
+    // retransmittable data in flight.
+    if (num_retransmittable_packets_outstanding == 0):
       loss_detection_alarm.cancel()
       return
 
@@ -851,7 +855,7 @@ address {
       alarm_duration = loss_time - now
     else if (tlp_count &lt; kMaxTLPs):
       // Tail Loss Probe
-      if (retransmittable_packets_outstanding == 1):
+      if (num_retransmittable_packets_outstanding == 1):
         alarm_duration = 1.5 * smoothed_rtt + kDelayedAckTimeout
       else:
         alarm_duration = kMinTLPTimeout
@@ -909,7 +913,7 @@ address {
      loss_time = 0
      lost_packets = {}
      delay_until_lost = infinite
-     if (time_reordering_fraction != infinite):
+     if (kUsingTimeLossDetection):
        delay_until_lost =
          (1 + time_reordering_fraction) * max(latest_rtt, smoothed_rtt)
      else if (largest_acked.packet_number == largest_sent_packet):
@@ -1113,6 +1117,11 @@ address {
 <td class="reference"><b id="RFC6675">[RFC6675]</b></td>
 <td class="top">
 <a>Blanton, E.</a>, <a>Allman, M.</a>, <a>Wang, L.</a>, <a>Jarvinen, I.</a>, <a>Kojo, M.</a> and <a>Y. Nishida</a>, "<a href="https://tools.ietf.org/html/rfc6675">A Conservative Loss Recovery Algorithm Based on Selective Acknowledgment (SACK) for TCP</a>", RFC 6675, DOI 10.17487/RFC6675, August 2012.</td>
+</tr>
+<tr>
+<td class="reference"><b id="RFC8174">[RFC8174]</b></td>
+<td class="top">
+<a>Leiba, B.</a>, "<a href="https://tools.ietf.org/html/rfc8174">Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</a>", BCP 14, RFC 8174, DOI 10.17487/RFC8174, May 2017.</td>
 </tr>
 </tbody></table>
 <h2 id="rfc.references.2">

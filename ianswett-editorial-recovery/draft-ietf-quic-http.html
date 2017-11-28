@@ -511,7 +511,7 @@ address {
 <h2 id="rfc.section.1.1">
 <a href="#rfc.section.1.1">1.1.</a> <a href="#notational-conventions" id="notational-conventions">Notational Conventions</a>
 </h2>
-<p id="rfc.section.1.1.p.1">The words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, and &#8220;MAY&#8221; are used in this document.  It&#8217;s not shouting; when they are capitalized, they have the special meaning defined in <a href="#RFC2119" class="xref">[RFC2119]</a>.</p>
+<p id="rfc.section.1.1.p.1">The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;REQUIRED&#8221;, &#8220;SHALL&#8221;, &#8220;SHALL NOT&#8221;, &#8220;SHOULD&#8221;, &#8220;SHOULD NOT&#8221;, &#8220;RECOMMENDED&#8221;, &#8220;NOT RECOMMENDED&#8221;, &#8220;MAY&#8221;, and &#8220;OPTIONAL&#8221; in this document are to be interpreted as described in BCP 14 <a href="#RFC2119" class="xref">[RFC2119]</a> <a href="#RFC8174" class="xref">[RFC8174]</a> when, and only when, they appear in all capitals, as shown here.</p>
 <p id="rfc.section.1.1.p.2">Field definitions are given in Augmented Backus-Naur Form (ABNF), as defined in <a href="#RFC5234" class="xref">[RFC5234]</a>.</p>
 <p id="rfc.section.1.1.p.3">This document uses the variable-length integer encoding from <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a>.</p>
 <h1 id="rfc.section.2">
@@ -542,7 +542,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <a href="#rfc.section.3">3.</a> <a href="#connection-establishment" id="connection-establishment">Connection Establishment</a>
 </h1>
 <p id="rfc.section.3.p.1">HTTP/QUIC connections are established as described in <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a>. During connection establishment, HTTP/QUIC support is indicated by selecting the ALPN token &#8220;hq&#8221; in the crypto handshake.</p>
-<p id="rfc.section.3.p.2">While connection-level options pertaining to the core QUIC protocol are set in the initial crypto handshake, HTTP-specific settings are conveyed in the SETTINGS frame. After the QUIC connection is established, a SETTINGS frame (<a href="#frame-settings" class="xref">Section 5.2.5</a>) MUST be sent as the initial frame of the HTTP control stream (Stream ID 1, see <a href="#stream-mapping" class="xref">Section 4</a>).  The server MUST NOT send data on any other stream until the client&#8217;s SETTINGS frame has been received.</p>
+<p id="rfc.section.3.p.2">While connection-level options pertaining to the core QUIC protocol are set in the initial crypto handshake, HTTP-specific settings are conveyed in the SETTINGS frame. After the QUIC connection is established, a SETTINGS frame (<a href="#frame-settings" class="xref">Section 5.2.5</a>) MUST be sent by each endpoint as the initial frame of their respective HTTP control stream (Stream ID 2 or 3, see <a href="#stream-mapping" class="xref">Section 4</a>). The server MUST NOT send data on any other stream until the client&#8217;s SETTINGS frame has been received.</p>
 <h2 id="rfc.section.3.1">
 <a href="#rfc.section.3.1">3.1.</a> <a href="#draft-version-identification" id="draft-version-identification">Draft Version Identification</a>
 </h2>
@@ -611,8 +611,9 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <a href="#rfc.section.4.4">4.4.</a> <a href="#server-push" id="server-push">Server Push</a>
 </h2>
 <p id="rfc.section.4.4.p.1">HTTP/QUIC supports server push as described in <a href="#RFC7540" class="xref">[RFC7540]</a>. During connection establishment, the client enables server push by sending a MAX_PUSH_ID frame (see <a href="#frame-max-push-id" class="xref">Section 5.2.8</a>).  A server cannot use server push until it receives a MAX_PUSH_ID frame.</p>
-<p id="rfc.section.4.4.p.2">As with server push for HTTP/2, the server initiates a server push by sending a PUSH_PROMISE frame that includes request header fields attributed to the request. The PUSH_PROMISE frame is sent on a response stream.  Unlike HTTP/2, the PUSH_PROMISE does not reference a stream; when a server fulfills a promise, the stream that carries the stream headers references the PUSH_PROMISE.  This allows a server to fulfill promises in the order that best suits its needs.</p>
-<p id="rfc.section.4.4.p.3">The server push response is conveyed on a push stream.  A push stream is a server-initiated, unidirectional stream.  A push stream includes a header (see <a href="#fig-push-stream-header" class="xref">Figure 1</a>) that identifies the PUSH_PROMISE that it fulfills.  This header consists of a Push ID, encoded as a variable-length integer.  The Push ID identifies a server push (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
+<p id="rfc.section.4.4.p.2">As with server push for HTTP/2, the server initiates a server push by sending a PUSH_PROMISE frame that includes request header fields attributed to the request. The PUSH_PROMISE frame is sent on the client-initiated, bidirectional stream that carried the request that generated the push.  This allows the server push to be associated with a request.  Ordering of a PUSH_PROMISE in relation to certain parts of the response is important (see Section 8.2.1 of <a href="#RFC7540" class="xref">[RFC7540]</a>).</p>
+<p id="rfc.section.4.4.p.3">Unlike HTTP/2, the PUSH_PROMISE does not reference a stream; when a server fulfills a promise, the stream that carries the stream headers references a Push ID.  This allows a server to fulfill promises in the order that best suits its needs.</p>
+<p id="rfc.section.4.4.p.4">The server push response is conveyed on a push stream.  A push stream is a server-initiated, unidirectional stream.  A push stream includes a header (see <a href="#fig-push-stream-header" class="xref">Figure 1</a>) that identifies the PUSH_PROMISE that it fulfills.  This header consists of a Push ID, encoded as a variable-length integer.  The Push ID identifies a server push (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
 <div id="rfc.figure.1"></div>
 <div id="fig-push-stream-header"></div>
 <pre>
@@ -623,11 +624,11 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 1: Push Stream Header</p>
-<p id="rfc.section.4.4.p.4">A push stream always starts with a Push ID.  A client MUST treat receiving a push stream that contains a truncated variable-length integer as a connection error of type HTTP_MALFORMED_PUSH.</p>
-<p id="rfc.section.4.4.p.5">A server SHOULD use Push IDs sequentially, starting at 0.  A client uses the MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>) to limit the number of pushes that a server can promise.  A client MUST treat receipt of a push stream with a Push ID that is greater than the maximum Push ID as a connection error of type HTTP_MALFORMED_PUSH.</p>
-<p id="rfc.section.4.4.p.6">Each Push ID MUST only be used once in a push stream header.  If a push stream header includes a Push ID that was used in another push stream header, the client MUST treat this as a connection error of type HTTP_MALFORMED_PUSH.  The same Push ID can be used in multiple PUSH_PROMISE frames (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
-<p id="rfc.section.4.4.p.7">After the push stream header, a push contains a response (<a href="#request-response" class="xref">Section 4.2</a>), with response headers, a response body (if any) carried by DATA frames, then trailers (if any) carried by HEADERS frames.</p>
-<p id="rfc.section.4.4.p.8">If a promised server push is not needed by the client, the client SHOULD send a CANCEL_PUSH frame; if the push stream is already open, a QUIC STOP_SENDING frame with an appropriate error code can be used instead (e.g., HTTP_PUSH_REFUSED, HTTP_PUSH_ALREADY_IN_CACHE; see <a href="#errors" class="xref">Section 7</a>).  This asks the server not to transfer the data and indicates that it will be discarded upon receipt.</p>
+<p id="rfc.section.4.4.p.5">A push stream always starts with a Push ID.  A client MUST treat receiving a push stream that contains a truncated variable-length integer as a connection error of type HTTP_MALFORMED_PUSH.</p>
+<p id="rfc.section.4.4.p.6">A server SHOULD use Push IDs sequentially, starting at 0.  A client uses the MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>) to limit the number of pushes that a server can promise.  A client MUST treat receipt of a push stream with a Push ID that is greater than the maximum Push ID as a connection error of type HTTP_MALFORMED_PUSH.</p>
+<p id="rfc.section.4.4.p.7">Each Push ID MUST only be used once in a push stream header.  If a push stream header includes a Push ID that was used in another push stream header, the client MUST treat this as a connection error of type HTTP_MALFORMED_PUSH.  The same Push ID can be used in multiple PUSH_PROMISE frames (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
+<p id="rfc.section.4.4.p.8">After the push stream header, a push contains a response (<a href="#request-response" class="xref">Section 4.2</a>), with response headers, a response body (if any) carried by DATA frames, then trailers (if any) carried by HEADERS frames.</p>
+<p id="rfc.section.4.4.p.9">If a promised server push is not needed by the client, the client SHOULD send a CANCEL_PUSH frame; if the push stream is already open, a QUIC STOP_SENDING frame with an appropriate error code can be used instead (e.g., HTTP_PUSH_REFUSED, HTTP_PUSH_ALREADY_IN_CACHE; see <a href="#errors" class="xref">Section 7</a>).  This asks the server not to transfer the data and indicates that it will be discarded upon receipt.</p>
 <h1 id="rfc.section.5">
 <a href="#rfc.section.5">5.</a> <a href="#http-framing-layer" id="http-framing-layer">HTTP Framing Layer</a>
 </h1>
@@ -1410,6 +1411,11 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <td class="reference"><b id="RFC7838">[RFC7838]</b></td>
 <td class="top">
 <a>Nottingham, M.</a>, <a>McManus, P.</a> and <a>J. Reschke</a>, "<a href="https://tools.ietf.org/html/rfc7838">HTTP Alternative Services</a>", RFC 7838, DOI 10.17487/RFC7838, April 2016.</td>
+</tr>
+<tr>
+<td class="reference"><b id="RFC8174">[RFC8174]</b></td>
+<td class="top">
+<a>Leiba, B.</a>, "<a href="https://tools.ietf.org/html/rfc8174">Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</a>", BCP 14, RFC 8174, DOI 10.17487/RFC8174, May 2017.</td>
 </tr>
 </tbody></table>
 <h2 id="rfc.references.2">

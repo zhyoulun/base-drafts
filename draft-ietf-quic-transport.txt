@@ -570,15 +570,15 @@ Internet-Draft           QUIC Transport Protocol           November 2017
               +------+---------------------+---------------+
               | Type | Name                | Section       |
               +------+---------------------+---------------+
-              | 0x01 | Version Negotiation | Section 5.3   |
+              | 0x7F | Version Negotiation | Section 5.3   |
               |      |                     |               |
-              | 0x02 | Initial             | Section 5.4.1 |
+              | 0x7E | Initial             | Section 5.4.1 |
               |      |                     |               |
-              | 0x03 | Retry               | Section 5.4.2 |
+              | 0x7D | Retry               | Section 5.4.2 |
               |      |                     |               |
-              | 0x04 | Handshake           | Section 5.4.3 |
+              | 0x7C | Handshake           | Section 5.4.3 |
               |      |                     |               |
-              | 0x05 | 0-RTT Protected     | Section 5.5   |
+              | 0x7B | 0-RTT Protected     | Section 5.5   |
               +------+---------------------+---------------+
 
                      Table 1: Long Header Packet Types
@@ -624,9 +624,9 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    Header Form:  The most significant bit (0x80) of octet 0 is set to 0
       for the short header.
 
-   Connection ID Flag:  The second bit (0x40) of octet 0 indicates
-      whether the Connection ID field is present.  If set to 1, then the
-      Connection ID field is present; if set to 0, the Connection ID
+   Omit Connection ID Flag:  The second bit (0x40) of octet 0 indicates
+      whether the Connection ID field is omitted.  If set to 0, then the
+      Connection ID field is present; if set to 1, the Connection ID
       field is omitted.  The Connection ID field can only be omitted if
       the omit_connection_id transport parameter (Section 7.4.1) is
       specified by the intended recipient of the packet.
@@ -640,9 +640,9 @@ Internet-Draft           QUIC Transport Protocol           November 2017
       packet types.  Table 2 lists the types that are defined for short
       packets.
 
-   Connection ID:  If the Connection ID Flag is set, a connection ID
-      occupies octets 1 through 8 of the packet.  See Section 5.6 for
-      more details.
+   Connection ID:  If the Omit Connection ID Flag is not set, a
+      connection ID occupies octets 1 through 8 of the packet.  See
+      Section 5.6 for more details.
 
    Packet Number:  The length of the packet number field depends on the
       packet type.  This field can be 1, 2 or 4 octets long depending on
@@ -658,11 +658,11 @@ Internet-Draft           QUIC Transport Protocol           November 2017
                        +------+--------------------+
                        | Type | Packet Number Size |
                        +------+--------------------+
-                       | 0x01 | 1 octet            |
+                       | 0x1F | 1 octet            |
                        |      |                    |
-                       | 0x02 | 2 octets           |
+                       | 0x1E | 2 octets           |
                        |      |                    |
-                       | 0x03 | 4 octets           |
+                       | 0x1D | 4 octets           |
                        +------+--------------------+
 
                     Table 2: Short Header Packet Types
@@ -674,15 +674,16 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 12]
 Internet-Draft           QUIC Transport Protocol           November 2017
 
 
-   The header form, connection ID flag and connection ID of a short
-   header packet are version-independent.  The remaining fields are
-   specific to the selected QUIC version.  See Section 5.8 for details
-   on how packets from different versions of QUIC are interpreted.
+   The header form, omit connection ID flag, and connection ID of a
+   short header packet are version-independent.  The remaining fields
+   are specific to the selected QUIC version.  See Section 5.8 for
+   details on how packets from different versions of QUIC are
+   interpreted.
 
 5.3.  Version Negotiation Packet
 
    A Version Negotiation packet has long headers with a type value of
-   0x01 and is sent only by servers.  The Version Negotiation packet is
+   0x7F and is sent only by servers.  The Version Negotiation packet is
    a response to a client packet that contains a version that is not
    supported by the server.
 
@@ -724,7 +725,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 
 
-
 Iyengar & Thomson         Expires June 2, 2018                 [Page 13]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
@@ -741,7 +741,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 5.4.1.  Initial Packet
 
-   The Initial packet uses long headers with a type value of 0x02.  It
+   The Initial packet uses long headers with a type value of 0x7E.  It
    carries the first cryptographic handshake message sent by the client.
 
    The client populates the connection ID field with randomly selected
@@ -768,7 +768,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 5.4.2.  Retry Packet
 
-   A Retry packet uses long headers with a type value of 0x03.  It
+   A Retry packet uses long headers with a type value of 0x7D.  It
    carries cryptographic handshake messages and acknowledgments.  It is
    used by a server that wishes to perform a stateless retry (see
    Section 7.5).
@@ -813,7 +813,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 5.4.3.  Handshake Packet
 
-   A Handshake packet uses long headers with a type value of 0x04.  It
+   A Handshake packet uses long headers with a type value of 0x7C.  It
    is used to carry acknowledgments and cryptographic handshake messages
    from the server and client.
 
@@ -850,7 +850,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    encryption level and therefore the keys that are used to remove
    packet protection.
 
-   Packets protected with 0-RTT keys use a type value of 0x05.  The
+   Packets protected with 0-RTT keys use a type value of 0x7B.  The
    connection ID field for a 0-RTT packet is selected by the client.
 
    The client can send 0-RTT packets after receiving a Handshake packet
@@ -873,7 +873,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    QUIC connections are identified by their 64-bit Connection ID.  All
    long headers contain a Connection ID.  Short headers indicate the
-   presence of a Connection ID using the CONNECTION_ID flag.  When
+   presence of a Connection ID using the Omit Connection ID flag.  When
    present, the Connection ID is in the same location in all packet
    headers, making it straightforward for middleboxes, such as load
    balancers, to locate and use it.
@@ -978,7 +978,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    o  the location of the header form flag,
 
-   o  the location of the Connection ID flag in short headers,
+   o  the location of the Omit Connection ID flag in short headers,
 
    o  the location and size of the Connection ID field in both header
       forms,
@@ -2248,7 +2248,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    connection ID.
 
    The Packet Number field is set to a randomized value.  The server
-   SHOULD send a packet with a short header and a type of 0x01.  This
+   SHOULD send a packet with a short header and a type of 0x1F.  This
    produces the shortest possible packet number encoding, which
    minimizes the perceived gap between the last packet that the server
    sent and this packet.  A server MAY use a different short header

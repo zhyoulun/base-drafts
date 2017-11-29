@@ -33,6 +33,7 @@
   ul.toc {
     top: 80px;
     overflow: auto;
+    overscroll-behavior: contain;
   }
 
   body {
@@ -324,7 +325,7 @@ address {
 <link href="#rfc.section.7.7.2" rel="Chapter" title="7.7.2 Address Validation for Migrated Connections">
 <link href="#rfc.section.7.8" rel="Chapter" title="7.8 Spurious Connection Migrations">
 <link href="#rfc.section.7.9" rel="Chapter" title="7.9 Connection Termination">
-<link href="#rfc.section.7.9.1" rel="Chapter" title="7.9.1 Draining and Closing Periods">
+<link href="#rfc.section.7.9.1" rel="Chapter" title="7.9.1 Closing and Draining Connection States">
 <link href="#rfc.section.7.9.2" rel="Chapter" title="7.9.2 Idle Timeout">
 <link href="#rfc.section.7.9.3" rel="Chapter" title="7.9.3 Immediate Close">
 <link href="#rfc.section.7.9.4" rel="Chapter" title="7.9.4 Stateless Reset">
@@ -403,7 +404,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2017-10-25" />
+  <meta name="dct.issued" scheme="ISO8601" content="2017-11-29" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -427,12 +428,12 @@ address {
 <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-<td class="left">Expires: April 28, 2018</td>
+<td class="left">Expires: June 2, 2018</td>
 <td class="right">Mozilla</td>
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">October 25, 2017</td>
+<td class="right">November 29, 2017</td>
 </tr>
 
     	
@@ -451,7 +452,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on April 28, 2018.</p>
+<p>This Internet-Draft will expire on June 2, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2017 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -559,7 +560,7 @@ address {
 </li>
 <li>7.9.   <a href="#rfc.section.7.9">Connection Termination</a>
 </li>
-<ul><li>7.9.1.   <a href="#rfc.section.7.9.1">Draining and Closing Periods</a>
+<ul><li>7.9.1.   <a href="#rfc.section.7.9.1">Closing and Draining Connection States</a>
 </li>
 <li>7.9.2.   <a href="#rfc.section.7.9.2">Idle Timeout</a>
 </li>
@@ -1473,33 +1474,33 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <li>stateless reset (<a href="#stateless-reset" class="xref">Section 7.9.4</a>)</li>
 </ul>
 <h3 id="rfc.section.7.9.1">
-<a href="#rfc.section.7.9.1">7.9.1.</a> <a href="#draining" id="draining">Draining and Closing Periods</a>
+<a href="#rfc.section.7.9.1">7.9.1.</a> <a href="#draining" id="draining">Closing and Draining Connection States</a>
 </h3>
-<p id="rfc.section.7.9.1.p.1">After a connection is closed, an endpoint might receive packets from its peer.  These packets might have been sent prior to receiving any close signal, or they might be retransmissions of packets for which acknowledgments were lost.</p>
-<p id="rfc.section.7.9.1.p.2">The draining period exists to ensure that delayed or reordered packets are properly discarded.  This state SHOULD persist for three times the current Retransmission Timeout (RTO) interval as defined in <a href="#QUIC-RECOVERY" class="xref">[QUIC-RECOVERY]</a>.  No packets can be sent during this time.</p>
-<p id="rfc.section.7.9.1.p.3">Disposing of connection state prior to the end of the draining period could result in delayed or reordered packets to be handled poorly.  Endpoints that have some alternative means to ensure that late-arriving packets on the connection do not create QUIC state, such as by closing the UDP socket, MAY use an abbreviated draining period which can allow for faster resource recovery.  Servers that retain an open socket for accepting new connections SHOULD NOT exit the draining period early.</p>
-<p id="rfc.section.7.9.1.p.4">Once the draining period has ended, an endpoint SHOULD discard per-connection state.  This results in new packets on the connection being handled generically.  For instance, an endpoint MAY send a stateless reset in response to any further incoming packets.</p>
-<p id="rfc.section.7.9.1.p.5">An endpoint enters a closing period after initiating an immediate close (<a href="#immediate-close" class="xref">Section 7.9.3</a>) and optionally after an idle timeout (<a href="#idle-timeout" class="xref">Section 7.9.2</a>).  This state runs for the same duration as the draining period.  While in the closing period, an endpoint MUST NOT send packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame (see <a href="#immediate-close" class="xref">Section 7.9.3</a> for details).</p>
-<p id="rfc.section.7.9.1.p.6">The closing period differs from the draining period only in that closing frames can be retransmitted.</p>
-<p id="rfc.section.7.9.1.p.7">An endpoint MAY transition from the closing period to the draining period if it can confirm that its peer is also closing or draining.  Receiving a closing frame is sufficient confirmation, as is receiving a stateless reset.  The draining period SHOULD end when the closing period would have ended.  In other words, the endpoint can use the same end time, but cease retransmission of the closing packet.</p>
+<p id="rfc.section.7.9.1.p.1">The closing and draining connection states exist to ensure that connections close cleanly and that delayed or reordered packets are properly discarded.  These states SHOULD persist for three times the current Retransmission Timeout (RTO) interval as defined in <a href="#QUIC-RECOVERY" class="xref">[QUIC-RECOVERY]</a>.</p>
+<p id="rfc.section.7.9.1.p.2">An endpoint enters a closing period after initiating an immediate close (<a href="#immediate-close" class="xref">Section 7.9.3</a>) and optionally after an idle timeout (<a href="#idle-timeout" class="xref">Section 7.9.2</a>).  While closing, an endpoint MUST NOT send packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame (see <a href="#immediate-close" class="xref">Section 7.9.3</a> for details).</p>
+<p id="rfc.section.7.9.1.p.3">In the closing state, only a packet containing a closing frame can be sent.  An endpoint retains only enough information to generate a packet containing a closing frame and to identify packets as belonging to the connection.  The connection ID and QUIC version is sufficient information to identify packets for a closing connection; an endpoint can discard all other connection state.  An endpoint MAY retain packet protection keys for incoming packets to allow it to read and process a closing frame.</p>
+<p id="rfc.section.7.9.1.p.4">The draining state is entered once an endpoint receives a signal that its peer is closing or draining.  While otherwise identical to the closing state, an endpoint in the draining state MUST NOT send any packets.  Retaining packet protection keys is unnecessary once a connection is in the draining state.</p>
+<p id="rfc.section.7.9.1.p.5">An endpoint MAY transition from the closing period to the draining period if it can confirm that its peer is also closing or draining.  Receiving a closing frame is sufficient confirmation, as is receiving a stateless reset.  The draining period SHOULD end when the closing period would have ended.  In other words, the endpoint can use the same end time, but cease retransmission of the closing packet.</p>
+<p id="rfc.section.7.9.1.p.6">Disposing of connection state prior to the end of the closing or draining period could cause delayed or reordered packets to be handled poorly.  Endpoints that have some alternative means to ensure that late-arriving packets on the connection do not create QUIC state, such as those that are able to close the UDP socket, MAY use an abbreviated draining period which can allow for faster resource recovery.  Servers that retain an open socket for accepting new connections SHOULD NOT exit the closing or draining period early.</p>
+<p id="rfc.section.7.9.1.p.7">Once the closing or draining period has ended, an endpoint SHOULD discard all connection state.  This results in new packets on the connection being handled generically.  For instance, an endpoint MAY send a stateless reset in response to any further incoming packets.</p>
 <p id="rfc.section.7.9.1.p.8">The draining and closing periods do not apply when a stateless reset (<a href="#stateless-reset" class="xref">Section 7.9.4</a>) is sent.</p>
 <h3 id="rfc.section.7.9.2">
 <a href="#rfc.section.7.9.2">7.9.2.</a> <a href="#idle-timeout" id="idle-timeout">Idle Timeout</a>
 </h3>
-<p id="rfc.section.7.9.2.p.1">A connection that remains idle for longer than the idle timeout (see <a href="#transport-parameter-definitions" class="xref">Section 7.4.1</a>) is closed.  At implementation discretion, a connection enters either the draining or closing period when the idle timeout expires.</p>
-<p id="rfc.section.7.9.2.p.2">The time at which an idle timeout takes effect won&#8217;t be perfectly synchronized on peers.  An endpoint MAY enter a third state where receipt of new packets causes the connection to be restored to normal operation.</p>
+<p id="rfc.section.7.9.2.p.1">A connection that remains idle for longer than the idle timeout (see <a href="#transport-parameter-definitions" class="xref">Section 7.4.1</a>) is closed.  A connection enters the draining state when the idle timeout expires.</p>
+<p id="rfc.section.7.9.2.p.2">The time at which an idle timeout takes effect won&#8217;t be perfectly synchronized on both endpoints.  An endpoint that sends packets near the end of an idle period could have those packets discarded if its peer enters the draining state before the packet is received.</p>
 <h3 id="rfc.section.7.9.3">
 <a href="#rfc.section.7.9.3">7.9.3.</a> <a href="#immediate-close" id="immediate-close">Immediate Close</a>
 </h3>
-<p id="rfc.section.7.9.3.p.1">An endpoint sends a closing frame, either CONNECTION_CLOSE or APPLICATION_CLOSE, to terminate the connection immediately.  Either closing frame causes all open streams to immediately become closed; open streams can be assumed to be implicitly reset.</p>
-<p id="rfc.section.7.9.3.p.2">After sending a closing frame, endpoints immediately enter a closing period.  After receiving a closing frame, endpoints enter a draining period.  An endpoint that receives a closing frame MAY send a single closing frame before entering a draining period, but MUST NOT send further packets, which could result in a constant exchange of closing frames until the closing period on either peer ended.</p>
-<p id="rfc.section.7.9.3.p.3">During the draining period, an endpoint that sends a closing frame SHOULD respond to any subsequent packet that it receives with another packet containing either closing frame.  To reduce the state that an endpoint maintains in this case, it MAY send the exact same packet.  However, endpoints SHOULD limit the number of packets they generate containing a closing frame.  For instance, an endpoint could progressively increase the number of packets that it receives before sending additional packets.</p>
+<p id="rfc.section.7.9.3.p.1">An endpoint sends a closing frame, either CONNECTION_CLOSE or APPLICATION_CLOSE, to terminate the connection immediately.  Either closing frame causes all streams to immediately become closed; open streams can be assumed to be implicitly reset.</p>
+<p id="rfc.section.7.9.3.p.2">After sending a closing frame, endpoints immediately enter a closing period.  During the closing period, an endpoint that sends a closing frame SHOULD respond to any packet that it receives with another packet containing a closing frame.  To minimize the state that an endpoint maintains for a closing connection, endpoints MAY send the exact same packet.  However, endpoints SHOULD limit the number of packets they generate containing a closing frame.  For instance, an endpoint could progressively increase the number of packets that it receives before sending additional packets or increase the time between packets.</p>
 <p></p>
 
 <dl>
 <dt>Note:</dt>
 <dd style="margin-left: 8">Allowing retransmission of a packet contradicts other advice in this document that recommends the creation of new packet numbers for every packet.  Sending new packet numbers is primarily of advantage to loss recovery and congestion control, which are not expected to be relevant for a closed connection.  Retransmitting the final packet requires less state.</dd>
 </dl>
+<p id="rfc.section.7.9.3.p.4">After receiving a closing frame, endpoints enter a draining period.  An endpoint that receives a closing frame MAY send a single packet containing a CONNECTION_CLOSE frame before entering a draining period, but MUST NOT send further packets, which could result in a constant exchange of closing frames until the closing period on either peer ended.</p>
 <p id="rfc.section.7.9.3.p.5">An immediate close can be used after an application protocol has arranged to close a connection.  This might be after the application protocols negotiates a graceful shutdown.  The application protocol exchanges whatever messages that are needed to cause both endpoints to agree to close the connection, after which the application requests that the connection be closed.  The application protocol can use an APPLICATION_CLOSE message with an appropriate error code to signal closure.</p>
 <h3 id="rfc.section.7.9.4">
 <a href="#rfc.section.7.9.4">7.9.4.</a> <a href="#stateless-reset" id="stateless-reset">Stateless Reset</a>
@@ -2453,12 +2454,12 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <tr>
 <td class="reference"><b id="QUIC-RECOVERY">[QUIC-RECOVERY]</b></td>
 <td class="top">
-<a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-recovery">QUIC Loss Detection and Congestion Control</a>", Internet-Draft draft-ietf-quic-recovery, October 2017.</td>
+<a title="Google">Iyengar, J.</a> and <a title="Google">I. Swett</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-recovery">QUIC Loss Detection and Congestion Control</a>", Internet-Draft draft-ietf-quic-recovery, November 2017.</td>
 </tr>
 <tr>
 <td class="reference"><b id="QUIC-TLS">[QUIC-TLS]</b></td>
 <td class="top">
-<a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-tls">Using Transport Layer Security (TLS) to Secure QUIC</a>", Internet-Draft draft-ietf-quic-tls, October 2017.</td>
+<a title="Mozilla">Thomson, M.</a> and <a title="sn3rd">S. Turner</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-tls">Using Transport Layer Security (TLS) to Secure QUIC</a>", Internet-Draft draft-ietf-quic-tls, November 2017.</td>
 </tr>
 <tr>
 <td class="reference"><b id="RFC1191">[RFC1191]</b></td>

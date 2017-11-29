@@ -125,9 +125,9 @@ Internet-Draft           QUIC Transport Protocol           November 2017
      7.6.  Proof of Source Address Ownership . . . . . . . . . . . .  31
        7.6.1.  Client Address Validation Procedure . . . . . . . . .  32
        7.6.2.  Address Validation on Session Resumption  . . . . . .  33
-       7.6.3.  Address Validation Token Integrity  . . . . . . . . .  33
+       7.6.3.  Address Validation Token Integrity  . . . . . . . . .  34
      7.7.  Connection Migration  . . . . . . . . . . . . . . . . . .  34
-       7.7.1.  Privacy Implications of Connection Migration  . . . .  34
+       7.7.1.  Privacy Implications of Connection Migration  . . . .  35
        7.7.2.  Address Validation for Migrated Connections . . . . .  36
      7.8.  Spurious Connection Migrations  . . . . . . . . . . . . .  37
      7.9.  Connection Termination  . . . . . . . . . . . . . . . . .  38
@@ -1594,6 +1594,12 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    server MUST NOT reduce the value of initial_max_stream_id_bidi or
    initial_max_stream_id_uni.
 
+   Omitting or setting a zero value for certain transport parameters can
+   result in 0-RTT data being enabled, but not usable.  The following
+   transport parameters SHOULD be set to non-zero values for 0-RTT:
+   initial_max_stream_id_bidi, initial_max_stream_id_uni,
+   initial_max_data, initial_max_stream_data.
+
    A server MUST reject 0-RTT data or even abort a handshake if the
    implied values for transport parameters cannot be supported.
 
@@ -1611,13 +1617,7 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    The transport parameters include three fields that encode version
    information.  These retroactively authenticate the version
-   negotiation (see Section 7.2) that is performed prior to the
-   cryptographic handshake.
 
-   The cryptographic handshake provides integrity protection for the
-   negotiated version as part of the transport parameters (see
-   Section 7.4).  As a result, modification of version negotiation
-   packets by an attacker can be detected.
 
 
 
@@ -1625,6 +1625,14 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 29]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   negotiation (see Section 7.2) that is performed prior to the
+   cryptographic handshake.
+
+   The cryptographic handshake provides integrity protection for the
+   negotiated version as part of the transport parameters (see
+   Section 7.4).  As a result, modification of version negotiation
+   packets by an attacker can be detected.
 
    The client includes two fields in the transport parameters:
 
@@ -1666,14 +1674,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    The client can validate that the negotiated_version is included in
    the supported_versions list and - if version negotiation was
    performed - that it would have selected the negotiated version.  A
-   client MUST terminate the connection with a VERSION_NEGOTIATION_ERROR
-   error code if the negotiated_version value is not included in the
-   supported_versions list.  A client MUST terminate with a
-   VERSION_NEGOTIATION_ERROR error code if version negotiation occurred
-   but it would have selected a different version based on the value of
-   the supported_versions list.
-
-
 
 
 
@@ -1681,6 +1681,13 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 30]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   client MUST terminate the connection with a VERSION_NEGOTIATION_ERROR
+   error code if the negotiated_version value is not included in the
+   supported_versions list.  A client MUST terminate with a
+   VERSION_NEGOTIATION_ERROR error code if version negotiation occurred
+   but it would have selected a different version based on the value of
+   the supported_versions list.
 
    When an endpoint accepts multiple QUIC versions, it can potentially
    interpret transport parameters as they are defined by any of the QUIC
@@ -1723,13 +1730,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    This technique is used primarily to avoid QUIC from being used for
    traffic amplification attack.  In such an attack, a packet is sent to
    a server with spoofed source address information that identifies a
-   victim.  If a server generates more or larger packets in response to
-   that packet, the attacker can use the server to send more data toward
-   the victim than it would be able to send on its own.
-
-   Several methods are used in QUIC to mitigate this attack.  Firstly,
-   the initial handshake packet is padded to at least 1200 octets.  This
-
 
 
 
@@ -1738,6 +1738,12 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 31]
 Internet-Draft           QUIC Transport Protocol           November 2017
 
 
+   victim.  If a server generates more or larger packets in response to
+   that packet, the attacker can use the server to send more data toward
+   the victim than it would be able to send on its own.
+
+   Several methods are used in QUIC to mitigate this attack.  Firstly,
+   the initial handshake packet is padded to at least 1200 octets.  This
    allows a server to send a similar amount of data without risking
    causing an amplification attack toward an unproven remote address.
 
@@ -1780,12 +1786,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    If QUIC decides to request address validation, it provides the
    cryptographic handshake with a token.  The contents of this token are
-   consumed by the server that generates the token, so there is no need
-   for a single well-defined format.  A token could include information
-   about the claimed client address (IP and port), a timestamp, and any
-   other supplementary information the server will need to validate the
-   token in the future.
-
 
 
 
@@ -1793,6 +1793,12 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 32]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   consumed by the server that generates the token, so there is no need
+   for a single well-defined format.  A token could include information
+   about the claimed client address (IP and port), a timestamp, and any
+   other supplementary information the server will need to validate the
+   token in the future.
 
    The cryptographic handshake is responsible for enacting validation by
    sending the address validation token to the client.  A legitimate
@@ -1832,6 +1838,18 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    token is included in the ticket that is used for resumption and
    0-RTT, which is carried in a NewSessionTicket message.
 
+
+
+
+
+
+
+
+Iyengar & Thomson         Expires June 2, 2018                 [Page 33]
+
+Internet-Draft           QUIC Transport Protocol           November 2017
+
+
 7.6.3.  Address Validation Token Integrity
 
    An address validation token MUST be difficult to guess.  Including a
@@ -1842,14 +1860,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    associated with validation to the client.  For this design to work,
    the token MUST be covered by integrity protection against
    modification or falsification by clients.  Without integrity
-
-
-
-Iyengar & Thomson         Expires June 2, 2018                 [Page 33]
-
-Internet-Draft           QUIC Transport Protocol           November 2017
-
-
    protection, malicious clients could generate or guess values for
    tokens that would be accepted by the server.  Only the server
    requires access to the integrity protection key for tokens.
@@ -1888,6 +1898,14 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    An endpoint MUST validate that its peer can receive packets at the
    new address before sending any significant quantity of data to that
+
+
+
+Iyengar & Thomson         Expires June 2, 2018                 [Page 34]
+
+Internet-Draft           QUIC Transport Protocol           November 2017
+
+
    address, or it risks being used for denial of service.  See
    Section 7.7.2 for details.
 
@@ -1898,14 +1916,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    that moves between networks might not wish to have their activity
    correlated by any entity other than a server.  The NEW_CONNECTION_ID
    message can be sent by a server to provide an unlinkable connection
-
-
-
-Iyengar & Thomson         Expires June 2, 2018                 [Page 34]
-
-Internet-Draft           QUIC Transport Protocol           November 2017
-
-
    ID for use in case the client wishes to explicitly break linkability
    between two points of network attachment.
 
@@ -1945,22 +1955,19 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    sequence number as a 32-bit integer in big-endian format, and then
    computing:
 
-   Gap = HKDF-Expand-Label(packet_number_secret,
-                           "QUIC packet sequence gap", sequence, 4)
-
-   The output of HKDF-Expand-Label is interpreted as a big-endian
-   number. "packet_number_secret" is derived from the TLS key exchange,
-   as described in Section 5.6 of [QUIC-TLS].
-
-
-
-
 
 
 Iyengar & Thomson         Expires June 2, 2018                 [Page 35]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   Gap = HKDF-Expand-Label(packet_number_secret,
+                           "QUIC packet sequence gap", sequence, 4)
+
+   The output of HKDF-Expand-Label is interpreted as a big-endian
+   number. "packet_number_secret" is derived from the TLS key exchange,
+   as described in Section 5.6 of [QUIC-TLS].
 
 7.7.2.  Address Validation for Migrated Connections
 
@@ -2003,13 +2010,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    If validation of the new remote address fails, after allowing enough
    time for possible loss and recovery of packets carrying PING and PONG
    frames, the endpoint MUST terminate the connection.  When setting
-   this timer, implementations are cautioned that the new path could
-   have a longer round trip time than the original.  The endpoint MUST
-   NOT send a CONNECTION_CLOSE frame in this case; it has to assume that
-   the remote peer does not want to receive any more packets.
-
-   If the remote address is validated successfully, the endpoint MAY
-   increase the rate that it sends on the new path using the state from
 
 
 
@@ -2018,6 +2018,13 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 36]
 Internet-Draft           QUIC Transport Protocol           November 2017
 
 
+   this timer, implementations are cautioned that the new path could
+   have a longer round trip time than the original.  The endpoint MUST
+   NOT send a CONNECTION_CLOSE frame in this case; it has to assume that
+   the remote peer does not want to receive any more packets.
+
+   If the remote address is validated successfully, the endpoint MAY
+   increase the rate that it sends on the new path using the state from
    the previous path.  The capacity available on the new path might not
    be the same as the old path.  An endpoint MUST NOT restore its send
    rate unless it is reasonably sure that the path is the same as the
@@ -2058,13 +2065,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    necessary cryptographic keys to read or respond to the PING frame
    that is sent to it, even if it wanted to.  Such a spurious connection
    migration could result in the connection being dropped when the
-   source address validation fails.  This grants an attacker the ability
-   to terminate the connection.
-
-   Receipt of packets with higher packet numbers from the legitimate
-   address will trigger another connection migration.  This will cause
-   the validation of the address of the spurious migration to be
-   abandoned.
 
 
 
@@ -2073,6 +2073,14 @@ Iyengar & Thomson         Expires June 2, 2018                 [Page 37]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+   source address validation fails.  This grants an attacker the ability
+   to terminate the connection.
+
+   Receipt of packets with higher packet numbers from the legitimate
+   address will trigger another connection migration.  This will cause
+   the validation of the address of the spurious migration to be
+   abandoned.
 
    To ensure that a peer sends packets from the legitimate address
    before the validation of the new address can fail, an endpoint SHOULD
@@ -2114,6 +2122,14 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    The draining period exists to ensure that delayed or reordered
    packets are properly discarded.  This state SHOULD persist for three
    times the current Retransmission Timeout (RTO) interval as defined in
+
+
+
+Iyengar & Thomson         Expires June 2, 2018                 [Page 38]
+
+Internet-Draft           QUIC Transport Protocol           November 2017
+
+
    [QUIC-RECOVERY].  During this period no new application data can be
    sent on the connection.
 
@@ -2122,13 +2138,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    was closed.  An endpoint that is in a draining period MUST NOT send
    packets unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE
    frame.
-
-
-
-Iyengar & Thomson         Expires June 2, 2018                 [Page 38]
-
-Internet-Draft           QUIC Transport Protocol           November 2017
-
 
    Once the draining period has ended, an endpoint SHOULD discard per-
    connection state.  This results in new packets on the connection
@@ -2170,6 +2179,13 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    be implicitly reset.  After sending or receiving a CONNECTION_CLOSE
    frame, endpoints immediately enter a draining period.
 
+
+
+Iyengar & Thomson         Expires June 2, 2018                 [Page 39]
+
+Internet-Draft           QUIC Transport Protocol           November 2017
+
+
    During the draining period, an endpoint that sends a CONNECTION_CLOSE
    or APPLICATION_CLOSE frame SHOULD respond to any subsequent packet
    that it receives with another packet containing either close frame.
@@ -2178,13 +2194,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    number of packets they generate containing either close frame.  For
    instance, an endpoint could progressively increase the number of
    packets that it receives before sending additional packets.
-
-
-
-Iyengar & Thomson         Expires June 2, 2018                 [Page 39]
-
-Internet-Draft           QUIC Transport Protocol           November 2017
-
 
    Note:  Allowing retransmission of a packet contradicts other advice
       in this document that recommends the creation of new packet
@@ -2219,15 +2228,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
    A server that receives packets that it cannot process sends a packet
    in the following layout:
-
-
-
-
-
-
-
-
-
 
 
 

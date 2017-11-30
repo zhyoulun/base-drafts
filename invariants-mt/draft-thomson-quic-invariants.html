@@ -395,8 +395,6 @@ address {
 <p id="rfc.section.1.p.1">In addition to providing secure, multiplexed transport, QUIC <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a> includes the ability to negotiate a version.  This allows the protocol to change over time in response to new requirements.  Many characteristics of the protocol will change between versions.</p>
 <p id="rfc.section.1.p.2">This document describes the subset of QUIC that is intended to remain stable as new versions are developed and deployed.</p>
 <p id="rfc.section.1.p.3">The primary goal of this document is to ensure that it is possible deploy new versions of QUIC.  By documenting the things that can&#8217;t change, this document aims to preserve the ability to change any other aspect of the protocol.  Thus, unless specifically described in this document, any aspect of the protocol can change between different versions.</p>
-<p id="rfc.section.1.p.4">Part of ensuring that version negotiation works is ensuring that middleboxes are able to correctly function with any version of QUIC.  Critical functions that rely on middlebox support need to remain constant across versions or deployment of new versions.  Otherwise, deployment of new versions could be complicated by the need to coordinate with middleboxes that aren&#8217;t directly involved in the version negotiation process.</p>
-<p id="rfc.section.1.p.5">This document identifies a single critical function for a middlebox: ensuring delivery of packets to the intended instance of an endpoint.  To that end, this document defines the representation of the connection ID.</p>
 <p><a href="#bad-assumptions" class="xref">Appendix A</a> is a non-exhaustive list of some incorrect assumptions that might be made based on knowledge of QUIC version 1; these do not apply to every version of QUIC.</p>
 <h1 id="rfc.section.2">
 <a href="#rfc.section.2">2.</a> <a href="#conventions-and-definitions" id="conventions-and-definitions">Conventions and Definitions</a>
@@ -409,7 +407,7 @@ address {
 <h1 id="rfc.section.4">
 <a href="#rfc.section.4">4.</a> <a href="#quic-packet-headers" id="quic-packet-headers">QUIC Packet Headers</a>
 </h1>
-<p id="rfc.section.4.p.1">A QUIC packet is the content of the UDP datagrams exchanged by QUIC endpoints.  This document describes the payload of those datagrams.</p>
+<p id="rfc.section.4.p.1">A QUIC packet is the content of the UDP datagrams exchanged by QUIC endpoints.  This document describes the contents of those datagrams.</p>
 <p id="rfc.section.4.p.2">QUIC defines two types of packet header: long and short.  Long packets are identified by the most significant bit of the first octet being set; short packets have that bit cleared.</p>
 <p id="rfc.section.4.p.3">Aside from the values described here, the payload of QUIC packets is version-specific and of arbitrary length.</p>
 <h2 id="rfc.section.4.1">
@@ -434,7 +432,8 @@ address {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 1: QUIC Long Header</p>
-<p id="rfc.section.4.1.p.2">That is, a packet with the high bit of the first octet set to 1 has two fixed fields: a Connection ID (see <a href="#connection-id" class="xref">Section 4.3</a>) and a Version (see <a href="#version" class="xref">Section 4.4</a>).</p>
+<p id="rfc.section.4.1.p.2">A QUIC packet with a long header has the high bit of the first octet set to 1.</p>
+<p id="rfc.section.4.1.p.3">A QUIC packet with a long header has two fixed fields immediately following the first octet: a 64-bit Connection ID (see <a href="#connection-id" class="xref">Section 4.3</a>) and a 32-bit Version (see <a href="#version" class="xref">Section 4.4</a>).</p>
 <h2 id="rfc.section.4.2">
 <a href="#rfc.section.4.2">4.2.</a> <a href="#short-header" id="short-header">Short Header</a>
 </h2>
@@ -455,13 +454,14 @@ address {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 2: QUIC Short Header</p>
-<p id="rfc.section.4.2.p.2">A short header has the high bit of the first octet set to 1.  The second bit of that octet (that is, 0x40) determines whether the connection ID is present.  If cleared, the connection ID is present.  If the second bit is set, the entire contents of the packet have version-specific semantics.</p>
+<p id="rfc.section.4.2.p.2">A QUIC packet with a short header has the high bit of the first octet set to 0.</p>
+<p id="rfc.section.4.2.p.3">A QUIC packet with a short header includes an optional connection ID and no version field.  The second bit of that octet (that is, 0x40) determines whether the connection ID is present.  If the second bit is cleared, a 64-bit connection ID immediately follows the first octet.  If the second bit is set, the remainder of the packet has version-specific semantics.</p>
 <h2 id="rfc.section.4.3">
 <a href="#rfc.section.4.3">4.3.</a> <a href="#connection-id" id="connection-id">Connection ID</a>
 </h2>
 <p id="rfc.section.4.3.p.1">A connection ID is an opaque 64-bit field.</p>
-<p id="rfc.section.4.3.p.2">The primary function of a connection ID is to ensure that changes in addressing at lower protocols layers (UDP, IP, and below) don&#8217;t cause a QUIC connection to be lost.  The connection ID is used by endpoints and the intermediaries that support them to ensure that each QUIC packet can be delivered to the correct instance of an endpoint.  At the endpoint, the connection ID is used to identify which QUIC connection the packet is intended for.</p>
-<p id="rfc.section.4.3.p.3">The connection ID is chosen by endpoints using version-specific methods.</p>
+<p id="rfc.section.4.3.p.2">The primary function of a connection ID is to ensure that changes in addressing at lower protocol layers (UDP, IP, and below) don&#8217;t cause packets for a QUIC connection to be delivered to the wrong endpoint.  The connection ID is used by endpoints and the intermediaries that support them to ensure that each QUIC packet can be delivered to the correct instance of an endpoint.  At the endpoint, the connection ID is used to identify which QUIC connection the packet is intended for.</p>
+<p id="rfc.section.4.3.p.3">The connection ID is chosen by endpoints using version-specific methods.  Packets for the same QUIC connection might use different connection ID values.</p>
 <h2 id="rfc.section.4.4">
 <a href="#rfc.section.4.4">4.4.</a> <a href="#version" id="version">Version</a>
 </h2>
@@ -469,8 +469,8 @@ address {
 <h1 id="rfc.section.5">
 <a href="#rfc.section.5">5.</a> <a href="#version-negotiation" id="version-negotiation">Version Negotiation</a>
 </h1>
-<p id="rfc.section.5.p.1">A QUIC endpoint that receives a packet with a long header and a version it either does not understand or does not support sends a Version Negotiation Packet in response.  Packets with a short header do not trigger version negotiation and are always associated with an existing connection.</p>
-<p id="rfc.section.5.p.2">A Version Negotiation packet sets the high bit of the first octet, and thus it conforms with the format of a packet with a long header.  A Version Negotiation packets is identifiable as such by the Version field, which is set to 0x00000000.</p>
+<p id="rfc.section.5.p.1">A QUIC endpoint that receives a packet with a long header and a version it either does not understand or does not support sends a Version Negotiation packet in response.  Packets with a short header do not trigger version negotiation and are always associated with an existing connection.</p>
+<p id="rfc.section.5.p.2">A Version Negotiation packet sets the high bit of the first octet, and thus it conforms with the format of a packet with a long header as defined in this document.  A Version Negotiation packet is identifiable as such by the Version field, which is set to 0x00000000.</p>
 <div id="rfc.figure.3"></div>
 <div id="version-negotiation-format"></div>
 <pre>
@@ -496,16 +496,15 @@ address {
 </pre>
 <p class="figure">Figure 3: Version Negotiation Packet</p>
 <p id="rfc.section.5.p.3">The Version Negotiation packet contains a list of Supported Version fields, each identifying a version that the endpoint sending the packet supports.  The Supported Version fields follow the Version field.  A Version Negotiation packet contains no other fields.  An endpoint MUST ignore a packet that contains no Supported Version fields, or a truncated Supported Version.</p>
-<p id="rfc.section.5.p.4">Version Negotiation packets are not integrity or confidentiality protected.  The values contained in them might be authenticated as part of the QUIC version that is negotiated.</p>
+<p id="rfc.section.5.p.4">Version Negotiation packets do not use integrity or confidentiality protection.  A specific QUIC version might authenticate the packet as part of its connection establishment process.</p>
 <p id="rfc.section.5.p.5">The Connection ID field in a Version Negotiation packet contains the Connection ID from the packet that was received.  This provides some protection against injection of Version Negotiation packets by off-path attackers.</p>
-<p id="rfc.section.5.p.6">An endpoint that receives a Version Negotiation packet might change the version that it decides to use for subsequent packets.  This usually involves starting an interaction over from scratch.  The conditions under which an endpoint changes QUIC version will depend on the version of QUIC that it chooses.</p>
+<p id="rfc.section.5.p.6">An endpoint that receives a Version Negotiation packet might change the version that it decides to use for subsequent packets.  The conditions under which an endpoint changes QUIC version will depend on the version of QUIC that it chooses.</p>
 <p id="rfc.section.5.p.7">See <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a> for a more thorough description of how an endpoint that supports QUIC version 1 generates and consumes a Version Negotiation packet.</p>
 <h1 id="rfc.section.6">
 <a href="#rfc.section.6">6.</a> <a href="#security-and-privacy-considerations" id="security-and-privacy-considerations">Security and Privacy Considerations</a>
 </h1>
-<p id="rfc.section.6.p.1">It is possible that middleboxes could use traits of a specific version of QUIC and assume that when other versions of QUIC exhibit similar traits the same underlying semantic is being expressed.  There are potentially many such traits (see <a href="#bad-assumptions" class="xref">Appendix A</a>).  Some effort has been made to either eliminate or obscure some observable traits in QUIC version 1, but many of these remain.  Other QUIC versions might make different design decisions and so exhibit different traits, intentionally or otherwise.</p>
-<p id="rfc.section.6.p.2">The QUIC version number does not appear in all QUIC packets, which means that reliably extracting information from a flow based on version-specific traits requires that middleboxes retain state for every connection ID they see.  Maintaining state is costly, and therefore it could be easier to make assumptions about the properties of packets based on deployment patterns of QUIC versions than to use stateful inspection.</p>
-<p id="rfc.section.6.p.3">Wide use of bad assumptions about the properties of a flow based on version-specific traits could make it difficult or even untenable to deploy new protocol versions that change affected parts of the packet.</p>
+<p id="rfc.section.6.p.1">It is possible that middleboxes could use traits of a specific version of QUIC and assume that when other versions of QUIC exhibit similar traits the same underlying semantic is being expressed.  There are potentially many such traits (see <a href="#bad-assumptions" class="xref">Appendix A</a>).  Some effort has been made to either eliminate or obscure some observable traits in QUIC version 1, but many of these remain.  Other QUIC versions might make different design decisions and so exhibit different traits.</p>
+<p id="rfc.section.6.p.2">The QUIC version number does not appear in all QUIC packets, which means that reliably extracting information from a flow based on version-specific traits requires that middleboxes retain state for every connection ID they see.</p>
 <h1 id="rfc.section.7">
 <a href="#rfc.section.7">7.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a>
 </h1>

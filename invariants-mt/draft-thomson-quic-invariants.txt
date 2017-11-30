@@ -74,7 +74,7 @@ Table of Contents
    2.  Conventions and Definitions . . . . . . . . . . . . . . . . .   3
    3.  An Extremely Abstract Description of QUIC . . . . . . . . . .   3
    4.  QUIC Packet Headers . . . . . . . . . . . . . . . . . . . . .   3
-     4.1.  Long Header . . . . . . . . . . . . . . . . . . . . . . .   4
+     4.1.  Long Header . . . . . . . . . . . . . . . . . . . . . . .   3
      4.2.  Short Header  . . . . . . . . . . . . . . . . . . . . . .   4
      4.3.  Connection ID . . . . . . . . . . . . . . . . . . . . . .   5
      4.4.  Version . . . . . . . . . . . . . . . . . . . . . . . . .   5
@@ -83,7 +83,7 @@ Table of Contents
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   7
    8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
      8.1.  Normative References  . . . . . . . . . . . . . . . . . .   7
-     8.2.  Informative References  . . . . . . . . . . . . . . . . .   8
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .   7
      8.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .   8
    Appendix A.  Incorrect Assumptions  . . . . . . . . . . . . . . .   8
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   9
@@ -114,19 +114,6 @@ Thomson                   Expires June 3, 2018                  [Page 2]
 Internet-Draft               QUIC Invariants               November 2017
 
 
-   Part of ensuring that version negotiation works is ensuring that
-   middleboxes are able to correctly function with any version of QUIC.
-   Critical functions that rely on middlebox support need to remain
-   constant across versions or deployment of new versions.  Otherwise,
-   deployment of new versions could be complicated by the need to
-   coordinate with middleboxes that aren't directly involved in the
-   version negotiation process.
-
-   This document identifies a single critical function for a middlebox:
-   ensuring delivery of packets to the intended instance of an endpoint.
-   To that end, this document defines the representation of the
-   connection ID.
-
    Appendix A is a non-exhaustive list of some incorrect assumptions
    that might be made based on knowledge of QUIC version 1; these do not
    apply to every version of QUIC.
@@ -149,7 +136,7 @@ Internet-Draft               QUIC Invariants               November 2017
 4.  QUIC Packet Headers
 
    A QUIC packet is the content of the UDP datagrams exchanged by QUIC
-   endpoints.  This document describes the payload of those datagrams.
+   endpoints.  This document describes the contents of those datagrams.
 
    QUIC defines two types of packet header: long and short.  Long
    packets are identified by the most significant bit of the first octet
@@ -157,6 +144,19 @@ Internet-Draft               QUIC Invariants               November 2017
 
    Aside from the values described here, the payload of QUIC packets is
    version-specific and of arbitrary length.
+
+4.1.  Long Header
+
+   Long headers take the form described in Figure 1.  Bits that have
+   version-specific semantics are marked with an X.
+
+
+
+
+
+
+
+
 
 
 
@@ -169,11 +169,6 @@ Thomson                   Expires June 3, 2018                  [Page 3]
 
 Internet-Draft               QUIC Invariants               November 2017
 
-
-4.1.  Long Header
-
-   Long headers take the form described in Figure 1.  Bits that have
-   version-specific semantics are marked with an X.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -191,9 +186,12 @@ Internet-Draft               QUIC Invariants               November 2017
 
                         Figure 1: QUIC Long Header
 
-   That is, a packet with the high bit of the first octet set to 1 has
-   two fixed fields: a Connection ID (see Section 4.3) and a Version
-   (see Section 4.4).
+   A QUIC packet with a long header has the high bit of the first octet
+   set to 1.
+
+   A QUIC packet with a long header has two fixed fields immediately
+   following the first octet: a 64-bit Connection ID (see Section 4.3)
+   and a 32-bit Version (see Section 4.4).
 
 4.2.  Short Header
 
@@ -214,10 +212,12 @@ Internet-Draft               QUIC Invariants               November 2017
 
                         Figure 2: QUIC Short Header
 
-   A short header has the high bit of the first octet set to 1.  The
-   second bit of that octet (that is, 0x40) determines whether the
-   connection ID is present.  If cleared, the connection ID is present.
+   A QUIC packet with a short header has the high bit of the first octet
+   set to 0.
 
+   A QUIC packet with a short header includes an optional connection ID
+   and no version field.  The second bit of that octet (that is, 0x40)
+   determines whether the connection ID is present.  If the second bit
 
 
 
@@ -226,7 +226,8 @@ Thomson                   Expires June 3, 2018                  [Page 4]
 Internet-Draft               QUIC Invariants               November 2017
 
 
-   If the second bit is set, the entire contents of the packet have
+   is cleared, a 64-bit connection ID immediately follows the first
+   octet.  If the second bit is set, the remainder of the packet has
    version-specific semantics.
 
 4.3.  Connection ID
@@ -234,15 +235,16 @@ Internet-Draft               QUIC Invariants               November 2017
    A connection ID is an opaque 64-bit field.
 
    The primary function of a connection ID is to ensure that changes in
-   addressing at lower protocols layers (UDP, IP, and below) don't cause
-   a QUIC connection to be lost.  The connection ID is used by endpoints
-   and the intermediaries that support them to ensure that each QUIC
-   packet can be delivered to the correct instance of an endpoint.  At
-   the endpoint, the connection ID is used to identify which QUIC
-   connection the packet is intended for.
+   addressing at lower protocol layers (UDP, IP, and below) don't cause
+   packets for a QUIC connection to be delivered to the wrong endpoint.
+   The connection ID is used by endpoints and the intermediaries that
+   support them to ensure that each QUIC packet can be delivered to the
+   correct instance of an endpoint.  At the endpoint, the connection ID
+   is used to identify which QUIC connection the packet is intended for.
 
    The connection ID is chosen by endpoints using version-specific
-   methods.
+   methods.  Packets for the same QUIC connection might use different
+   connection ID values.
 
 4.4.  Version
 
@@ -254,17 +256,15 @@ Internet-Draft               QUIC Invariants               November 2017
 
    A QUIC endpoint that receives a packet with a long header and a
    version it either does not understand or does not support sends a
-   Version Negotiation Packet in response.  Packets with a short header
+   Version Negotiation packet in response.  Packets with a short header
    do not trigger version negotiation and are always associated with an
    existing connection.
 
    A Version Negotiation packet sets the high bit of the first octet,
-   and thus it conforms with the format of a packet with a long header.
-   A Version Negotiation packets is identifiable as such by the Version
-   field, which is set to 0x00000000.
-
-
-
+   and thus it conforms with the format of a packet with a long header
+   as defined in this document.  A Version Negotiation packet is
+   identifiable as such by the Version field, which is set to
+   0x00000000.
 
 
 
@@ -311,9 +311,9 @@ Internet-Draft               QUIC Invariants               November 2017
    endpoint MUST ignore a packet that contains no Supported Version
    fields, or a truncated Supported Version.
 
-   Version Negotiation packets are not integrity or confidentiality
-   protected.  The values contained in them might be authenticated as
-   part of the QUIC version that is negotiated.
+   Version Negotiation packets do not use integrity or confidentiality
+   protection.  A specific QUIC version might authenticate the packet as
+   part of its connection establishment process.
 
    The Connection ID field in a Version Negotiation packet contains the
    Connection ID from the packet that was received.  This provides some
@@ -321,14 +321,14 @@ Internet-Draft               QUIC Invariants               November 2017
    path attackers.
 
    An endpoint that receives a Version Negotiation packet might change
-   the version that it decides to use for subsequent packets.  This
-   usually involves starting an interaction over from scratch.  The
+   the version that it decides to use for subsequent packets.  The
    conditions under which an endpoint changes QUIC version will depend
    on the version of QUIC that it chooses.
 
    See [QUIC-TRANSPORT] for a more thorough description of how an
    endpoint that supports QUIC version 1 generates and consumes a
    Version Negotiation packet.
+
 
 
 
@@ -347,20 +347,12 @@ Internet-Draft               QUIC Invariants               November 2017
    has been made to either eliminate or obscure some observable traits
    in QUIC version 1, but many of these remain.  Other QUIC versions
    might make different design decisions and so exhibit different
-   traits, intentionally or otherwise.
+   traits.
 
    The QUIC version number does not appear in all QUIC packets, which
    means that reliably extracting information from a flow based on
    version-specific traits requires that middleboxes retain state for
-   every connection ID they see.  Maintaining state is costly, and
-   therefore it could be easier to make assumptions about the properties
-   of packets based on deployment patterns of QUIC versions than to use
-   stateful inspection.
-
-   Wide use of bad assumptions about the properties of a flow based on
-   version-specific traits could make it difficult or even untenable to
-   deploy new protocol versions that change affected parts of the
-   packet.
+   every connection ID they see.
 
 7.  IANA Considerations
 
@@ -384,16 +376,6 @@ Internet-Draft               QUIC Invariants               November 2017
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
-
-
-
-
-
-Thomson                   Expires June 3, 2018                  [Page 7]
-
-Internet-Draft               QUIC Invariants               November 2017
-
-
 8.2.  Informative References
 
    [QUIC-TLS]
@@ -404,6 +386,13 @@ Internet-Draft               QUIC Invariants               November 2017
    [RFC5116]  McGrew, D., "An Interface and Algorithms for Authenticated
               Encryption", RFC 5116, DOI 10.17487/RFC5116, January 2008,
               <https://www.rfc-editor.org/info/rfc5116>.
+
+
+
+Thomson                   Expires June 3, 2018                  [Page 7]
+
+Internet-Draft               QUIC Invariants               November 2017
+
 
 8.3.  URIs
 
@@ -443,13 +432,6 @@ Appendix A.  Incorrect Assumptions
    o  QUIC uses an AEAD (AEAD_AES_128_GCM [RFC5116]) to protect the
       packets it exchanges during connection establishment
 
-
-
-Thomson                   Expires June 3, 2018                  [Page 8]
-
-Internet-Draft               QUIC Invariants               November 2017
-
-
    o  QUIC packet numbers appear after the Version field
 
    o  QUIC packet numbers increase by one for every packet sent
@@ -460,6 +442,13 @@ Internet-Draft               QUIC Invariants               November 2017
    o  QUIC stipulates that a client speaks first
 
    o  A QUIC Version Negotiation packet is only sent by a server
+
+
+
+Thomson                   Expires June 3, 2018                  [Page 8]
+
+Internet-Draft               QUIC Invariants               November 2017
+
 
    o  A QUIC connection ID changes infrequently
 
@@ -479,6 +468,17 @@ Author's Address
    Mozilla
 
    Email: martin.thomson@gmail.com
+
+
+
+
+
+
+
+
+
+
+
 
 
 

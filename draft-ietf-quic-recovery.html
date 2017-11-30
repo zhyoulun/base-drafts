@@ -565,8 +565,9 @@ address {
 <h2 id="rfc.section.3.1">
 <a href="#rfc.section.3.1">3.1.</a> <a href="#computing-the-rtt-estimate" id="computing-the-rtt-estimate">Computing the RTT estimate</a>
 </h2>
-<p id="rfc.section.3.1.p.1">RTT is calculated when an ACK frame arrives by computing the difference between the current time and the time the largest newly acked packet was sent.  If no packets are newly acknowledged, RTT cannot be calculated. When RTT is calculated, the ack delay field from the ACK frame SHOULD be subtracted from the RTT as long as the result is positive.</p>
+<p id="rfc.section.3.1.p.1">RTT is calculated when an ACK frame arrives by computing the difference between the current time and the time the largest newly acked packet was sent.  If no packets are newly acknowledged, RTT cannot be calculated. When RTT is calculated, the ack delay field from the ACK frame SHOULD be subtracted from the RTT as long as the result is larger than the Min RTT.  If the result is smaller than the min_rtt, the RTT should be used, but the ack delay field should be ignored.</p>
 <p id="rfc.section.3.1.p.2">Like TCP, QUIC calculates both smoothed RTT and RTT variance as specified in <a href="#RFC6298" class="xref">[RFC6298]</a>.</p>
+<p id="rfc.section.3.1.p.3">Min RTT is the minimum RTT measured over the connection, prior to adjusting by ack delay.  Ignoring ack delay for min RTT prevents intentional or unintentional underestimation of min RTT, which in turn prevents underestimating smoothed RTT.</p>
 <h2 id="rfc.section.3.2">
 <a href="#rfc.section.3.2">3.2.</a> <a href="#ack-based-detection" id="ack-based-detection">Ack-based Detection</a>
 </h2>
@@ -706,6 +707,8 @@ address {
 <dt>rttvar:</dt>
 <dd style="margin-left: 8">The RTT variance, computed as described in <a href="#RFC6298" class="xref">[RFC6298]</a>
 </dd>
+<dt>min_rtt:</dt>
+<dd style="margin-left: 8">The minimum RTT seen in the connection, ignoring ack delay.</dd>
 <dt>reordering_threshold:</dt>
 <dd style="margin-left: 8">The largest delta between the largest acked retransmittable packet and a packet containing retransmittable frames before it&#8217;s declared lost.</dd>
 <dt>time_reordering_fraction:</dt>
@@ -733,6 +736,7 @@ address {
    loss_time = 0
    smoothed_rtt = 0
    rttvar = 0
+   min_rtt = 0
    largest_sent_before_rto = 0
    time_of_last_sent_packet = 0
    largest_sent_packet = 0
@@ -771,9 +775,7 @@ address {
      // If the largest acked is newly acked, update the RTT.
      if (sent_packets[ack.largest_acked]):
        latest_rtt = now - sent_packets[ack.largest_acked].time
-       if (latest_rtt &gt; ack.ack_delay):
-         latest_rtt -= ack.delay
-       UpdateRtt(latest_rtt)
+       UpdateRtt(latest_rtt, ack.ack_delay)
      // Find all newly acked packets.
      for acked_packet in DetermineNewlyAckedPackets():
        OnPacketAcked(acked_packet.packet_number)
@@ -782,7 +784,12 @@ address {
      SetLossDetectionAlarm()
 
 
-   UpdateRtt(latest_rtt):
+   UpdateRtt(latest_rtt, ack_delay):
+     // min_rtt ignores ack delay.
+     min_rtt = min(min_rtt, latest_rtt)
+     // Adjust for ack delay if it's plausible.
+     if (latest_rtt - min_rtt &gt; ack_delay):
+       latest_rtt -= ack_delay
      // Based on {{RFC6298}}.
      if (smoothed_rtt == 0):
        smoothed_rtt = latest_rtt

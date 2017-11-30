@@ -100,7 +100,7 @@ Table of Contents
      5.7.  Packet Numbers  . . . . . . . . . . . . . . . . . . . . .  17
        5.7.1.  Initial Packet Number . . . . . . . . . . . . . . . .  18
      5.8.  Handling Packets from Different Versions  . . . . . . . .  18
-   6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  18
+   6.  Frames and Frame Types  . . . . . . . . . . . . . . . . . . .  19
    7.  Life of a Connection  . . . . . . . . . . . . . . . . . . . .  20
      7.1.  Matching Packets to Connections . . . . . . . . . . . . .  21
      7.2.  Version Negotiation . . . . . . . . . . . . . . . . . . .  22
@@ -962,14 +962,22 @@ Internet-Draft           QUIC Transport Protocol           November 2017
 
 5.7.1.  Initial Packet Number
 
-   The initial value for packet number MUST be selected from an uniform
-   random distribution between 0 and 2^31-1.  That is, the lower 31 bits
-   of the packet number are randomized.  [RFC4086] provides guidance on
-   the generation of random values.
+   The initial value for packet number MUST be selected randomly from a
+   range between 0 and 2^32 - 1025 (inclusive).  This value is selected
+   so that Initial and Handshake packets exercise as many possible
+   values for the Packet Number field as possible.
 
-   The first set of packets sent by an endpoint MUST include the low
-   32-bits of the packet number.  Once any packet has been acknowledged,
-   subsequent packets can use a shorter packet number encoding.
+   Limiting the range allows both for loss of packets and for any
+   stateless exchanges.  Packet numbers are incremented for subsequent
+   packets, but packet loss and stateless handling can both mean that
+   the first packet sent by an endpoint isn't necessarily the first
+   packet received by its peer.  The first packet received by a peer
+   cannot be 2^32 or greater or the recipient will incorrectly assume a
+   packet number that is 2^32 values lower and discard the packet.
+
+   Use of a secure random number generator [RFC4086] is not necessary
+   for generating the initial packet number, nor is it necessary that
+   the value be uniformly distributed.
 
 5.8.  Handling Packets from Different Versions
 
@@ -994,14 +1002,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    unknown packet format.  All other fields MUST be ignored when
    processing a packet that contains an unsupported version.
 
-6.  Frames and Frame Types
-
-   The payload of all packets, after removing packet protection,
-   consists of a sequence of frames, as shown in Figure 4.  Version
-   Negotiation and Stateless Reset do not contain frames.
-
-
-
 
 
 
@@ -1009,6 +1009,12 @@ Iyengar & Thomson         Expires June 3, 2018                 [Page 18]
 
 Internet-Draft           QUIC Transport Protocol           November 2017
 
+
+6.  Frames and Frame Types
+
+   The payload of all packets, after removing packet protection,
+   consists of a sequence of frames, as shown in Figure 4.  Version
+   Negotiation and Stateless Reset do not contain frames.
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1044,12 +1050,6 @@ Internet-Draft           QUIC Transport Protocol           November 2017
    For all other frames, the Frame Type byte simply identifies the
    frame.  These frames are explained in more detail as they are
    referenced later in the document.
-
-
-
-
-
-
 
 
 

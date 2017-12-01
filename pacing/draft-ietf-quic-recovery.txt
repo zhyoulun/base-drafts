@@ -102,7 +102,7 @@ Table of Contents
      4.3.  Recovery Period . . . . . . . . . . . . . . . . . . . . .  20
      4.4.  Tail Loss Probe . . . . . . . . . . . . . . . . . . . . .  20
      4.5.  Retransmission Timeout  . . . . . . . . . . . . . . . . .  20
-     4.6.  Pacing Rate . . . . . . . . . . . . . . . . . . . . . . .  21
+     4.6.  Pacing  . . . . . . . . . . . . . . . . . . . . . . . . .  21
      4.7.  Pseudocode  . . . . . . . . . . . . . . . . . . . . . . .  21
        4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  21
        4.7.2.  Variables of interest . . . . . . . . . . . . . . . .  21
@@ -117,7 +117,7 @@ Internet-Draft             QUIC Loss Detection             December 2017
        4.7.3.  Initialization  . . . . . . . . . . . . . . . . . . .  22
        4.7.4.  On Packet Sent  . . . . . . . . . . . . . . . . . . .  22
        4.7.5.  On Packet Acknowledgement . . . . . . . . . . . . . .  22
-       4.7.6.  On Packets Lost . . . . . . . . . . . . . . . . . . .  23
+       4.7.6.  On Packets Lost . . . . . . . . . . . . . . . . . . .  22
        4.7.7.  On Retransmission Timeout Verified  . . . . . . . . .  23
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  23
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  23
@@ -131,7 +131,7 @@ Internet-Draft             QUIC Loss Detection             December 2017
      B.3.  Since draft-ietf-quic-recovery-04 . . . . . . . . . . . .  25
      B.4.  Since draft-ietf-quic-recovery-03 . . . . . . . . . . . .  25
      B.5.  Since draft-ietf-quic-recovery-02 . . . . . . . . . . . .  25
-     B.6.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  26
+     B.6.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  25
      B.7.  Since draft-ietf-quic-recovery-00 . . . . . . . . . . . .  26
      B.8.  Since draft-iyengar-quic-loss-recovery-01 . . . . . . . .  26
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  26
@@ -1055,9 +1055,9 @@ Internet-Draft             QUIC Loss Detection             December 2017
 4.  Congestion Control
 
    QUIC's congestion control is based on TCP NewReno[RFC6582] congestion
-   control to determine the congestion window and pacing rate.  QUIC
-   congestion control is specified in bytes due to finer control and the
-   ease of appropriate byte counting[RFC3465].
+   control to determine the congestion window.  QUIC congestion control
+   is specified in bytes due to finer control and the ease of
+   appropriate byte counting[RFC3465].
 
 
 
@@ -1102,15 +1102,15 @@ Internet-Draft             QUIC Loss Detection             December 2017
 4.4.  Tail Loss Probe
 
    If recovery sends a tail loss probe, no change is made to the
-   congestion window or pacing rate.  Acknowledgement or loss of tail
-   loss probes are treated like any other packet.
+   congestion window.  Acknowledgement or loss of tail loss probes are
+   treated like any other packet.
 
 4.5.  Retransmission Timeout
 
    When retransmissions are sent due to a retransmission timeout alarm,
-   no change is made to the congestion window or pacing rate until the
-   next acknowledgement arrives.  When an ack arrives, if packets prior
-   to the first retransmission timeout are acknowledged, then the
+   no change is made to the congestion window until the next
+   acknowledgement arrives.  When an ack arrives, if packets prior to
+   the first retransmission timeout are acknowledged, then the
    congestion window remains the same.  If no packets prior to the first
    retransmission timeout are acknowledged, the retransmission timeout
 
@@ -1125,15 +1125,10 @@ Internet-Draft             QUIC Loss Detection             December 2017
    has been validated and the congestion window must be reduced to the
    minimum congestion window and slow start is begun.
 
-4.6.  Pacing Rate
+4.6.  Pacing
 
-   The pacing rate is a function of the mode, the congestion window, and
-   the smoothed rtt.  Specifically, the pacing rate is 2 times the
-   congestion window divided by the smoothed RTT during slow start and
-   1.25 times the congestion window divided by the smoothed RTT during
-   congestion avoidance.  In order to fairly compete with flows that are
-   not pacing, it is recommended to not pace the first 10 sent packets
-   when exiting quiescence.
+   It is RECOMMENDED that senders pace sending of all data, distributing
+   the congestion window over the SRTT.
 
 4.7.  Pseudocode
 
@@ -1170,6 +1165,11 @@ Internet-Draft             QUIC Loss Detection             December 2017
    congestion_window:  Maximum number of bytes in flight that may be
       sent.
 
+   end_of_recovery:  The largest packet number sent when QUIC detects a
+      loss.  When a larger packet is acknowledged, QUIC exits recovery.
+
+
+
 
 
 
@@ -1177,9 +1177,6 @@ Iyengar & Swett           Expires June 4, 2018                 [Page 21]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   end_of_recovery:  The largest packet number sent when QUIC detects a
-      loss.  When a larger packet is acknowledged, QUIC exits recovery.
 
    ssthresh  Slow start threshold in bytes.  When the congestion window
       is below ssthresh, the mode is slow start and the window grows by
@@ -1222,7 +1219,10 @@ Internet-Draft             QUIC Loss Detection             December 2017
           congestion_window +=
             kDefaultMss * acked_packets.bytes / congestion_window
 
+4.7.6.  On Packets Lost
 
+   Invoked by loss detection from DetectLostPackets when new packets are
+   detected lost.
 
 
 
@@ -1233,11 +1233,6 @@ Iyengar & Swett           Expires June 4, 2018                 [Page 22]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-4.7.6.  On Packets Lost
-
-   Invoked by loss detection from DetectLostPackets when new packets are
-   detected lost.
 
       OnPacketsLost(lost_packets):
         // Remove lost packets from bytes_in_flight.
@@ -1283,16 +1278,17 @@ Internet-Draft             QUIC Loss Detection             December 2017
               Events", RFC 4653, DOI 10.17487/RFC4653, August 2006,
               <https://www.rfc-editor.org/info/rfc4653>.
 
+   [RFC5681]  Allman, M., Paxson, V., and E. Blanton, "TCP Congestion
+              Control", RFC 5681, DOI 10.17487/RFC5681, September 2009,
+              <https://www.rfc-editor.org/info/rfc5681>.
+
+
 
 
 Iyengar & Swett           Expires June 4, 2018                 [Page 23]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   [RFC5681]  Allman, M., Paxson, V., and E. Blanton, "TCP Congestion
-              Control", RFC 5681, DOI 10.17487/RFC5681, September 2009,
-              <https://www.rfc-editor.org/info/rfc5681>.
 
    [RFC5682]  Sarolahti, P., Kojo, M., Yamamoto, K., and M. Hata,
               "Forward RTO-Recovery (F-RTO): An Algorithm for Detecting
@@ -1338,6 +1334,10 @@ Internet-Draft             QUIC Loss Detection             December 2017
               RFC 6582, DOI 10.17487/RFC6582, April 2012,
               <https://www.rfc-editor.org/info/rfc6582>.
 
+   [TLP]      Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
+              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
+              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
+              in progress), February 2013.
 
 
 
@@ -1345,11 +1345,6 @@ Iyengar & Swett           Expires June 4, 2018                 [Page 24]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   [TLP]      Dukkipati, N., Cardwell, N., Cheng, Y., and M. Mathis,
-              "Tail Loss Probe (TLP): An Algorithm for Fast Recovery of
-              Tail Losses", draft-dukkipati-tcpm-tcp-loss-probe-01 (work
-              in progress), February 2013.
 
 6.3.  URIs
 
@@ -1393,6 +1388,11 @@ B.5.  Since draft-ietf-quic-recovery-02
 
    o  Simplify RTO calculations (#142, #417)
 
+B.6.  Since draft-ietf-quic-recovery-01
+
+   o  Overview added to loss detection
+
+   o  Changes initial default RTT to 100ms
 
 
 
@@ -1401,12 +1401,6 @@ Iyengar & Swett           Expires June 4, 2018                 [Page 25]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-B.6.  Since draft-ietf-quic-recovery-01
-
-   o  Overview added to loss detection
-
-   o  Changes initial default RTT to 100ms
 
    o  Added time-based loss detection and fixes early retransmit
 
@@ -1438,6 +1432,12 @@ Authors' Addresses
    Google
 
    Email: ianswett@google.com
+
+
+
+
+
+
 
 
 

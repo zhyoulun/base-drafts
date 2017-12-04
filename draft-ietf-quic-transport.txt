@@ -132,7 +132,7 @@ Internet-Draft           QUIC Transport Protocol           December 2017
      7.8.  Spurious Connection Migrations  . . . . . . . . . . . . .  37
      7.9.  Connection Termination  . . . . . . . . . . . . . . . . .  38
        7.9.1.  Closing and Draining Connection States  . . . . . . .  38
-       7.9.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  39
+       7.9.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  40
        7.9.3.  Immediate Close . . . . . . . . . . . . . . . . . . .  40
        7.9.4.  Stateless Reset . . . . . . . . . . . . . . . . . . .  41
    8.  Frame Types and Formats . . . . . . . . . . . . . . . . . . .  43
@@ -1425,10 +1425,10 @@ Internet-Draft           QUIC Transport Protocol           December 2017
       struct {
          select (Handshake.msg_type) {
             case client_hello:
-               QuicVersion negotiated_version;
                QuicVersion initial_version;
 
             case encrypted_extensions:
+               QuicVersion negotiated_version;
                QuicVersion supported_versions<4..2^8-4>;
 
             case new_session_ticket:
@@ -1615,9 +1615,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
 7.4.4.  Version Negotiation Validation
 
-   The transport parameters include three fields that encode version
-   information.  These retroactively authenticate the version
-
+   Though the cryptographic handshake has integrity protection, two
+   forms of QUIC version downgrade are possible.  In the first, an
+   attacker replaces the QUIC version in the Initial packet.  In the
 
 
 
@@ -1626,54 +1626,54 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 29]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   negotiation (see Section 7.2) that is performed prior to the
-   cryptographic handshake.
+   second, a fake Version Negotiation packet is sent by an attacker.  To
+   protect against these attacks, the transport parameters include three
+   fields that encode version information.  These parameters are used to
+   retroactively authenticate the choice of version (see Section 7.2).
 
    The cryptographic handshake provides integrity protection for the
    negotiated version as part of the transport parameters (see
-   Section 7.4).  As a result, modification of version negotiation
-   packets by an attacker can be detected.
+   Section 7.4).  As a result, attacks on version negotiation by an
+   attacker can be detected.
 
-   The client includes two fields in the transport parameters:
-
-   o  The negotiated_version is the version that was finally selected
-      for use.  This MUST be identical to the value that is on the
-      packet that carries the ClientHello.  A server that receives a
-      negotiated_version that does not match the version of QUIC that is
-      in use MUST terminate the connection with a
-      VERSION_NEGOTIATION_ERROR error code.
-
-   o  The initial_version is the version that the client initially
-      attempted to use.  If the server did not send a version
-      negotiation packet Section 5.3, this will be identical to the
-      negotiated_version.
+   The client includes the initial_version field in its transport
+   parameters.  The initial_version is the version that the client
+   initially attempted to use.  If the server did not send a version
+   negotiation packet Section 5.3, this will be identical to the
+   negotiated_version field in the server transport parameters.
 
    A server that processes all packets in a stateful fashion can
    remember how version negotiation was performed and validate the
    initial_version value.
 
    A server that does not maintain state for every packet it receives
-   (i.e., a stateless server) uses a different process.  If the initial
-   and negotiated versions are the same, a stateless server can accept
-   the value.
+   (i.e., a stateless server) uses a different process.  If the
+   initial_version matches the version of QUIC that is in use, a
+   stateless server can accept the value.
 
-   If the initial version is different from the negotiated_version, a
-   stateless server MUST check that it would have sent a version
-   negotiation packet if it had received a packet with the indicated
-   initial_version.  If a server would have accepted the version
-   included in the initial_version and the value differs from the value
-   of negotiated_version, the server MUST terminate the connection with
-   a VERSION_NEGOTIATION_ERROR error.
+   If the initial_version is different from the version of QUIC that is
+   in use, a stateless server MUST check that it would have sent a
+   version negotiation packet if it had received a packet with the
+   indicated initial_version.  If a server would have accepted the
+   version included in the initial_version and the value differs from
+   the QUIC version that is in use, the server MUST terminate the
+   connection with a VERSION_NEGOTIATION_ERROR error.
+
+   The server includes both the version of QUIC that is in use and a
+   list of the QUIC versions that the server supports.
+
+   The negotiated_version field is the version that is in use.  This
+   MUST be set by the server to the value that is on the Initial packet
+   that it accepts (not an Initial packet that triggers a Retry or
+   Version Negotiation packet).  A client that receives a
+   negotiated_version that does not match the version of QUIC that is in
+   use MUST terminate the connection with a VERSION_NEGOTIATION_ERROR
+   error code.
 
    The server includes a list of versions that it would send in any
-   version negotiation packet (Section 5.3) in supported_versions.  The
-   server populates this field even if it did not send a version
-   negotiation packet.  This field is absent if the parameters are
-   included in a NewSessionTicket message.
+   version negotiation packet (Section 5.3) in the supported_versions
+   field.  The server populates this field even if it did not send a
 
-   The client can validate that the negotiated_version is included in
-   the supported_versions list and - if version negotiation was
-   performed - that it would have selected the negotiated version.  A
 
 
 
@@ -1682,12 +1682,17 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 30]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   client MUST terminate the connection with a VERSION_NEGOTIATION_ERROR
-   error code if the negotiated_version value is not included in the
-   supported_versions list.  A client MUST terminate with a
-   VERSION_NEGOTIATION_ERROR error code if version negotiation occurred
-   but it would have selected a different version based on the value of
-   the supported_versions list.
+   version negotiation packet.  This field is absent if the parameters
+   are included in a NewSessionTicket message.
+
+   The client validates that the negotiated_version is included in the
+   supported_versions list and - if version negotiation was performed -
+   that it would have selected the negotiated version.  A client MUST
+   terminate the connection with a VERSION_NEGOTIATION_ERROR error code
+   if the current QUIC version is not listed in the supported_versions
+   list.  A client MUST terminate with a VERSION_NEGOTIATION_ERROR error
+   code if version negotiation occurred but it would have selected a
+   different version based on the value of the supported_versions list.
 
    When an endpoint accepts multiple QUIC versions, it can potentially
    interpret transport parameters as they are defined by any of the QUIC
@@ -1724,12 +1729,7 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    Transport protocols commonly spend a round trip checking that a
    client owns the transport address (IP and port) that it claims.
    Verifying that a client can receive packets sent to its claimed
-   transport address protects against spoofing of this information by
-   malicious clients.
 
-   This technique is used primarily to avoid QUIC from being used for
-   traffic amplification attack.  In such an attack, a packet is sent to
-   a server with spoofed source address information that identifies a
 
 
 
@@ -1738,6 +1738,12 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 31]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   transport address protects against spoofing of this information by
+   malicious clients.
+
+   This technique is used primarily to avoid QUIC from being used for
+   traffic amplification attack.  In such an attack, a packet is sent to
+   a server with spoofed source address information that identifies a
    victim.  If a server generates more or larger packets in response to
    that packet, the attacker can use the server to send more data toward
    the victim than it would be able to send on its own.
@@ -1780,12 +1786,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    During the processing of the cryptographic handshake messages from a
    client, TLS will request that QUIC make a decision about whether to
    proceed based on the information it has.  TLS will provide QUIC with
-   any token that was provided by the client.  For an initial packet,
-   QUIC can decide to abort the connection, allow it to proceed, or
-   request address validation.
-
-   If QUIC decides to request address validation, it provides the
-   cryptographic handshake with a token.  The contents of this token are
 
 
 
@@ -1794,6 +1794,12 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 32]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   any token that was provided by the client.  For an initial packet,
+   QUIC can decide to abort the connection, allow it to proceed, or
+   request address validation.
+
+   If QUIC decides to request address validation, it provides the
+   cryptographic handshake with a token.  The contents of this token are
    consumed by the server that generates the token, so there is no need
    for a single well-defined format.  A token could include information
    about the claimed client address (IP and port), a timestamp, and any
@@ -1835,12 +1841,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    token if significant time passes or the client address changes for
    any reason (see Section 7.7).  The cryptographic handshake is
    responsible for providing the client with the token.  In TLS the
-   token is included in the ticket that is used for resumption and
-   0-RTT, which is carried in a NewSessionTicket message.
-
-
-
-
 
 
 
@@ -1849,6 +1849,9 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 33]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   token is included in the ticket that is used for resumption and
+   0-RTT, which is carried in a NewSessionTicket message.
 
 7.6.3.  Address Validation Token Integrity
 
@@ -1896,9 +1899,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    Endpoints also need to be prepared to receive packets from an older
    source address.
 
-   An endpoint MUST validate that its peer can receive packets at the
-   new address before sending any significant quantity of data to that
-
 
 
 Iyengar & Thomson         Expires June 7, 2018                 [Page 34]
@@ -1906,6 +1906,8 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 34]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   An endpoint MUST validate that its peer can receive packets at the
+   new address before sending any significant quantity of data to that
    address, or it risks being used for denial of service.  See
    Section 7.7.2 for details.
 
@@ -1952,8 +1954,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    In order to avoid linkage, the packet number gap MUST be externally
    indistinguishable from random.  The packet number gap for a
    connection ID with sequence number is computed by encoding the
-   sequence number as a 32-bit integer in big-endian format, and then
-   computing:
 
 
 
@@ -1961,6 +1961,9 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 35]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   sequence number as a 32-bit integer in big-endian format, and then
+   computing:
 
    Gap = HKDF-Expand-Label(packet_number_secret,
                            "QUIC packet sequence gap", sequence, 4)
@@ -2007,9 +2010,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    be generated.  This PING frame MUST include a new Data field that is
    similarly difficult to guess.
 
-   If validation of the new remote address fails, after allowing enough
-   time for possible loss and recovery of packets carrying PING and PONG
-   frames, the endpoint MUST terminate the connection.  When setting
 
 
 
@@ -2018,6 +2018,9 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 36]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   If validation of the new remote address fails, after allowing enough
+   time for possible loss and recovery of packets carrying PING and PONG
+   frames, the endpoint MUST terminate the connection.  When setting
    this timer, implementations are cautioned that the new path could
    have a longer round trip time than the original.  The endpoint MUST
    NOT send a CONNECTION_CLOSE frame in this case; it has to assume that
@@ -2063,9 +2066,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    After a spurious migration, validation of the source address will
    fail because the entity at the source address does not have the
    necessary cryptographic keys to read or respond to the PING frame
-   that is sent to it, even if it wanted to.  Such a spurious connection
-   migration could result in the connection being dropped when the
-
 
 
 
@@ -2074,6 +2074,8 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 37]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   that is sent to it, even if it wanted to.  Such a spurious connection
+   migration could result in the connection being dropped when the
    source address validation fails.  This grants an attacker the ability
    to terminate the connection.
 
@@ -2120,8 +2122,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    current Retransmission Timeout (RTO) interval as defined in
    [QUIC-RECOVERY].
 
-   An endpoint enters a closing period after initiating an immediate
-   close (Section 7.9.3) and optionally after an idle timeout
 
 
 
@@ -2130,6 +2130,8 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 38]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   An endpoint enters a closing period after initiating an immediate
+   close (Section 7.9.3) and optionally after an idle timeout
    (Section 7.9.2).  While closing, an endpoint MUST NOT send packets
    unless they contain a CONNECTION_CLOSE or APPLICATION_CLOSE frame
    (see Section 7.9.3 for details).
@@ -2173,11 +2175,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The draining and closing periods do not apply when a stateless reset
    (Section 7.9.4) is sent.
 
-7.9.2.  Idle Timeout
 
-   A connection that remains idle for longer than the idle timeout (see
-   Section 7.4.1) is closed.  A connection enters the draining state
-   when the idle timeout expires.
+
+
 
 
 
@@ -2185,6 +2185,12 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 39]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+7.9.2.  Idle Timeout
+
+   A connection that remains idle for longer than the idle timeout (see
+   Section 7.4.1) is closed.  A connection enters the draining state
+   when the idle timeout expires.
 
    The time at which an idle timeout takes effect won't be perfectly
    synchronized on both endpoints.  An endpoint that sends packets near
@@ -2228,12 +2234,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    arranged to close a connection.  This might be after the application
    protocols negotiates a graceful shutdown.  The application protocol
    exchanges whatever messages that are needed to cause both endpoints
-   to agree to close the connection, after which the application
-   requests that the connection be closed.  The application protocol can
-   use an APPLICATION_CLOSE message with an appropriate error code to
-   signal closure.
-
-
 
 
 
@@ -2241,6 +2241,11 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 40]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   to agree to close the connection, after which the application
+   requests that the connection be closed.  The application protocol can
+   use an APPLICATION_CLOSE message with an appropriate error code to
+   signal closure.
 
 7.9.4.  Stateless Reset
 
@@ -2286,11 +2291,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    configured to do so, or if the client packet did not include a
    connection ID.
 
-   The Packet Number field is set to a randomized value.  The server
-   SHOULD send a packet with a short header and a type of 0x1F.  This
-   produces the shortest possible packet number encoding, which
-   minimizes the perceived gap between the last packet that the server
-
 
 
 Iyengar & Thomson         Expires June 7, 2018                 [Page 41]
@@ -2298,6 +2298,10 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 41]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   The Packet Number field is set to a randomized value.  The server
+   SHOULD send a packet with a short header and a type of 0x1F.  This
+   produces the shortest possible packet number encoding, which
+   minimizes the perceived gap between the last packet that the server
    sent and this packet.  A server MAY use a different short header
    type, indicating a different packet number length, but a longer
    packet number encoding might allow this message to be identified as a
@@ -2341,11 +2345,7 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    Stateless reset specifically exists to handle the case where state is
    lost, so this approach is suboptimal.
 
-   A single static key can be used across all connections to the same
-   endpoint by generating the proof using a second iteration of a
-   preimage-resistant function that takes three inputs: the static key,
-   a the connection ID for the connection (see Section 5.6), and an
-   identifier for the server instance.  A server could use HMAC
+
 
 
 
@@ -2354,6 +2354,11 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 42]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   A single static key can be used across all connections to the same
+   endpoint by generating the proof using a second iteration of a
+   preimage-resistant function that takes three inputs: the static key,
+   a the connection ID for the connection (see Section 5.6), and an
+   identifier for the server instance.  A server could use HMAC
    [RFC2104] (for example, HMAC(static_key, server_id || connection_id))
    or HKDF [RFC5869] (for example, using the static key as input keying
    material, with server and connection identifiers as salt).  The
@@ -2397,11 +2402,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    The QUIC variable-length integer encoding reserves the two most
    significant bits of the first octet to encode the base 2 logarithm of
-   the integer encoding length in octets.  The integer value is encoded
-   on the remaining bits, in network byte order.
-
-
-
 
 
 
@@ -2409,6 +2409,9 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 43]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   the integer encoding length in octets.  The integer value is encoded
+   on the remaining bits, in network byte order.
 
    This means that integers are encoded on 1, 2, 4, or 8 octets and can
    encode 6, 14, 30, or 62 bit values respectively.  Table 4 summarizes
@@ -2454,10 +2457,7 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    After sending a RST_STREAM, an endpoint ceases transmission and
    retransmission of STREAM frames on the identified stream.  A receiver
-   of RST_STREAM can discard any data that it already received on that
-   stream.
 
-   The RST_STREAM frame is as follows:
 
 
 
@@ -2465,6 +2465,11 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 44]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   of RST_STREAM can discard any data that it already received on that
+   stream.
+
+   The RST_STREAM frame is as follows:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2509,11 +2514,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    |                        Reason Phrase (*)                    ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   The fields of a CONNECTION_CLOSE frame are as follows:
-
-   Error Code:  A 16-bit error code which indicates the reason for
-      closing this connection.  CONNECTION_CLOSE uses codes from the
-
 
 
 
@@ -2522,6 +2522,10 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 45]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   The fields of a CONNECTION_CLOSE frame are as follows:
+
+   Error Code:  A 16-bit error code which indicates the reason for
+      closing this connection.  CONNECTION_CLOSE uses codes from the
       space defined in Section 12.3 (APPLICATION_CLOSE uses codes from
       the application protocol error code space, see Section 12.4).
 
@@ -2566,10 +2570,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
       amount of data that can be sent on the entire connection, in units
       of octets.
 
-   All data sent in STREAM frames counts toward this limit, with the
-   exception of data on stream 0.  The sum of the largest received
-   offsets on all streams - including closed streams, but excluding
-   stream 0 - MUST NOT exceed the value advertised by a receiver.  An
 
 
 
@@ -2578,6 +2578,10 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 46]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
+   All data sent in STREAM frames counts toward this limit, with the
+   exception of data on stream 0.  The sum of the largest received
+   offsets on all streams - including closed streams, but excluding
+   stream 0 - MUST NOT exceed the value advertised by a receiver.  An
    endpoint MUST terminate a connection with a
    QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more
    data than the maximum data value that it has sent, unless this is a
@@ -2621,10 +2625,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    than the largest maximum stream data that it has sent for the
    affected stream, unless this is a result of a change in the initial
    limits (see Section 7.4.2).
-
-
-
-
 
 
 

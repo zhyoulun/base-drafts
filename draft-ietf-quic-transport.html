@@ -353,12 +353,11 @@ address {
 <link href="#rfc.section.9.1" rel="Chapter" title="9.1 Special Considerations for PMTU Discovery">
 <link href="#rfc.section.10" rel="Chapter" title="10 Streams: QUIC&#8217;s Data Structuring Abstraction">
 <link href="#rfc.section.10.1" rel="Chapter" title="10.1 Stream Identifiers">
-<link href="#rfc.section.10.2" rel="Chapter" title="10.2 Life of a Stream">
-<link href="#rfc.section.10.2.1" rel="Chapter" title="10.2.1 idle">
-<link href="#rfc.section.10.2.2" rel="Chapter" title="10.2.2 open">
-<link href="#rfc.section.10.2.3" rel="Chapter" title="10.2.3 half-closed (local)">
-<link href="#rfc.section.10.2.4" rel="Chapter" title="10.2.4 half-closed (remote)">
-<link href="#rfc.section.10.2.5" rel="Chapter" title="10.2.5 closed">
+<link href="#rfc.section.10.2" rel="Chapter" title="10.2 Stream States">
+<link href="#rfc.section.10.2.1" rel="Chapter" title="10.2.1 Send Stream States">
+<link href="#rfc.section.10.2.2" rel="Chapter" title="10.2.2 Receive Stream States">
+<link href="#rfc.section.10.2.3" rel="Chapter" title="10.2.3 Permitted Frame Types">
+<link href="#rfc.section.10.2.4" rel="Chapter" title="10.2.4 Bidirectional Stream States">
 <link href="#rfc.section.10.3" rel="Chapter" title="10.3 Solicited State Transitions">
 <link href="#rfc.section.10.4" rel="Chapter" title="10.4 Stream Concurrency">
 <link href="#rfc.section.10.5" rel="Chapter" title="10.5 Sending and Receiving Data">
@@ -618,17 +617,15 @@ address {
 </li>
 <ul><li>10.1.   <a href="#rfc.section.10.1">Stream Identifiers</a>
 </li>
-<li>10.2.   <a href="#rfc.section.10.2">Life of a Stream</a>
+<li>10.2.   <a href="#rfc.section.10.2">Stream States</a>
 </li>
-<ul><li>10.2.1.   <a href="#rfc.section.10.2.1">idle</a>
+<ul><li>10.2.1.   <a href="#rfc.section.10.2.1">Send Stream States</a>
 </li>
-<li>10.2.2.   <a href="#rfc.section.10.2.2">open</a>
+<li>10.2.2.   <a href="#rfc.section.10.2.2">Receive Stream States</a>
 </li>
-<li>10.2.3.   <a href="#rfc.section.10.2.3">half-closed (local)</a>
+<li>10.2.3.   <a href="#rfc.section.10.2.3">Permitted Frame Types</a>
 </li>
-<li>10.2.4.   <a href="#rfc.section.10.2.4">half-closed (remote)</a>
-</li>
-<li>10.2.5.   <a href="#rfc.section.10.2.5">closed</a>
+<li>10.2.4.   <a href="#rfc.section.10.2.4">Bidirectional Stream States</a>
 </li>
 </ul><li>10.3.   <a href="#rfc.section.10.3">Solicited State Transitions</a>
 </li>
@@ -1686,7 +1683,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dt>Maximum Data:</dt>
 <dd style="margin-left: 8">A variable-length integer indicating the maximum amount of data that can be sent on the entire connection, in units of octets.</dd>
 </dl>
-<p id="rfc.section.8.6.p.5">All data sent in STREAM frames counts toward this limit, with the exception of data on stream 0.  The sum of the largest received offsets on all streams - including closed streams, but excluding stream 0 - MUST NOT exceed the value advertised by a receiver.  An endpoint MUST terminate a connection with a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more data than the maximum data value that it has sent, unless this is a result of a change in the initial limits (see <a href="#zerortt-parameters" class="xref">Section 7.4.2</a>).</p>
+<p id="rfc.section.8.6.p.5">All data sent in STREAM frames counts toward this limit, with the exception of data on stream 0.  The sum of the largest received offsets on all streams - including streams in terminal states, but excluding stream 0 - MUST NOT exceed the value advertised by a receiver.  An endpoint MUST terminate a connection with a QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA error if it receives more data than the maximum data value that it has sent, unless this is a result of a change in the initial limits (see <a href="#zerortt-parameters" class="xref">Section 7.4.2</a>).</p>
 <h2 id="rfc.section.8.7">
 <a href="#rfc.section.8.7">8.7.</a> <a href="#frame-max-stream-data" id="frame-max-stream-data">MAX_STREAM_DATA Frame</a>
 </h2>
@@ -2021,8 +2018,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <ul>
 <li>All application data sent in STREAM frames MUST be retransmitted, unless the endpoint has sent a RST_STREAM for that stream.  When an endpoint sends a RST_STREAM frame, data outstanding on that stream SHOULD NOT be retransmitted, since subsequent data on this stream is expected to not be delivered by the receiver.</li>
 <li>ACK and PADDING frames MUST NOT be retransmitted.  ACK frames containing updated information will be sent as described in <a href="#frame-ack" class="xref">Section 8.16</a>.</li>
-<li>STOP_SENDING frames MUST be retransmitted, unless the stream has become closed in the appropriate direction.  See <a href="#solicited-state-transitions" class="xref">Section 10.3</a>.</li>
-<li>The most recent MAX_STREAM_DATA frame for a stream MUST be retransmitted. Any previous unacknowledged MAX_STREAM_DATA frame for the same stream SHOULD NOT be retransmitted since a newer MAX_STREAM_DATA frame for a stream obviates the need for delivering older ones. Similarly, the most recent MAX_DATA and MAX_STREAM_ID frames MUST be retransmitted; previous unacknowledged ones SHOULD NOT be retransmitted.</li>
+<li>STOP_SENDING frames MUST be retransmitted until the receive stream enters either a &#8220;Data Recvd&#8221; or &#8220;Reset Recvd&#8221; state.  See <a href="#solicited-state-transitions" class="xref">Section 10.3</a>.</li>
+<li>The most recent MAX_STREAM_DATA frame for a stream MUST be retransmitted until the receive stream enters a &#8220;Size Known&#8221; state. Any previous unacknowledged MAX_STREAM_DATA frame for the same stream SHOULD NOT be retransmitted since a newer MAX_STREAM_DATA frame for a stream obviates the need for delivering older ones. Similarly, the most recent MAX_DATA frame MUST be retransmitted; previous unacknowledged ones SHOULD NOT be retransmitted.</li>
 <li>BLOCKED, STREAM_BLOCKED, and STREAM_ID_BLOCKED frames SHOULD be retransmitted if the sender is still blocked on the same limit.  If the limit has been increased since the frame was originally sent, the frame SHOULD NOT be retransmitted.</li>
 <li>All other frames MUST be retransmitted.</li>
 </ul>
@@ -2088,104 +2085,210 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 </tbody>
 </table>
 <p id="rfc.section.10.1.p.6">Stream ID 0 (0x0) is a client-initiated, bidirectional stream that is used for the cryptographic handshake.  Stream 0 MUST NOT be used for application data.</p>
-<p id="rfc.section.10.1.p.7">A QUIC endpoint MUST NOT reuse a Stream ID.  Streams MUST be created in sequential order.  Open streams can be used in any order.  Streams that are used out of order result in lower-numbered streams in the same direction being counted as open.</p>
+<p id="rfc.section.10.1.p.7">A QUIC endpoint MUST NOT reuse a Stream ID.  Open streams can be used in any order.  Streams that are used out of order result in opening all lower-numbered streams of the same type in the same direction.</p>
 <p id="rfc.section.10.1.p.8">Stream IDs are encoded as a variable-length integer (see <a href="#integer-encoding" class="xref">Section 8.1</a>).</p>
 <h2 id="rfc.section.10.2">
-<a href="#rfc.section.10.2">10.2.</a> <a href="#stream-states" id="stream-states">Life of a Stream</a>
+<a href="#rfc.section.10.2">10.2.</a> <a href="#stream-states" id="stream-states">Stream States</a>
 </h2>
-<p id="rfc.section.10.2.p.1">The semantics of QUIC streams is based on HTTP/2 streams, and the lifecycle of a QUIC stream therefore closely follows that of an HTTP/2 stream <a href="#RFC7540" class="xref">[RFC7540]</a>, with some differences to accommodate the possibility of out-of-order delivery due to the use of multiple streams in QUIC.  The lifecycle of a QUIC stream is shown in the following figure and described below.</p>
-<div id="rfc.figure.10"></div>
-<div id="stream-lifecycle"></div>
-<pre>
-                            +--------+
-                            |        |
-                            |  idle  |
-                            |        |
-                            +--------+
-                                 |
-                        send/recv STREAM/RST
-                             recv MSD/SB
-                                 |
-                                 v
-                 recv FIN/  +--------+    send FIN/
-                 recv RST   |        |    send RST
-                 send UNI   |        |    recv UNI
-                  ,---------|  open  |-----------.
-                 /          |        |            \
-                v           +--------+             v
-         +----------+                          +----------+
-         |   half   |                          |   half   |
-         |  closed  |                          |  closed  |
-         | (remote) |                          |  (local) |
-         +----------+                          +----------+
-             |                                        |
-             |   send FIN/  +--------+    recv FIN/   |
-              \  send RST   |        |    recv RST   /
-               `-----------&gt;| closed |&lt;-------------'
-                            |        |
-                            +--------+
+<p id="rfc.section.10.2.p.1">This section describes the two types of QUIC stream in terms of the states of their send or receive components.  Two state machines are described: one for streams on which an endpoint transmits data (<a href="#stream-send-states" class="xref">Section 10.2.1</a>); another for streams from which an endpoint receives data (<a href="#stream-recv-states" class="xref">Section 10.2.2</a>).</p>
+<p id="rfc.section.10.2.p.2">Unidirectional streams use the applicable state machine directly.  Bidirectional streams use both state machines.  For the most part, the use of these state machines is the same whether the stream is unidirectional or bidirectional.  The conditions for opening a stream are slightly more complex for a bidirectional stream because the opening of either send or receive causes the stream to open in both directions.</p>
+<p id="rfc.section.10.2.p.3">Opening a stream causes all lower-numbered streams of the same type to implicitly open.  This includes both send and receive streams if the stream is bidirectional.  For bidirectional streams, an endpoint can send data on an implicitly opened stream.  On both unidirectional and bidirectional streams, an endpoint MAY send MAX_STREAM_DATA or STOP_SENDING on implicitly opened streams.  An endpoint SHOULD NOT implicitly open streams that it initiates, instead opening streams in order.</p>
+<p></p>
 
-   send:   endpoint sends this frame
-   recv:   endpoint receives this frame
-
-   STREAM: a STREAM frame
-   UNI:    a STREAM frame with a unidirectional stream ID
-   FIN:    FIN flag in a STREAM frame
-   RST:    RST_STREAM frame
-   MSD:    MAX_STREAM_DATA frame
-   SB:     STREAM_BLOCKED frame
-</pre>
-<p class="figure">Figure 10: Lifecycle of a stream</p>
-<p id="rfc.section.10.2.p.2">Note that this diagram shows stream state transitions and the frames and flags that affect those transitions only.  It is possible for a single frame to cause two transitions: receiving a RST_STREAM frame, or a STREAM frame with the FIN flag cause the stream state to move from &#8220;idle&#8221; to &#8220;open&#8221; and then immediately to one of the &#8220;half-closed&#8221; states.</p>
-<p id="rfc.section.10.2.p.3">The recipient of a frame that changes stream state will have a delayed view of the state of a stream while the frame is in transit.  Endpoints do not coordinate the creation of streams; they are created unilaterally by either endpoint.  Endpoints can use acknowledgments to understand the peer&#8217;s subjective view of stream state at any given time.</p>
-<p id="rfc.section.10.2.p.4">In the absence of more specific guidance elsewhere in this document, implementations SHOULD treat the receipt of a frame that is not expressly permitted in the description of a state as a connection error (see <a href="#error-handling" class="xref">Section 12</a>).</p>
+<dl>
+<dt>Note:</dt>
+<dd style="margin-left: 8">These states are largely informative.  This document uses stream states to describe rules for when and how different types of frames can be sent and the reactions that are expected when different types of frames are received.  Though these state machines are intended to be useful in implementing QUIC, these states aren&#8217;t intended to constrain implementations.  An implementation can define a different state machine as long as its behavior is consistent with an implementation that implements these states.</dd>
+</dl>
 <h3 id="rfc.section.10.2.1">
-<a href="#rfc.section.10.2.1">10.2.1.</a> <a href="#idle" id="idle">idle</a>
+<a href="#rfc.section.10.2.1">10.2.1.</a> <a href="#stream-send-states" id="stream-send-states">Send Stream States</a>
 </h3>
-<p id="rfc.section.10.2.1.p.1">All streams start in the &#8220;idle&#8221; state.</p>
-<p id="rfc.section.10.2.1.p.2">The following transitions are valid from this state:</p>
-<p id="rfc.section.10.2.1.p.3">Sending or receiving a STREAM or RST_STREAM frame causes the identified stream to become &#8220;open&#8221;.  The stream identifier for a new stream is selected as described in <a href="#stream-id" class="xref">Section 10.1</a>.  A RST_STREAM frame, or a STREAM frame with the FIN flag set also causes a stream to become &#8220;half-closed&#8221;.</p>
-<p id="rfc.section.10.2.1.p.4">An endpoint might receive MAX_STREAM_DATA or STREAM_BLOCKED frames on peer-initiated streams that are &#8220;idle&#8221; if there is loss or reordering of packets.  Receiving these frames also causes the stream to become &#8220;open&#8221;.</p>
-<p id="rfc.section.10.2.1.p.5">An endpoint MUST NOT send a STREAM or RST_STREAM frame for a stream ID that is higher than the peers advertised maximum stream ID (see <a href="#frame-max-stream-id" class="xref">Section 8.8</a>).</p>
+<p><a href="#fig-stream-send-states" class="xref">Figure 10</a> shows the states for the part of a stream that sends data to a peer.</p>
+<div id="rfc.figure.10"></div>
+<div id="fig-stream-send-states"></div>
+<pre>
+       o
+       | Application Open
+       | Open Paired Stream (bidirectional)
+       v
+   +-------+
+   | Open  | Send RST_STREAM
+   |       |-----------------------.
+   +-------+                       |
+       |                           |
+       | Send STREAM /             |
+       |      STREAM_BLOCKED       |
+       v                           |
+   +-------+                       |
+   | Send  | Send RST_STREAM       |
+   |       |----------------------&gt;|
+   +-------+                       |
+       |                           |
+       | Send STREAM + FIN         |
+       v                           v
+   +-------+                   +-------+
+   | Data  | Send RST_STREAM   | Reset |
+   | Sent  +------------------&gt;| Sent  |
+   +-------+                   +-------+
+       |                           |
+       | Recv All ACKs             | Recv ACK
+       v                           v
+   +-------+                   +-------+
+   | Data  |                   | Reset |
+   | Recvd |                   | Recvd |
+   +-------+                   +-------+
+</pre>
+<p class="figure">Figure 10: States for Send Streams</p>
+<p id="rfc.section.10.2.1.p.2">The sending part of stream that the endpoint initiates (types 0 and 2 for clients, 1 and 3 for servers) is opened by the application or application protocol.  The &#8220;Open&#8221; state represents a newly created stream that is able to accept data from the application.  Stream data might be buffered in this state in preparation for sending.</p>
+<p id="rfc.section.10.2.1.p.3">The sending part of a bidirectional stream initiated by a peer (type 0 for a server, type 1 for a client) enters the &#8220;Open&#8221; state if the receiving part enters the &#8220;Recv&#8221; state.</p>
+<p id="rfc.section.10.2.1.p.4">Sending the first STREAM or STREAM_BLOCKED frame causes a send stream to enter the &#8220;Send&#8221; state.  An implementation might choose to defer allocating a Stream ID to a send stream until it sends the first frame and enters this state, which can allow for better stream prioritization.</p>
+<p id="rfc.section.10.2.1.p.5">In the &#8220;Send&#8221; state, an endpoint transmits - and retransmits as necessary - data in STREAM frames.  The endpoint respects the flow control limits of its peer, accepting MAX_STREAM_DATA frames.  An endpoint in the &#8220;Send&#8221; state generates STREAM_BLOCKED frames if it encounters flow control limits.</p>
+<p id="rfc.section.10.2.1.p.6">After the application indicates that stream data is complete and a STREAM frame containing the FIN bit is sent, the send stream enters the &#8220;Data Sent&#8221; state.  From this state, the endpoint only retransmits stream data as necessary.  The endpoint no longer needs to track flow control limits or send STREAM_BLOCKED frames for a send stream in this state.  The endpoint can ignore any MAX_STREAM_DATA frames it receives from its peer in this state; MAX_STREAM_DATA frames might be received until the peer receives the final stream offset.</p>
+<p id="rfc.section.10.2.1.p.7">Once all stream data has been successfully acknowledged, the send stream enters the &#8220;Data Recvd&#8221; state, which is a terminal state.</p>
+<p id="rfc.section.10.2.1.p.8">From any of the &#8220;Open&#8221;, &#8220;Send&#8221;, or &#8220;Data Sent&#8221; states, an application can signal that it wishes to abandon transmission of stream data.  Similarly, the endpoint might receive a STOP_SENDING frame from its peer.  In either case, the endpoint sends a RST_STREAM frame, which causes the stream to enter the &#8220;Reset Sent&#8221; state.</p>
+<p id="rfc.section.10.2.1.p.9">An endpoint MAY send a RST_STREAM as the first frame on a send stream; this causes the send stream to open and then immediately transition to the &#8220;Reset Sent&#8221; state.</p>
+<p id="rfc.section.10.2.1.p.10">Once a packet containing a RST_STREAM has been acknowledged, the send stream enters the &#8220;Reset Recvd&#8221; state, which is a terminal state.</p>
 <h3 id="rfc.section.10.2.2">
-<a href="#rfc.section.10.2.2">10.2.2.</a> <a href="#open" id="open">open</a>
+<a href="#rfc.section.10.2.2">10.2.2.</a> <a href="#stream-recv-states" id="stream-recv-states">Receive Stream States</a>
 </h3>
-<p id="rfc.section.10.2.2.p.1">A stream in the &#8220;open&#8221; state may be used by both peers to send frames of any type.  In this state, endpoints can send MAX_STREAM_DATA and MUST observe the value advertised by its receiving peer (see <a href="#flow-control" class="xref">Section 11</a>).</p>
-<p id="rfc.section.10.2.2.p.2">Opening a stream causes all lower-numbered streams in the same direction to become open.  Thus, opening an odd-numbered stream causes all &#8220;idle&#8221;, odd-numbered streams with a lower identifier to become open and the same applies to even numbered streams.  Endpoints open streams in increasing numeric order, but loss or reordering can cause packets that open streams to arrive out of order.</p>
-<p id="rfc.section.10.2.2.p.3">From the &#8220;open&#8221; state, either endpoint can send a frame with the FIN flag set, which causes the stream to transition into one of the &#8220;half-closed&#8221; states. This flag can be set on the frame that opens the stream, which causes the stream to immediately become &#8220;half-closed&#8221;.  Once an endpoint has completed sending all stream data and a STREAM frame with a FIN flag, the stream state becomes &#8220;half-closed (local)&#8221;.  When an endpoint receives all stream data and a FIN flag the stream state becomes &#8220;half-closed (remote)&#8221;.  An endpoint MUST NOT consider the stream state to have changed until all data has been sent or received.</p>
-<p id="rfc.section.10.2.2.p.4">A RST_STREAM frame on an &#8220;open&#8221; stream also causes the stream to become &#8220;half-closed&#8221;.  A stream that becomes &#8220;open&#8221; as a result of sending or receiving RST_STREAM immediately becomes &#8220;half-closed&#8221;.  Sending a RST_STREAM frame causes the stream to become &#8220;half-closed (local)&#8221;; receiving RST_STREAM causes the stream to become &#8220;half-closed (remote)&#8221;.</p>
-<p id="rfc.section.10.2.2.p.5">Any frame type that mentions a stream ID can be sent in this state.</p>
+<p><a href="#fig-stream-recv-states" class="xref">Figure 11</a> shows the states for the part of a stream that receives data from a peer.  The states for a receive stream mirror only some of the states of the send stream at the peer.  A receive stream doesn&#8217;t track states on the send stream that can&#8217;t be observed, such as the &#8220;Open&#8221; state; instead, receive streams track the delivery of data to the application or application protocol some of which cannot be observed by the sender.</p>
+<div id="rfc.figure.11"></div>
+<div id="fig-stream-recv-states"></div>
+<pre>
+       o
+       | Recv STREAM / STREAM_BLOCKED / RST_STREAM
+       | Open Paired Stream (bidirectional)
+       | Recv MAX_STREAM_DATA
+       v
+   +-------+
+   | Recv  | Recv RST_STREAM
+   |       |-----------------------.
+   +-------+                       |
+       |                           |
+       | Recv STREAM + FIN         |
+       v                           |
+   +-------+                       |
+   | Size  | Recv RST_STREAM       |
+   | Known +----------------------&gt;|
+   +-------+                       |
+       |                           |
+       | Recv All Data             |
+       v                           v
+   +-------+                   +-------+
+   | Data  | Recv RST_STREAM   | Reset |
+   | Recvd +&lt;-- (optional) ---&gt;| Recvd |
+   +-------+                   +-------+
+       |                           |
+       | App Read All Data         | App Read RST
+       v                           v
+   +-------+                   +-------+
+   | Data  |                   | Reset |
+   | Read  |                   | Read  |
+   +-------+                   +-------+
+</pre>
+<p class="figure">Figure 11: States for Receive Streams</p>
+<p id="rfc.section.10.2.2.p.2">The receiving part of a stream initiated by a peer (types 1 and 3 for a client, or 0 and 2 for a server) are created when the first STREAM, STREAM_BLOCKED, RST_STREAM, or MAX_STREAM_DATA (bidirectional only, see below) is received for that stream.  The initial state for a receive stream is &#8220;Recv&#8221;.  Receiving a RST_STREAM frame causes the receive stream to immediately transition to the &#8220;Reset Recvd&#8221;.</p>
+<p id="rfc.section.10.2.2.p.3">The receive stream enters the &#8220;Recv&#8221; state when the sending part of a bidirectional stream initiated by the endpoint (type 0 for a client, type 1 for a server) enters the &#8220;Open&#8221; state.</p>
+<p id="rfc.section.10.2.2.p.4">A bidirectional stream also opens when a MAX_STREAM_DATA frame is received.  Receiving a MAX_STREAM_DATA frame implies that the remote peer has opened the stream and is providing flow control credit.  A MAX_STREAM_DATA frame might arrive before a STREAM or STREAM_BLOCKED frame if packets are lost or reordered.</p>
+<p id="rfc.section.10.2.2.p.5">In the &#8220;Recv&#8221; state, the endpoint receives STREAM and STREAM_BLOCKED frames.  Incoming data is buffered and reassembled into the correct order for delivery to the application.  As data is consumed by the application and buffer space becomes available, the endpoint sends MAX_STREAM_DATA frames to allow the peer to send more data.</p>
+<p id="rfc.section.10.2.2.p.6">When a STREAM frame with a FIN bit is received, the final offset (see <a href="#final-offset" class="xref">Section 11.3</a>) is known.  The receive stream enters the &#8220;Size Known&#8221; state.  In this state, the endpoint no longer needs to send MAX_STREAM_DATA frames, it only receives any retransmissions of stream data.</p>
+<p id="rfc.section.10.2.2.p.7">Once all data for the stream has been received, the receive stream enters the &#8220;Data Recvd&#8221; state.  This might happen as a result of receiving the same STREAM frame that causes the transition to &#8220;Size Known&#8221;.  In this state, the endpoint has all stream data.  Any STREAM or STREAM_BLOCKED frames it receives for the stream can be discarded.</p>
+<p id="rfc.section.10.2.2.p.8">The &#8220;Data Recvd&#8221; state persists until stream data has been delivered to the application or application protocol.  Once stream data has been delivered, the stream enters the &#8220;Data Read&#8221; state, which is a terminal state.</p>
+<p id="rfc.section.10.2.2.p.9">Receiving a RST_STREAM frame in the &#8220;Recv&#8221; or &#8220;Size Known&#8221; states causes the stream to enter the &#8220;Reset Recvd&#8221; state.  This might cause the delivery of stream data to the application to be interrupted.</p>
+<p id="rfc.section.10.2.2.p.10">It is possible that all stream data is received when a RST_STREAM is received (that is, from the &#8220;Data Recvd&#8221; state).  Similarly, it is possible for remaining stream data to arrive after receiving a RST_STREAM frame (the &#8220;Reset Recvd&#8221; state).  An implementation is able to manage this situation as they choose.  Sending RST_STREAM means that an endpoint cannot guarantee delivery of stream data; however there is no requirement that stream data not be delivered if a RST_STREAM is received.  An implementation MAY interrupt delivery of stream data, discard any data that was not consumed, and signal the existence of the RST_STREAM immediately.  Alternatively, the RST_STREAM signal might be suppressed or withheld if stream data is completely received.  In the latter case, the receive stream effectively transitions to &#8220;Data Recvd&#8221; from &#8220;Reset Recvd&#8221;.</p>
+<p id="rfc.section.10.2.2.p.11">Once the application has been delivered the signal indicating that the receive stream was reset, the receive stream transitions to the &#8220;Reset Read&#8221; state, which is a terminal state.</p>
 <h3 id="rfc.section.10.2.3">
-<a href="#rfc.section.10.2.3">10.2.3.</a> <a href="#half-closed-local" id="half-closed-local">half-closed (local)</a>
+<a href="#rfc.section.10.2.3">10.2.3.</a> <a href="#permitted-frame-types" id="permitted-frame-types">Permitted Frame Types</a>
 </h3>
-<p id="rfc.section.10.2.3.p.1">A stream that is in the &#8220;half-closed (local)&#8221; state MUST NOT be used for sending on new STREAM frames.  Retransmission of data that has already been sent on STREAM frames is permitted.  An endpoint MAY also send MAX_STREAM_DATA and STOP_SENDING in this state. Unidirectional streams created by the peer are immediately half-closed (local) to the receiver and are subsequently treated identically to a half-closed bidirectional stream.</p>
-<p id="rfc.section.10.2.3.p.2">An application can decide to abandon a stream in this state. An endpoint can send RST_STREAM for a stream that was closed with the FIN flag. The final offset carried in this RST_STREAM frame MUST be the same as the previously established final offset.</p>
-<p id="rfc.section.10.2.3.p.3">An endpoint that closes a stream MUST NOT send data beyond the final offset that it has chosen, see <a href="#state-closed" class="xref">Section 10.2.5</a> for details.</p>
-<p id="rfc.section.10.2.3.p.4">A stream transitions from this state to &#8220;closed&#8221; when a STREAM frame that contains a FIN flag is received and all prior data has arrived, or when a RST_STREAM frame is received.</p>
-<p id="rfc.section.10.2.3.p.5">An endpoint can receive any frame that mentions a stream ID in this state.  Providing flow-control credit using MAX_STREAM_DATA frames is necessary to continue receiving flow-controlled frames.  In this state, a receiver MAY ignore MAX_STREAM_DATA frames for this stream, which might arrive for a short period after a frame bearing the FIN flag is sent.</p>
+<p id="rfc.section.10.2.3.p.1">The sender of a stream sends just three frame types that affect the state of a stream at either sender or receiver: STREAM (<a href="#frame-stream" class="xref">Section 8.17</a>), STREAM_BLOCKED (<a href="#frame-stream-blocked" class="xref">Section 8.11</a>), and RST_STREAM (<a href="#frame-rst-stream" class="xref">Section 8.3</a>).</p>
+<p id="rfc.section.10.2.3.p.2">A sender MUST NOT send any of these frames from a terminal state (&#8220;Data Recvd&#8221; or &#8220;Reset Recvd&#8221;).  A sender MUST NOT send STREAM or STREAM_BLOCKED after sending a RST_STREAM; that is, in the &#8220;Reset Sent&#8221; state in addition to the terminal states.  A receiver could receive any of these frames in any state, but only due to the possibility of delayed delivery of packets carrying them.</p>
+<p id="rfc.section.10.2.3.p.3">The receiver of a stream sends MAX_STREAM_DATA (<a href="#frame-max-stream-data" class="xref">Section 8.7</a>) and STOP_SENDING frames (<a href="#frame-stop-sending" class="xref">Section 8.14</a>).</p>
+<p id="rfc.section.10.2.3.p.4">The receiver only sends MAX_STREAM_DATA in the &#8220;Recv&#8221; state.  A receiver can send STOP_SENDING in any state where it has not received a RST_STREAM frame; that is states other than &#8220;Reset Recvd&#8221; or &#8220;Reset Read&#8221;.  However there is little value in sending a STOP_SENDING frame after all stream data has been received in the &#8220;Data Recvd&#8221; state.  A sender could receive these frames in any state as a result of delayed delivery of packets.</p>
 <h3 id="rfc.section.10.2.4">
-<a href="#rfc.section.10.2.4">10.2.4.</a> <a href="#state-hc-remote" id="state-hc-remote">half-closed (remote)</a>
+<a href="#rfc.section.10.2.4">10.2.4.</a> <a href="#stream-bidi-states" id="stream-bidi-states">Bidirectional Stream States</a>
 </h3>
-<p id="rfc.section.10.2.4.p.1">A stream is &#8220;half-closed (remote)&#8221; when the stream is no longer being used by the peer to send any data.  An endpoint will have either received all data that a peer has sent or will have received a RST_STREAM frame and discarded any received data. Unidirectional streams created locally are immediately half-closed (remote) to the creator.</p>
-<p id="rfc.section.10.2.4.p.2">Once all data has been either received or discarded, a sender is no longer obligated to update the maximum received data for the connection.</p>
-<p id="rfc.section.10.2.4.p.3">Due to reordering, an endpoint could continue receiving frames for the stream even after the stream is closed for sending.  Frames received after a peer closes a stream SHOULD be discarded.  An endpoint MAY choose to limit the period over which it ignores frames and treat frames that arrive after this time as being in error.</p>
-<p id="rfc.section.10.2.4.p.4">An endpoint may receive a RST_STREAM in this state, such as when the peer resets the stream after sending a FIN on it. In this case, the endpoint MAY discard any data that it already received on that stream. The endpoint SHOULD close the connection with a FINAL_OFFSET_ERROR if the received RST_STREAM carries a different offset from the one already established.</p>
-<p id="rfc.section.10.2.4.p.5">An endpoint will know the final offset of the data it receives on a stream when it reaches the &#8220;half-closed (remote)&#8221; state, see <a href="#final-offset" class="xref">Section 11.3</a> for details.</p>
-<p id="rfc.section.10.2.4.p.6">A stream in this state can be used by the endpoint to send any frame that mentions a stream ID.  In this state, the endpoint MUST observe advertised stream and connection data limits (see <a href="#flow-control" class="xref">Section 11</a>).</p>
-<p id="rfc.section.10.2.4.p.7">A stream transitions from this state to &#8220;closed&#8221; by completing transmission of all data.  This includes sending all data carried in STREAM frames including the terminal STREAM frame that contains a FIN flag.</p>
-<p id="rfc.section.10.2.4.p.8">A stream also becomes &#8220;closed&#8221; when the endpoint sends a RST_STREAM frame.</p>
-<h3 id="rfc.section.10.2.5">
-<a href="#rfc.section.10.2.5">10.2.5.</a> <a href="#state-closed" id="state-closed">closed</a>
-</h3>
-<p id="rfc.section.10.2.5.p.1">The &#8220;closed&#8221; state is the terminal state for a stream.  Reordering might cause frames to be received after closing, see <a href="#state-hc-remote" class="xref">Section 10.2.4</a>.</p>
-<p id="rfc.section.10.2.5.p.2">If the application resets a stream that is already in the &#8220;closed&#8221; state, a RST_STREAM frame MAY still be sent in order to cancel retransmissions of previously-sent STREAM frames.</p>
+<p id="rfc.section.10.2.4.p.1">A bidirectional stream is composed of a send stream and a receive stream.  Implementations might present the state of the pair of streams as a composite of the states of the pair of streams.  The simplest model presents the stream as &#8220;open&#8221; when either send or receive stream is in a non-terminal state and &#8220;closed&#8221; when both send and receive streams are in a terminal state.</p>
+<p><a href="#stream-bidi-mapping" class="xref">Table 6</a> shows a more complex mapping of bidirectional stream states that loosely correspond to the stream states in HTTP/2 <a href="#HTTP2" class="xref">[HTTP2]</a>.  This shows that multiple states on send or receive streams are mapped to the same composite state.  Note that this is just one possibility for such a mapping; thi mapping requires that data is acknowledged before the transition to a &#8220;closed&#8221; or &#8220;half-closed&#8221; state.</p>
+<div id="rfc.table.6"></div>
+<div id="stream-bidi-mapping"></div>
+<table cellpadding="3" cellspacing="0" class="tt full center">
+<caption>Possible Mapping of Stream States to HTTP/2</caption>
+<thead><tr>
+<th class="left">Send Stream</th>
+<th class="left">Receive Stream</th>
+<th class="left">Composite State</th>
+</tr></thead>
+<tbody>
+<tr>
+<td class="left">No Stream/Open</td>
+<td class="left">No Stream/Recv *1</td>
+<td class="left">idle</td>
+</tr>
+<tr>
+<td class="left">Open/Send/Data Sent</td>
+<td class="left">Recv/Size Known</td>
+<td class="left">open</td>
+</tr>
+<tr>
+<td class="left">Open/Send/Data Sent</td>
+<td class="left">Data Recvd/Data Read</td>
+<td class="left">half-closed (remote)</td>
+</tr>
+<tr>
+<td class="left">Open/Send/Data Sent</td>
+<td class="left">Reset Recvd/Reset Read</td>
+<td class="left">half-closed (remote)</td>
+</tr>
+<tr>
+<td class="left">Data Recvd</td>
+<td class="left">Recv/Size Known</td>
+<td class="left">half-closed (local)</td>
+</tr>
+<tr>
+<td class="left">Reset Sent/Reset Recvd</td>
+<td class="left">Recv/Size Known</td>
+<td class="left">half-closed (local)</td>
+</tr>
+<tr>
+<td class="left">Data Recvd</td>
+<td class="left">Recv/Size Known</td>
+<td class="left">half-closed (local)</td>
+</tr>
+<tr>
+<td class="left">Reset Sent/Reset Recvd</td>
+<td class="left">Data Recvd/Data Read</td>
+<td class="left">closed</td>
+</tr>
+<tr>
+<td class="left">Reset Sent/Reset Recvd</td>
+<td class="left">Reset Recvd/Reset Read</td>
+<td class="left">closed</td>
+</tr>
+<tr>
+<td class="left">Data Recvd</td>
+<td class="left">Data Recvd/Data Read</td>
+<td class="left">closed</td>
+</tr>
+<tr>
+<td class="left">Data Recvd</td>
+<td class="left">Reset Recvd/Reset Read</td>
+<td class="left">closed</td>
+</tr>
+</tbody>
+</table>
+<p></p>
+
+<dl>
+<dt>Note (*1):</dt>
+<dd style="margin-left: 8">A stream is considered &#8220;idle&#8221; if it has not yet been created, or if the receive stream is in the &#8220;Recv&#8221; state without yet having received any frames.</dd>
+</dl>
 <h2 id="rfc.section.10.3">
 <a href="#rfc.section.10.3">10.3.</a> <a href="#solicited-state-transitions" id="solicited-state-transitions">Solicited State Transitions</a>
 </h2>
 <p id="rfc.section.10.3.p.1">If an endpoint is no longer interested in the data it is receiving on a stream, it MAY send a STOP_SENDING frame identifying that stream to prompt closure of the stream in the opposite direction.  This typically indicates that the receiving application is no longer reading data it receives from the stream, but is not a guarantee that incoming data will be ignored.</p>
 <p id="rfc.section.10.3.p.2">STREAM frames received after sending STOP_SENDING are still counted toward the connection and stream flow-control windows, even though these frames will be discarded upon receipt.  This avoids potential ambiguity about which STREAM frames count toward flow control.</p>
-<p id="rfc.section.10.3.p.3">STOP_SENDING can only be sent for any stream that is not &#8220;idle&#8221;, however it is mostly useful for streams in the &#8220;open&#8221; or &#8220;half-closed (local)&#8221; states.  A STOP_SENDING frame requests that the receiving endpoint send a RST_STREAM frame.  An endpoint that receives a STOP_SENDING frame MUST send a RST_STREAM frame for that stream with an error code of STOPPING.  If the STOP_SENDING frame is received on a stream that is already in the &#8220;half-closed (local)&#8221; or &#8220;closed&#8221; states, a RST_STREAM frame MAY still be sent in order to cancel retransmission of previously-sent STREAM frames.</p>
-<p id="rfc.section.10.3.p.4">While STOP_SENDING frames are retransmittable, an implementation MAY choose not to retransmit a lost STOP_SENDING frame if the stream has already been closed in the appropriate direction since the frame was first generated.  See <a href="#packetization" class="xref">Section 9</a>.</p>
+<p id="rfc.section.10.3.p.3">A STOP_SENDING frame requests that the receiving endpoint send a RST_STREAM frame.  An endpoint that receives a STOP_SENDING frame MUST send a RST_STREAM frame for that stream, and can use an error code of STOPPING.  If the STOP_SENDING frame is received on a send stream that is already in the &#8220;Data Sent&#8221; state, a RST_STREAM frame MAY still be sent in order to cancel retransmission of previously-sent STREAM frames.</p>
+<p id="rfc.section.10.3.p.4">STOP_SENDING can only be sent for a receive stream that has not been reset. STOP_SENDING is most useful for streams in the &#8220;Recv&#8221; or &#8220;Size Known&#8221; states.</p>
+<p id="rfc.section.10.3.p.5">An endpoint is expected to send another STOP_SENDING frame if a packet containing the frame is lost.  However, once either all stream data or a RST_STREAM frame has been received for the stream - that is, the stream is in any state other than &#8220;Recv&#8221; or &#8220;Size Known&#8221; - sending a STOP_SENDING frame is unnecessary.</p>
 <h2 id="rfc.section.10.4">
 <a href="#rfc.section.10.4">10.4.</a> <a href="#stream-concurrency" id="stream-concurrency">Stream Concurrency</a>
 </h2>
@@ -2203,7 +2306,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <h2 id="rfc.section.10.6">
 <a href="#rfc.section.10.6">10.6.</a> <a href="#stream-prioritization" id="stream-prioritization">Stream Prioritization</a>
 </h2>
-<p id="rfc.section.10.6.p.1">Stream multiplexing has a significant effect on application performance if resources allocated to streams are correctly prioritized.  Experience with other multiplexed protocols, such as HTTP/2 <a href="#RFC7540" class="xref">[RFC7540]</a>, shows that effective prioritization strategies have a significant positive impact on performance.</p>
+<p id="rfc.section.10.6.p.1">Stream multiplexing has a significant effect on application performance if resources allocated to streams are correctly prioritized.  Experience with other multiplexed protocols, such as HTTP/2 <a href="#HTTP2" class="xref">[HTTP2]</a>, shows that effective prioritization strategies have a significant positive impact on performance.</p>
 <p id="rfc.section.10.6.p.2">QUIC does not provide frames for exchanging prioritization information.  Instead it relies on receiving priority information from the application that uses QUIC.  Protocols that use QUIC are able to define any prioritization scheme that suits their application semantics.  A protocol might define explicit messages for signaling priority, such as those defined in HTTP/2; it could define rules that allow an endpoint to determine priority based on context; or it could leave the determination to the application.</p>
 <p id="rfc.section.10.6.p.3">A QUIC implementation SHOULD provide ways in which an application can indicate the relative priority of streams.  When deciding which streams to dedicate resources to, QUIC SHOULD use the information provided by the application.  Failure to account for priority of streams can result in suboptimal performance.</p>
 <p id="rfc.section.10.6.p.4">Stream priority is most relevant when deciding which stream data will be transmitted.  Often, there will be limits on what can be transmitted as a result of connection flow control or the current congestion controller state.</p>
@@ -2214,7 +2317,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a href="#rfc.section.11">11.</a> <a href="#flow-control" id="flow-control">Flow Control</a>
 </h1>
 <p id="rfc.section.11.p.1">It is necessary to limit the amount of data that a sender may have outstanding at any time, so as to prevent a fast sender from overwhelming a slow receiver, or to prevent a malicious sender from consuming significant resources at a receiver.  This section describes QUIC&#8217;s flow-control mechanisms.</p>
-<p id="rfc.section.11.p.2">QUIC employs a credit-based flow-control scheme similar to HTTP/2&#8217;s flow control <a href="#RFC7540" class="xref">[RFC7540]</a>.  A receiver advertises the number of octets it is prepared to receive on a given stream and for the entire connection.  This leads to two levels of flow control in QUIC: (i) Connection flow control, which prevents senders from exceeding a receiver&#8217;s buffer capacity for the connection, and (ii) Stream flow control, which prevents a single stream from consuming the entire receive buffer for a connection.</p>
+<p id="rfc.section.11.p.2">QUIC employs a credit-based flow-control scheme similar to HTTP/2&#8217;s flow control <a href="#HTTP2" class="xref">[HTTP2]</a>.  A receiver advertises the number of octets it is prepared to receive on a given stream and for the entire connection.  This leads to two levels of flow control in QUIC: (i) Connection flow control, which prevents senders from exceeding a receiver&#8217;s buffer capacity for the connection, and (ii) Stream flow control, which prevents a single stream from consuming the entire receive buffer for a connection.</p>
 <p id="rfc.section.11.p.3">A data receiver sends MAX_STREAM_DATA or MAX_DATA frames to the sender to advertise additional credit. MAX_STREAM_DATA frames send the the maximum absolute byte offset of a stream, while MAX_DATA sends the maximum sum of the absolute byte offsets of all streams other than stream 0.</p>
 <p id="rfc.section.11.p.4">A receiver MAY advertise a larger offset at any point by sending MAX_DATA or MAX_STREAM_DATA frames.  A receiver MUST NOT renege on an advertisement; that is, once a receiver advertises an offset, it MUST NOT subsequently advertise a smaller offset.  A sender could receive MAX_DATA or MAX_STREAM_DATA frames out of order; a sender MUST therefore ignore any flow control offset that does not move the window forward.</p>
 <p id="rfc.section.11.p.5">A receiver MUST close the connection with a FLOW_CONTROL_ERROR error (<a href="#error-handling" class="xref">Section 12</a>) if the peer violates the advertised connection or stream data limits.</p>
@@ -2252,7 +2355,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a href="#rfc.section.11.3">11.3.</a> <a href="#final-offset" id="final-offset">Stream Final Offset</a>
 </h2>
 <p id="rfc.section.11.3.p.1">The final offset is the count of the number of octets that are transmitted on a stream.  For a stream that is reset, the final offset is carried explicitly in a RST_STREAM frame.  Otherwise, the final offset is the offset of the end of the data carried in a STREAM frame marked with a FIN flag, or 0 in the case of incoming unidirectional streams.</p>
-<p id="rfc.section.11.3.p.2">An endpoint will know the final offset for a stream when the stream enters the &#8220;half-closed (remote)&#8221; state.  However, if there is reordering or loss, an endpoint might learn the final offset prior to entering this state if it is carried on a STREAM frame.</p>
+<p id="rfc.section.11.3.p.2">An endpoint will know the final offset for a stream when the receive stream enters the &#8220;Size Known&#8221; or &#8220;Reset Recvd&#8221; state.</p>
 <p id="rfc.section.11.3.p.3">An endpoint MUST NOT send data on a stream at or beyond the final offset.</p>
 <p id="rfc.section.11.3.p.4">Once a final offset for a stream is known, it cannot change.  If a RST_STREAM or STREAM frame causes the final offset to change for a stream, an endpoint SHOULD respond with a FINAL_OFFSET_ERROR error (see <a href="#error-handling" class="xref">Section 12</a>).  A receiver SHOULD treat receipt of data at or beyond the final offset as a FINAL_OFFSET_ERROR error, even after a stream is closed.  Generating these errors is not mandatory, but only because requiring that an endpoint generate these errors also means that the endpoint needs to maintain the final offset state for closed streams, which could mean a significant state commitment.</p>
 <h1 id="rfc.section.12">
@@ -2360,8 +2463,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dd style="margin-left: 8">A reference to a publicly available specification for the value.</dd>
 </dl>
 <p id="rfc.section.14.1.p.5">The nominated expert(s) verify that a specification exists and is readily accessible.  The expert(s) are encouraged to be biased towards approving registrations unless they are abusive, frivolous, or actively harmful (not merely aesthetically displeasing, or architecturally dubious).</p>
-<p id="rfc.section.14.1.p.6">The initial contents of this registry are shown in <a href="#iana-tp-table" class="xref">Table 6</a>.</p>
-<div id="rfc.table.6"></div>
+<p id="rfc.section.14.1.p.6">The initial contents of this registry are shown in <a href="#iana-tp-table" class="xref">Table 7</a>.</p>
+<div id="rfc.table.7"></div>
 <div id="iana-tp-table"></div>
 <table cellpadding="3" cellspacing="0" class="tt full center">
 <caption>Initial QUIC Transport Parameters Entries</caption>
@@ -2436,8 +2539,8 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <dt>Specification:</dt>
 <dd style="margin-left: 8">A reference to a publicly available specification for the value.</dd>
 </dl>
-<p id="rfc.section.14.2.p.5">The initial contents of this registry are shown in <a href="#iana-error-table" class="xref">Table 7</a>.  Note that FRAME_ERROR takes the range from 0x100 to 0x1FF and private use occupies the range from 0xFE00 to 0xFFFF.</p>
-<div id="rfc.table.7"></div>
+<p id="rfc.section.14.2.p.5">The initial contents of this registry are shown in <a href="#iana-error-table" class="xref">Table 8</a>.  Note that FRAME_ERROR takes the range from 0x100 to 0x1FF and private use occupies the range from 0xFE00 to 0xFFFF.</p>
+<div id="rfc.table.8"></div>
 <div id="iana-error-table"></div>
 <table cellpadding="3" cellspacing="0" class="tt full center">
 <caption>Initial QUIC Transport Error Codes Entries</caption>
@@ -2597,6 +2700,11 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <a>Roskind, J.</a>, "<a href="https://goo.gl/dMVtFi">QUIC: Multiplexed Transport Over UDP</a>", December 2013.</td>
 </tr>
 <tr>
+<td class="reference"><b id="HTTP2">[HTTP2]</b></td>
+<td class="top">
+<a>Belshe, M.</a>, <a>Peon, R.</a> and <a>M. Thomson</a>, "<a href="https://tools.ietf.org/html/rfc7540">Hypertext Transfer Protocol Version 2 (HTTP/2)</a>", RFC 7540, DOI 10.17487/RFC7540, May 2015.</td>
+</tr>
+<tr>
 <td class="reference"><b id="RFC2104">[RFC2104]</b></td>
 <td class="top">
 <a>Krawczyk, H.</a>, <a>Bellare, M.</a> and <a>R. Canetti</a>, "<a href="https://tools.ietf.org/html/rfc2104">HMAC: Keyed-Hashing for Message Authentication</a>", RFC 2104, DOI 10.17487/RFC2104, February 1997.</td>
@@ -2625,11 +2733,6 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <td class="reference"><b id="RFC7301">[RFC7301]</b></td>
 <td class="top">
 <a>Friedl, S.</a>, <a>Popov, A.</a>, <a>Langley, A.</a> and <a>E. Stephan</a>, "<a href="https://tools.ietf.org/html/rfc7301">Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension</a>", RFC 7301, DOI 10.17487/RFC7301, July 2014.</td>
-</tr>
-<tr>
-<td class="reference"><b id="RFC7540">[RFC7540]</b></td>
-<td class="top">
-<a>Belshe, M.</a>, <a>Peon, R.</a> and <a>M. Thomson</a>, "<a href="https://tools.ietf.org/html/rfc7540">Hypertext Transfer Protocol Version 2 (HTTP/2)</a>", RFC 7540, DOI 10.17487/RFC7540, May 2015.</td>
 </tr>
 <tr>
 <td class="reference"><b id="SLOWLORIS">[SLOWLORIS]</b></td>

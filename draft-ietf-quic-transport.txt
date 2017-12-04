@@ -91,9 +91,9 @@ Table of Contents
      5.1.  Long Header . . . . . . . . . . . . . . . . . . . . . . .  10
      5.2.  Short Header  . . . . . . . . . . . . . . . . . . . . . .  11
      5.3.  Version Negotiation Packet  . . . . . . . . . . . . . . .  13
-     5.4.  Cryptographic Handshake Packets . . . . . . . . . . . . .  13
+     5.4.  Cryptographic Handshake Packets . . . . . . . . . . . . .  14
        5.4.1.  Initial Packet  . . . . . . . . . . . . . . . . . . .  14
-       5.4.2.  Retry Packet  . . . . . . . . . . . . . . . . . . . .  14
+       5.4.2.  Retry Packet  . . . . . . . . . . . . . . . . . . . .  15
        5.4.3.  Handshake Packet  . . . . . . . . . . . . . . . . . .  15
      5.5.  Protected Packets . . . . . . . . . . . . . . . . . . . .  16
      5.6.  Connection ID . . . . . . . . . . . . . . . . . . . . . .  16
@@ -450,7 +450,7 @@ Iyengar & Thomson         Expires June 7, 2018                  [Page 8]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   The version 0x00000000 is reserved to represent an invalid version.
+   The version 0x00000000 is reserved to represent version negotiation.
    This version of the specification is identified by the number
    0x00000001.
 
@@ -567,19 +567,17 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    The following packet types are defined:
 
-              +------+---------------------+---------------+
-              | Type | Name                | Section       |
-              +------+---------------------+---------------+
-              | 0x7F | Version Negotiation | Section 5.3   |
-              |      |                     |               |
-              | 0x7E | Initial             | Section 5.4.1 |
-              |      |                     |               |
-              | 0x7D | Retry               | Section 5.4.2 |
-              |      |                     |               |
-              | 0x7C | Handshake           | Section 5.4.3 |
-              |      |                     |               |
-              | 0x7B | 0-RTT Protected     | Section 5.5   |
-              +------+---------------------+---------------+
+                +------+-----------------+---------------+
+                | Type | Name            | Section       |
+                +------+-----------------+---------------+
+                | 0x7F | Initial         | Section 5.4.1 |
+                |      |                 |               |
+                | 0x7E | Retry           | Section 5.4.2 |
+                |      |                 |               |
+                | 0x7D | Handshake       | Section 5.4.3 |
+                |      |                 |               |
+                | 0x7C | 0-RTT Protected | Section 5.5   |
+                +------+-----------------+---------------+
 
                      Table 1: Long Header Packet Types
 
@@ -610,6 +608,8 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
                        Figure 2: Short Header Format
+
+
 
 
 
@@ -682,25 +682,28 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
 5.3.  Version Negotiation Packet
 
-   A Version Negotiation packet has long headers with a type value of
-   0x7F and is sent only by servers.  The Version Negotiation packet is
-   a response to a client packet that contains a version that is not
-   supported by the server.
+   A Version Negotiation packet is inherently not version-specific, and
+   does not use the packet headers defined above.  Upon receipt by a
+   client, it will appear to be a packet using the long header, but will
+   be identified as a Version Negotiation packet based on the Version
+   field.
 
-   The connection ID and version fields echo corresponding values from
-   the triggering client packet.  This allows clients some assurance
-   that the server received the packet and that the Version Negotiation
-   packet was not carried in a packet with a spoofed source address.
+   The Version Negotiation packet is a response to a client packet that
+   contains a version that is not supported by the server, and is only
+   sent by servers.
 
-   A Version Negotiation packet is never explicitly acknowledged in an
-   ACK frame by a client.  Receiving another Initial packet implicitly
-   acknowledges a Version Negotiation packet.
-
-   The payload of the Version Negotiation packet is a list of 32-bit
-   versions which the server supports, as shown below.
+   The layout of a Version Negotiation packet is:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+
+   |1|  Unused (7) |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                       Connection ID (64)                      +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          Version (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                    Supported Version 1 (32)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -713,14 +716,11 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
                    Figure 3: Version Negotiation Packet
 
-   See Section 7.2 for a description of the version negotiation process.
-
-5.4.  Cryptographic Handshake Packets
-
-   Once version negotiation is complete, the cryptographic handshake is
-   used to agree on cryptographic keys.  The cryptographic handshake is
-   carried in Initial (Section 5.4.1), Retry (Section 5.4.2) and
-   Handshake (Section 5.4.3) packets.
+   The value in the Unused field is selected randomly by the server.
+   The Connection ID field echoes the corresponding value from the
+   triggering client packet.  This allows clients some assurance that
+   the server received the packet and that the Version Negotiation
+   packet is in fact from the server.  The Version field MUST be set to
 
 
 
@@ -729,6 +729,22 @@ Iyengar & Thomson         Expires June 7, 2018                 [Page 13]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   0x00000000.  The remainder of the Version Negotiation packet is a
+   list of 32-bit versions which the server supports.
+
+   A Version Negotiation packet cannot be explicitly acknowledged in an
+   ACK frame by a client.  Receiving another Initial packet implicitly
+   acknowledges a Version Negotiation packet.
+
+   See Section 7.2 for a description of the version negotiation process.
+
+5.4.  Cryptographic Handshake Packets
+
+   Once version negotiation is complete, the cryptographic handshake is
+   used to agree on cryptographic keys.  The cryptographic handshake is
+   carried in Initial (Section 5.4.1), Retry (Section 5.4.2) and
+   Handshake (Section 5.4.3) packets.
 
    All these packets use the long header and contain the current QUIC
    version in the version field.
@@ -762,6 +778,14 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    The client uses the Initial packet type for any packet that contains
    an initial cryptographic handshake message.  This includes all cases
+
+
+
+Iyengar & Thomson         Expires June 7, 2018                 [Page 14]
+
+Internet-Draft           QUIC Transport Protocol           December 2017
+
+
    where a new packet containing the initial cryptographic message needs
    to be created, this includes the packets sent after receiving a
    Version Negotiation (Section 5.3) or Retry packet (Section 5.4.2).
@@ -776,15 +800,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The packet number and connection ID fields echo the corresponding
    fields from the triggering client packet.  This allows a client to
    verify that the server received its packet.
-
-
-
-
-
-Iyengar & Thomson         Expires June 7, 2018                 [Page 14]
-
-Internet-Draft           QUIC Transport Protocol           December 2017
-
 
    A Retry packet is never explicitly acknowledged in an ACK frame by a
    client.  Receiving another Initial packet implicitly acknowledges a
@@ -820,6 +835,13 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The connection ID field in a Handshake packet contains a connection
    ID that is chosen by the server (see Section 5.6).
 
+
+
+Iyengar & Thomson         Expires June 7, 2018                 [Page 15]
+
+Internet-Draft           QUIC Transport Protocol           December 2017
+
+
    The first Handshake packet sent by a server contains a randomized
    packet number.  This value is increased for each subsequent packet
    sent by the server as described in Section 5.7.  The client
@@ -829,18 +851,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    The payload of this packet contains STREAM frames and could contain
    PADDING and ACK frames.
-
-
-
-
-
-
-
-
-Iyengar & Thomson         Expires June 7, 2018                 [Page 15]
-
-Internet-Draft           QUIC Transport Protocol           December 2017
-
 
 5.5.  Protected Packets
 
@@ -881,6 +891,13 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The client MUST choose a random connection ID and use it in Initial
    packets (Section 5.4.1) and 0-RTT packets (Section 5.5).
 
+
+
+Iyengar & Thomson         Expires June 7, 2018                 [Page 16]
+
+Internet-Draft           QUIC Transport Protocol           December 2017
+
+
    When the server receives a Initial packet and decides to proceed with
    the handshake, it chooses a new value for the connection ID and sends
    that in a Handshake packet (Section 5.4.3).  The server MAY choose to
@@ -890,13 +907,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    chosen, it MUST use it for all subsequent Handshake (Section 5.4.3)
    and 1-RTT (Section 5.5) packets but not for 0-RTT packets
    (Section 5.5).
-
-
-
-Iyengar & Thomson         Expires June 7, 2018                 [Page 16]
-
-Internet-Draft           QUIC Transport Protocol           December 2017
-
 
    Server's Version Negotiation (Section 5.3) and Retry (Section 5.4.2)
    packets MUST use connection ID selected by the client.
@@ -936,6 +946,14 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    the packet will then correctly decode the packet number, unless the
    packet is delayed in transit such that it arrives after many higher-
    numbered packets have been received.  An endpoint SHOULD use a large
+
+
+
+Iyengar & Thomson         Expires June 7, 2018                 [Page 17]
+
+Internet-Draft           QUIC Transport Protocol           December 2017
+
+
    enough packet number encoding to allow the packet number to be
    recovered even if the packet arrives after packets that are sent
    afterwards.
@@ -946,14 +964,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    For example, if an endpoint has received an acknowledgment for packet
    0x6afa2f, sending a packet with a number of 0x6b4264 requires a
-
-
-
-Iyengar & Thomson         Expires June 7, 2018                 [Page 17]
-
-Internet-Draft           QUIC Transport Protocol           December 2017
-
-
    16-bit or larger packet number encoding; whereas a 32-bit packet
    number is needed to send a packet with a number of 0x6bc107.
 
@@ -993,22 +1003,18 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    o  the location and size of the Version field in long headers,
 
-   o  the location and size of the Packet Number field in long headers,
-      and
-
-   o  the type, format and semantics of the Version Negotiation packet.
-
-   Implementations MUST assume that an unsupported version uses an
-   unknown packet format.  All other fields MUST be ignored when
-   processing a packet that contains an unsupported version.
-
-
 
 
 Iyengar & Thomson         Expires June 7, 2018                 [Page 18]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
+
+   o  the format and semantics of the Version Negotiation packet.
+
+   Implementations MUST assume that an unsupported version uses an
+   unknown packet format.  All other fields MUST be ignored when
+   processing a packet that contains an unsupported version.
 
 6.  Frames and Frame Types
 
@@ -1050,12 +1056,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    For all other frames, the Frame Type byte simply identifies the
    frame.  These frames are explained in more detail as they are
    referenced later in the document.
-
-
-
-
-
-
 
 
 

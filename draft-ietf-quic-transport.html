@@ -813,7 +813,7 @@ address {
 <a href="#rfc.section.4">4.</a> <a href="#versions" id="versions">Versions</a>
 </h1>
 <p id="rfc.section.4.p.1">QUIC versions are identified using a 32-bit unsigned number.</p>
-<p id="rfc.section.4.p.2">The version 0x00000000 is reserved to represent an invalid version.  This version of the specification is identified by the number 0x00000001.</p>
+<p id="rfc.section.4.p.2">The version 0x00000000 is reserved to represent version negotiation.  This version of the specification is identified by the number 0x00000001.</p>
 <p id="rfc.section.4.p.3">Version 0x00000001 of QUIC uses TLS as a cryptographic handshake protocol, as described in <a href="#QUIC-TLS" class="xref">[QUIC-TLS]</a>.</p>
 <p id="rfc.section.4.p.4">Versions with the most significant 16 bits of the version number cleared are reserved for use in future IETF consensus documents.</p>
 <p id="rfc.section.4.p.5">Versions that follow the pattern 0x?a?a?a?a are reserved for use in forcing version negotiation to be exercised.  That is, any version number where the low four bits of all octets is 1010 (in binary).  A client or server MAY advertise support for any of these reserved versions.</p>
@@ -881,26 +881,21 @@ address {
 <tbody>
 <tr>
 <td class="left">0x7F</td>
-<td class="left">Version Negotiation</td>
-<td class="left"><a href="#packet-version" class="xref">Section 5.3</a></td>
-</tr>
-<tr>
-<td class="left">0x7E</td>
 <td class="left">Initial</td>
 <td class="left"><a href="#packet-initial" class="xref">Section 5.4.1</a></td>
 </tr>
 <tr>
-<td class="left">0x7D</td>
+<td class="left">0x7E</td>
 <td class="left">Retry</td>
 <td class="left"><a href="#packet-retry" class="xref">Section 5.4.2</a></td>
 </tr>
 <tr>
-<td class="left">0x7C</td>
+<td class="left">0x7D</td>
 <td class="left">Handshake</td>
 <td class="left"><a href="#packet-handshake" class="xref">Section 5.4.3</a></td>
 </tr>
 <tr>
-<td class="left">0x7B</td>
+<td class="left">0x7C</td>
 <td class="left">0-RTT Protected</td>
 <td class="left"><a href="#packet-protected" class="xref">Section 5.5</a></td>
 </tr>
@@ -976,15 +971,22 @@ address {
 <h2 id="rfc.section.5.3">
 <a href="#rfc.section.5.3">5.3.</a> <a href="#packet-version" id="packet-version">Version Negotiation Packet</a>
 </h2>
-<p id="rfc.section.5.3.p.1">A Version Negotiation packet has long headers with a type value of 0x7F and is sent only by servers.  The Version Negotiation packet is a response to a client packet that contains a version that is not supported by the server.</p>
-<p id="rfc.section.5.3.p.2">The connection ID and version fields echo corresponding values from the triggering client packet.  This allows clients some assurance that the server received the packet and that the Version Negotiation packet was not carried in a packet with a spoofed source address.</p>
-<p id="rfc.section.5.3.p.3">A Version Negotiation packet is never explicitly acknowledged in an ACK frame by a client.  Receiving another Initial packet implicitly acknowledges a Version Negotiation packet.</p>
-<p id="rfc.section.5.3.p.4">The payload of the Version Negotiation packet is a list of 32-bit versions which the server supports, as shown below.</p>
+<p id="rfc.section.5.3.p.1">A Version Negotiation packet is inherently not version-specific, and does not use the packet headers defined above. Upon receipt by a client, it will appear to be a packet using the long header, but will be identified as a Version Negotiation packet based on the Version field.</p>
+<p id="rfc.section.5.3.p.2">The Version Negotiation packet is a response to a client packet that contains a version that is not supported by the server, and is only sent by servers.</p>
+<p id="rfc.section.5.3.p.3">The layout of a Version Negotiation packet is:</p>
 <div id="rfc.figure.3"></div>
 <div id="version-negotiation-format"></div>
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+
+|1|  Unused (7) |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
++                       Connection ID (64)                      +
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                          Version (32)                         |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                    Supported Version 1 (32)                 ...
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -996,7 +998,9 @@ address {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 3: Version Negotiation Packet</p>
-<p id="rfc.section.5.3.p.5">See <a href="#version-negotiation" class="xref">Section 7.2</a> for a description of the version negotiation process.</p>
+<p id="rfc.section.5.3.p.4">The value in the Unused field is selected randomly by the server. The Connection ID field echoes the corresponding value from the triggering client packet.  This allows clients some assurance that the server received the packet and that the Version Negotiation packet is in fact from the server.  The Version field MUST be set to 0x00000000.  The remainder of the Version Negotiation packet is a list of 32-bit versions which the server supports.</p>
+<p id="rfc.section.5.3.p.5">A Version Negotiation packet cannot be explicitly acknowledged in an ACK frame by a client.  Receiving another Initial packet implicitly acknowledges a Version Negotiation packet.</p>
+<p id="rfc.section.5.3.p.6">See <a href="#version-negotiation" class="xref">Section 7.2</a> for a description of the version negotiation process.</p>
 <h2 id="rfc.section.5.4">
 <a href="#rfc.section.5.4">5.4.</a> <a href="#handshake-packets" id="handshake-packets">Cryptographic Handshake Packets</a>
 </h2>
@@ -1072,8 +1076,7 @@ address {
 <li>the location of the Omit Connection ID flag in short headers,</li>
 <li>the location and size of the Connection ID field in both header forms,</li>
 <li>the location and size of the Version field in long headers,</li>
-<li>the location and size of the Packet Number field in long headers, and</li>
-<li>the type, format and semantics of the Version Negotiation packet.</li>
+<li>the format and semantics of the Version Negotiation packet.</li>
 </ul>
 <p id="rfc.section.5.8.p.3">Implementations MUST assume that an unsupported version uses an unknown packet format. All other fields MUST be ignored when processing a packet that contains an unsupported version.</p>
 <h1 id="rfc.section.6">

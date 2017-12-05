@@ -645,8 +645,9 @@ Internet-Draft             QUIC Loss Detection             December 2017
 
    min_rtt:  The minimum RTT seen in the connection, ignoring ack delay.
 
-   max_ack_delay:  The maximum ack delay a peer's ack frame used in this
-      connection.
+   max_ack_delay:  The maximum ack delay in an incoming ack frame for
+      this connection.  Excludes ack delays for ack only packets and
+      those that create an RTT sample less than min_rtt.
 
    reordering_threshold:  The largest delta between the largest acked
       retransmittable packet and a packet containing retransmittable
@@ -661,10 +662,9 @@ Internet-Draft             QUIC Loss Detection             December 2017
 
    sent_packets:  An association of packet numbers to information about
       them, including a number field indicating the packet number, a
-      time field indicating the time a packet was sent, and a bytes
-      field indicating the packet's size.  sent_packets is ordered by
-      packet number, and packets remain in sent_packets until
-      acknowledged or lost.
+      time field indicating the time a packet was sent, a boolean
+      indicating whether the packet is ack only, and a bytes field
+      indicating the packet's size.  sent_packets is ordered by packet
 
 
 
@@ -673,6 +673,9 @@ Iyengar & Swett           Expires June 8, 2018                 [Page 12]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
+
+      number, and packets remain in sent_packets until acknowledged or
+      lost.
 
 3.4.3.  Initialization
 
@@ -722,9 +725,6 @@ Internet-Draft             QUIC Loss Detection             December 2017
 
 
 
-
-
-
 Iyengar & Swett           Expires June 8, 2018                 [Page 13]
 
 Internet-Draft             QUIC Loss Detection             December 2017
@@ -735,6 +735,7 @@ Internet-Draft             QUIC Loss Detection             December 2017
       largest_sent_packet = packet_number
       sent_packets[packet_number].packet_number = packet_number
       sent_packets[packet_number].time = now
+      sent_packets[packet_number].ack_only = is_ack_only
       if !is_ack_only:
         OnPacketSentCC(sent_bytes)
         sent_packets[packet_number].bytes = sent_bytes
@@ -777,7 +778,6 @@ Internet-Draft             QUIC Loss Detection             December 2017
         else:
           rttvar = 3/4 * rttvar + 1/4 * abs(smoothed_rtt - latest_rtt)
           smoothed_rtt = 7/8 * smoothed_rtt + 1/8 * latest_rtt
-
 
 
 

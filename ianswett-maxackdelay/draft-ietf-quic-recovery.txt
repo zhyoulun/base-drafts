@@ -414,11 +414,7 @@ Internet-Draft             QUIC Loss Detection             December 2017
    The alarm duration, or Probe Timeout (PTO), is set based on the
    following conditions:
 
-   o  If there is exactly one unacknowledged packet, PTO SHOULD be
-      scheduled for max(2_SRTT, 1.5_SRTT+MaxAckDelay)
-
-   o  If there are more than one unacknowledged packets, PTO SHOULD be
-      scheduled for max(2*SRTT, 10ms).
+   o  PTO SHOULD be scheduled for max(1.5*SRTT+MaxAckDelay, 10ms)
 
    o  If RTO (Section 3.3.2) is earlier, schedule a TLP alarm in its
       place.  That is, PTO SHOULD be scheduled for min(RTO, PTO).
@@ -431,17 +427,21 @@ Internet-Draft             QUIC Loss Detection             December 2017
    received by including MaxAckDelay.
 
    QUIC diverges from TCP by calculating MaxAckDelay dynamically,
-   instead of assuming a constant value for all connections.
+   instead of assuming a constant value for all connections.  It
+   includes this in all probe timeouts, because it assume the ack delay
+   may come into play, regardless of the number of packets outstanding,
+   where as TCP's TLP assumes if at least 2 packets are outstanding,
+   acks will not be delayed.
 
-   A PTO value of at least 2_SRTT ensures that the ACK is overdue.
-   Using a PTO of exactly 1_SRTT may generate spurious probes, and
-   2*SRTT is simply the next integral value of RTT.
-
-   The values of 2 and 1.5 are based on [LOSS-PROBE], but
-   implementations MAY experiment with other constants.
+   A PTO value of at least 1.5*SRTT ensures that the ACK is overdue.
+   The of 1.5 is based on [LOSS-PROBE], but implementations MAY
+   experiment with other constants.
 
    To reduce latency, it is RECOMMENDED that the sender set and allow
    the TLP alarm to fire twice before setting an RTO alarm.  In other
+   words, when the TLP alarm fires the first time, a TLP packet is sent,
+   and it is RECOMMENDED that the TLP alarm be scheduled for a second
+
 
 
 
@@ -450,8 +450,6 @@ Iyengar & Swett           Expires June 8, 2018                  [Page 8]
 Internet-Draft             QUIC Loss Detection             December 2017
 
 
-   words, when the TLP alarm fires the first time, a TLP packet is sent,
-   and it is RECOMMENDED that the TLP alarm be scheduled for a second
    time.  When the TLP alarm fires the second time, a second TLP packet
    is sent, and an RTO alarm SHOULD be scheduled Section 3.3.2.
 
@@ -498,6 +496,8 @@ Internet-Draft             QUIC Loss Detection             December 2017
    resilience to packet drop in both directions, thus reducing the
    probability of consecutive RTO events.
 
+   QUIC's RTO algorithm differs from TCP in that the firing of an RTO
+   alarm is not considered a strong enough signal of packet loss, so
 
 
 
@@ -506,8 +506,6 @@ Iyengar & Swett           Expires June 8, 2018                  [Page 9]
 Internet-Draft             QUIC Loss Detection             December 2017
 
 
-   QUIC's RTO algorithm differs from TCP in that the firing of an RTO
-   alarm is not considered a strong enough signal of packet loss, so
    does not result in an immediate change to CWND or recovery state.  An
    RTO alarm fires only when there's a prolonged period of network
    silence, which could be caused by a change in the underlying network
@@ -554,6 +552,8 @@ Internet-Draft             QUIC Loss Detection             December 2017
    When the first handshake packet is sent, the sender SHOULD set an
    alarm for the handshake timeout period.
 
+   When the alarm fires, the sender MUST retransmit all unacknowledged
+   handshake data.  On each consecutive firing of the handshake alarm,
 
 
 
@@ -562,8 +562,6 @@ Iyengar & Swett           Expires June 8, 2018                 [Page 10]
 Internet-Draft             QUIC Loss Detection             December 2017
 
 
-   When the alarm fires, the sender MUST retransmit all unacknowledged
-   handshake data.  On each consecutive firing of the handshake alarm,
    the sender SHOULD double the handshake timeout and set an alarm for
    this period.
 
@@ -609,6 +607,8 @@ Internet-Draft             QUIC Loss Detection             December 2017
    kDelayedAckTimeout (default 25ms):  The length of the peer's delayed
       ack timer.
 
+   kDefaultInitialRtt (default 100ms):  The default RTT used before an
+      RTT sample is taken.
 
 
 
@@ -617,9 +617,6 @@ Iyengar & Swett           Expires June 8, 2018                 [Page 11]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   kDefaultInitialRtt (default 100ms):  The default RTT used before an
-      RTT sample is taken.
 
 3.4.2.  Variables of interest
 
@@ -666,6 +663,9 @@ Internet-Draft             QUIC Loss Detection             December 2017
       retransmittable packet and a packet containing retransmittable
       frames before it's declared lost.
 
+   time_reordering_fraction:  The reordering window as a fraction of
+      max(smoothed_rtt, latest_rtt).
+
 
 
 
@@ -673,9 +673,6 @@ Iyengar & Swett           Expires June 8, 2018                 [Page 12]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   time_reordering_fraction:  The reordering window as a fraction of
-      max(smoothed_rtt, latest_rtt).
 
    loss_time:  The time at which the next packet will be considered lost
       based on early transmit or exceeding the reordering window in
@@ -721,6 +718,9 @@ Internet-Draft             QUIC Loss Detection             December 2017
 
    o  packet_number: The packet number of the sent packet.
 
+   o  is_ack_only: A boolean that indicates whether a packet only
+      contains an ACK frame.  If true, it is still expected an ack will
+      be received for this packet, but it is not congestion controlled.
 
 
 
@@ -729,10 +729,6 @@ Iyengar & Swett           Expires June 8, 2018                 [Page 13]
 
 Internet-Draft             QUIC Loss Detection             December 2017
 
-
-   o  is_ack_only: A boolean that indicates whether a packet only
-      contains an ACK frame.  If true, it is still expected an ack will
-      be received for this packet, but it is not congestion controlled.
 
    o  sent_bytes: The number of bytes sent in the packet, not including
       UDP or IP overhead, but including QUIC framing overhead.
@@ -755,6 +751,10 @@ Internet-Draft             QUIC Loss Detection             December 2017
    When an ack is received, it may acknowledge 0 or more packets.
 
    Pseudocode for OnAckReceived and UpdateRtt follow:
+
+
+
+
 
 
 

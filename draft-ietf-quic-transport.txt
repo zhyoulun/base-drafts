@@ -293,8 +293,6 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    [x]  Indicates that x is optional
 
-   {x}  Indicates that x is encrypted
-
    x (A)  Indicates that x is A bits long
 
    x (A/B/C) ...  Indicates that x is one of A, B, or C bits long
@@ -330,6 +328,8 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    expected to commonly use 0-RTT handshakes, meaning that for most QUIC
    connections, data can be sent immediately following the client
    handshake packet, without waiting for a reply from the server.  QUIC
+   provides a dedicated stream (Stream ID 0) to be used for performing
+   the cryptographic handshake and QUIC options negotiation.  The format
 
 
 
@@ -338,8 +338,6 @@ Iyengar & Thomson         Expires June 11, 2018                 [Page 6]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   provides a dedicated stream (Stream ID 0) to be used for performing
-   the cryptographic handshake and QUIC options negotiation.  The format
    of the QUIC options and parameters used during negotiation are
    described in this document, but the handshake protocol that runs on
    Stream ID 0 is described in the accompanying cryptographic handshake
@@ -386,6 +384,8 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    connection-level flow control to limit the aggregate buffer that a
    QUIC receiver is willing to allocate to all streams on a connection.
    Connection-level flow control works in the same way as stream-level
+   flow control, but the bytes delivered and the limits are aggregated
+   across all streams.
 
 
 
@@ -393,9 +393,6 @@ Iyengar & Thomson         Expires June 11, 2018                 [Page 7]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   flow control, but the bytes delivered and the limits are aggregated
-   across all streams.
 
 3.5.  Authenticated and Encrypted Header and Payload
 
@@ -441,6 +438,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    QUIC versions are identified using a 32-bit unsigned number.
 
+   The version 0x00000000 is reserved to represent version negotiation.
+   This version of the specification is identified by the number
+   0x00000001.
 
 
 
@@ -449,10 +449,6 @@ Iyengar & Thomson         Expires June 11, 2018                 [Page 8]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   The version 0x00000000 is reserved to represent version negotiation.
-   This version of the specification is identified by the number
-   0x00000001.
 
    Version 0x00000001 of QUIC uses TLS as a cryptographic handshake
    protocol, as described in [QUIC-TLS].
@@ -498,6 +494,10 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    Any QUIC packet has either a long or a short header, as indicated by
    the Header Form bit.  Long headers are expected to be used early in
+   the connection before version negotiation and establishment of 1-RTT
+   keys.  Short headers are minimal version-specific headers, which are
+   used after version negotiation and 1-RTT keys are established.
+
 
 
 
@@ -505,10 +505,6 @@ Iyengar & Thomson         Expires June 11, 2018                 [Page 9]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   the connection before version negotiation and establishment of 1-RTT
-   keys.  Short headers are minimal version-specific headers, which are
-   used after version negotiation and 1-RTT keys are established.
 
 5.1.  Long Header
 
@@ -555,15 +551,16 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    Packet Number:  Octets 13 to 16 contain the packet number.
       Section 5.7 describes the use of packet numbers.
 
+   Payload:  Octets from 17 onwards (the rest of QUIC packet) are the
+      payload of the packet.
+
+
 
 
 Iyengar & Thomson         Expires June 11, 2018                [Page 10]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   Payload:  Octets from 17 onwards (the rest of QUIC packet) are the
-      payload of the packet.
 
    The following packet types are defined:
 
@@ -609,6 +606,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
                        Figure 2: Short Header Format
 
+   The short header can be used after the version and 1-RTT keys are
+   negotiated.  This header form has the following fields:
+
 
 
 
@@ -617,9 +617,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 11]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   The short header can be used after the version and 1-RTT keys are
-   negotiated.  This header form has the following fields:
 
    Header Form:  The most significant bit (0x80) of octet 0 is set to 0
       for the short header.
@@ -667,6 +664,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
                     Table 2: Short Header Packet Types
 
+   The header form, omit connection ID flag, and connection ID of a
+   short header packet are version-independent.  The remaining fields
+
 
 
 Iyengar & Thomson         Expires June 11, 2018                [Page 12]
@@ -674,8 +674,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 12]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   The header form, omit connection ID flag, and connection ID of a
-   short header packet are version-independent.  The remaining fields
    are specific to the selected QUIC version.  See Section 5.8 for
    details on how packets from different versions of QUIC are
    interpreted.
@@ -721,6 +719,8 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    triggering client packet.  This allows clients some assurance that
    the server received the packet and that the Version Negotiation
    packet is in fact from the server.  The Version field MUST be set to
+   0x00000000.  The remainder of the Version Negotiation packet is a
+   list of 32-bit versions which the server supports.
 
 
 
@@ -729,9 +729,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 13]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   0x00000000.  The remainder of the Version Negotiation packet is a
-   list of 32-bit versions which the server supports.
 
    A Version Negotiation packet cannot be explicitly acknowledged in an
    ACK frame by a client.  Receiving another Initial packet implicitly
@@ -778,6 +775,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
 
    The client uses the Initial packet type for any packet that contains
    an initial cryptographic handshake message.  This includes all cases
+   where a new packet containing the initial cryptographic message needs
+   to be created, this includes the packets sent after receiving a
+   Version Negotiation (Section 5.3) or Retry packet (Section 5.4.2).
 
 
 
@@ -785,10 +785,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 14]
 
 Internet-Draft           QUIC Transport Protocol           December 2017
 
-
-   where a new packet containing the initial cryptographic message needs
-   to be created, this includes the packets sent after receiving a
-   Version Negotiation (Section 5.3) or Retry packet (Section 5.4.2).
 
 5.4.2.  Retry Packet
 
@@ -835,6 +831,10 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The connection ID field in a Handshake packet contains a connection
    ID that is chosen by the server (see Section 5.6).
 
+   The first Handshake packet sent by a server contains a randomized
+   packet number.  This value is increased for each subsequent packet
+   sent by the server as described in Section 5.7.  The client
+
 
 
 Iyengar & Thomson         Expires June 11, 2018                [Page 15]
@@ -842,9 +842,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 15]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   The first Handshake packet sent by a server contains a randomized
-   packet number.  This value is increased for each subsequent packet
-   sent by the server as described in Section 5.7.  The client
    increments the packet number from its previous packet by one for each
    Handshake packet that it sends (which might be an Initial, 0-RTT
    Protected, or Handshake packet).
@@ -891,6 +888,9 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    The client MUST choose a random connection ID and use it in Initial
    packets (Section 5.4.1) and 0-RTT packets (Section 5.5).
 
+   When the server receives a Initial packet and decides to proceed with
+   the handshake, it chooses a new value for the connection ID and sends
+
 
 
 Iyengar & Thomson         Expires June 11, 2018                [Page 16]
@@ -898,8 +898,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 16]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   When the server receives a Initial packet and decides to proceed with
-   the handshake, it chooses a new value for the connection ID and sends
    that in a Handshake packet (Section 5.4.3).  The server MAY choose to
    use the value that the client initially selects.
 
@@ -946,6 +944,8 @@ Internet-Draft           QUIC Transport Protocol           December 2017
    the packet will then correctly decode the packet number, unless the
    packet is delayed in transit such that it arrives after many higher-
    numbered packets have been received.  An endpoint SHOULD use a large
+   enough packet number encoding to allow the packet number to be
+
 
 
 
@@ -954,7 +954,6 @@ Iyengar & Thomson         Expires June 11, 2018                [Page 17]
 Internet-Draft           QUIC Transport Protocol           December 2017
 
 
-   enough packet number encoding to allow the packet number to be
    recovered even if the packet arrives after packets that are sent
    afterwards.
 
@@ -1002,6 +1001,7 @@ Internet-Draft           QUIC Transport Protocol           December 2017
       forms,
 
    o  the location and size of the Version field in long headers,
+
 
 
 

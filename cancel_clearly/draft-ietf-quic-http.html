@@ -600,7 +600,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <a href="#rfc.section.4.2.2">4.2.2.</a> <a href="#the-connect-method" id="the-connect-method">The CONNECT Method</a>
 </h3>
 <p id="rfc.section.4.2.2.p.1">The pseudo-method CONNECT (<a href="#RFC7231" class="xref">[RFC7231]</a>, Section 4.3.6) is primarily used with HTTP proxies to establish a TLS session with an origin server for the purposes of interacting with &#8220;https&#8221; resources. In HTTP/1.x, CONNECT is used to convert an entire HTTP connection into a tunnel to a remote host. In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream to a remote host for similar purposes.</p>
-<p id="rfc.section.4.2.2.p.2">A CONNECT request in HTTP/QUIC functions in the same manner as in HTTP/2. The request MUST be formatted as described in <a href="#RFC7540" class="xref">[RFC7540]</a>, Section 8.3. A CONNECT request that does not conform to these restrictions is malformed. The message data stream MUST NOT be closed at the end of the request.</p>
+<p id="rfc.section.4.2.2.p.2">A CONNECT request in HTTP/QUIC functions in the same manner as in HTTP/2. The request MUST be formatted as described in <a href="#RFC7540" class="xref">[RFC7540]</a>, Section 8.3. A CONNECT request that does not conform to these restrictions is malformed. The request stream MUST NOT be half-closed at the end of the request.</p>
 <p id="rfc.section.4.2.2.p.3">A proxy that supports CONNECT establishes a TCP connection (<a href="#RFC0793" class="xref">[RFC0793]</a>) to the server identified in the &#8220;:authority&#8221; pseudo-header field. Once this connection is successfully established, the proxy sends a HEADERS frame containing a 2xx series status code to the client, as defined in <a href="#RFC7231" class="xref">[RFC7231]</a>, Section 4.3.6.</p>
 <p id="rfc.section.4.2.2.p.4">All DATA frames on the request stream correspond to data sent on the TCP connection. Any DATA frame sent by the client is transmitted by the proxy to the TCP server; data received from the TCP server is packaged into DATA frames by the proxy. Note that the size and number of TCP segments is not guaranteed to map predictably to the size and number of HTTP DATA or QUIC STREAM frames.</p>
 <p id="rfc.section.4.2.2.p.5">The TCP connection can be closed by either peer. When the client ends the request stream (that is, the receive stream at the proxy enters the &#8220;Data Recvd&#8221; state), the proxy will set the FIN bit on its connection to the TCP server. When the proxy receives a packet with the FIN bit set, it will terminate the send stream that it sends to client. TCP connections which remain half-closed in a single direction are not invalid, but are often handled poorly by servers, so clients SHOULD NOT cause send a STREAM frame with a FIN bit for connections on which they are still expecting data.</p>
@@ -609,7 +609,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <a href="#rfc.section.4.3">4.3.</a> <a href="#priority" id="priority">Request Prioritization</a>
 </h2>
 <p id="rfc.section.4.3.p.1">HTTP/QUIC uses the priority scheme described in <a href="#RFC7540" class="xref">[RFC7540]</a>, Section 5.3. In this priority scheme, a given request can be designated as dependent upon another request, which expresses the preference that the latter stream (the &#8220;parent&#8221; request) be allocated resources before the former stream (the &#8220;dependent&#8221; request). Taken together, the dependencies across all requests in a connection form a dependency tree. The structure of the dependency tree changes as PRIORITY frames add, remove, or change the dependency links between requests.</p>
-<p id="rfc.section.4.3.p.2">HTTP/2 defines its priorities in terms of streams whereas HTTP over QUIC identifies requests.  The PRIORITY frame <a href="#frame-priority" class="xref">Section 5.2.3</a> identifies a request either by identifying the stream that carries a request or by using a Push ID (<a href="#frame-push-promise" class="xref">Section 5.2.6</a>).  Other than the means of identifying requests, the prioritization system is identical to that in HTTP/2.</p>
+<p id="rfc.section.4.3.p.2">The PRIORITY frame <a href="#frame-priority" class="xref">Section 5.2.3</a> identifies a request either by identifying the stream that carries a request or by using a Push ID (<a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
 <p id="rfc.section.4.3.p.3">Only a client can send PRIORITY frames.  A server MUST NOT send a PRIORITY frame.</p>
 <h2 id="rfc.section.4.4">
 <a href="#rfc.section.4.4">4.4.</a> <a href="#server-push" id="server-push">Server Push</a>
@@ -918,7 +918,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <h2 id="rfc.section.8.1">
 <a href="#rfc.section.8.1">8.1.</a> <a href="#h2-streams" id="h2-streams">Streams</a>
 </h2>
-<p id="rfc.section.8.1.p.1">HTTP/QUIC permits use of a larger number of streams (2^62-1) then HTTP/2.  The considerations about exhaustion of stream identifier space apply, though the space is significantly larger such that it is likely that other limits in QUIC are reached first, such as the limit on the connection flow control window.</p>
+<p id="rfc.section.8.1.p.1">HTTP/QUIC permits use of a larger number of streams (2^62-1) than HTTP/2.  The considerations about exhaustion of stream identifier space apply, though the space is significantly larger such that it is likely that other limits in QUIC are reached first, such as the limit on the connection flow control window.</p>
 <h2 id="rfc.section.8.2">
 <a href="#rfc.section.8.2">8.2.</a> <a href="#h2-frames" id="h2-frames">HTTP Frame Types</a>
 </h2>
@@ -926,7 +926,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.8.2.p.2">Frame payloads are largely drawn from <a href="#RFC7540" class="xref">[RFC7540]</a>. However, QUIC includes many features (e.g. flow control) which are also present in HTTP/2. In these cases, the HTTP mapping does not re-implement them. As a result, several HTTP/2 frame types are not required in HTTP/QUIC. Where an HTTP/2-defined frame is no longer used, the frame ID has been reserved in order to maximize portability between HTTP/2 and HTTP/QUIC implementations. However, even equivalent frames between the two mappings are not identical.</p>
 <p id="rfc.section.8.2.p.3">Many of the differences arise from the fact that HTTP/2 provides an absolute ordering between frames across all streams, while QUIC provides this guarantee on each stream only.  As a result, if a frame type makes assumptions that frames from different streams will still be received in the order sent, HTTP/QUIC will break them.</p>
 <p id="rfc.section.8.2.p.4">For example, implicit in the HTTP/2 prioritization scheme is the notion of in-order delivery of priority changes (i.e., dependency tree mutations): since operations on the dependency tree such as reparenting a subtree are not commutative, both sender and receiver must apply them in the same order to ensure that both sides have a consistent view of the stream dependency tree.  HTTP/2 specifies priority assignments in PRIORITY frames and (optionally) in HEADERS frames. To achieve in-order delivery of priority changes in HTTP/QUIC, PRIORITY frames are sent on the control stream and the PRIORITY section is removed from the HEADERS frame.</p>
-<p id="rfc.section.8.2.p.5">Frame type definitions in HTTP/QUIC often use the QUIC variable-length integer encoding.  In particular, Stream IDs use this encoding, which allow for a larger range of possible values than the encoding used in HTTP/2.  Redefinition of the encoding of extension frame types might be necessary if the encoding includes a Stream ID.</p>
+<p id="rfc.section.8.2.p.5">Frame type definitions in HTTP/QUIC often use the QUIC variable-length integer encoding.  In particular, Stream IDs use this encoding, which allow for a larger range of possible values than the encoding used in HTTP/2.  Some frames in HTTP/QUIC use an identifier rather than a Stream ID (e.g. Push IDs in PRIORITY frames). Redefinition of the encoding of extension frame types might be necessary if the encoding includes a Stream ID.</p>
 <p id="rfc.section.8.2.p.6">Other than this issue, frame type HTTP/2 extensions are typically portable to QUIC simply by replacing Stream 0 in HTTP/2 with Stream 2 or 3 in HTTP/QUIC.  HTTP/QUIC extensions will not assume ordering, but would not be harmed by ordering, and would be portable to HTTP/2 in the same manner.</p>
 <p id="rfc.section.8.2.p.7">Below is a listing of how each HTTP/2 frame type is mapped:</p>
 <p></p>
@@ -937,7 +937,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <dt>HEADERS (0x1):</dt>
 <dd style="margin-left: 8">As described above, the PRIORITY region of HEADERS is not supported. A separate PRIORITY frame MUST be used. Padding is not defined in HTTP/QUIC frames.  See <a href="#frame-headers" class="xref">Section 5.2.2</a>.</dd>
 <dt>PRIORITY (0x2):</dt>
-<dd style="margin-left: 8">As described above, the PRIORITY frame is sent on the control stream.  See <a href="#frame-priority" class="xref">Section 5.2.3</a>.</dd>
+<dd style="margin-left: 8">As described above, the PRIORITY frame is sent on the control stream and can reference either a Stream ID or a Push ID.  See <a href="#frame-priority" class="xref">Section 5.2.3</a>.</dd>
 <dt>RST_STREAM (0x3):</dt>
 <dd style="margin-left: 8">RST_STREAM frames do not exist, since QUIC provides stream lifecycle management.  The same code point is used for the CANCEL_PUSH frame (<a href="#frame-cancel-push" class="xref">Section 5.2.4</a>).</dd>
 <dt>SETTINGS (0x4):</dt>
@@ -976,7 +976,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <dt>SETTINGS_MAX_HEADER_LIST_SIZE:</dt>
 <dd style="margin-left: 8">See <a href="#settings-parameters" class="xref">Section 5.2.5.2</a>.</dd>
 </dl>
-<p id="rfc.section.8.3.p.5">Settings need to be defined separately for HTTP/2 and  HTTP/QUIC.  The IDs of settings defined in <a href="#RFC7540" class="xref">[RFC7540]</a> have been reserved for simplicity.  See <a href="#iana-settings" class="xref">Section 10.4</a>.</p>
+<p id="rfc.section.8.3.p.5">Settings need to be defined separately for HTTP/2 and HTTP/QUIC.  The IDs of settings defined in <a href="#RFC7540" class="xref">[RFC7540]</a> have been reserved for simplicity.  See <a href="#iana-settings" class="xref">Section 10.4</a>.</p>
 <h2 id="rfc.section.8.4">
 <a href="#rfc.section.8.4">8.4.</a> <a href="#http2-error-codes" id="http2-error-codes">HTTP/2 Error Codes</a>
 </h2>

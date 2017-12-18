@@ -565,7 +565,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.4.p.3">When HTTP headers and data are sent over QUIC, the QUIC layer handles most of the stream management.</p>
 <p id="rfc.section.4.p.4">An HTTP request/response consumes a single client-initiated, bidirectional stream.  A bidirectional stream ensures that the response can be readily correlated with the request. This means that the client&#8217;s first request occurs on QUIC stream 4, with subsequent requests on stream 8, 12, and so on.</p>
 <p id="rfc.section.4.p.5">Server push uses server-initiated, unidirectional streams.  Thus, the server&#8217;s first push consumes stream 7 and subsequent pushes use stream 11, 15, and so on.</p>
-<p id="rfc.section.4.p.6">These streams carry frames related to the request/response (see <a href="#frames" class="xref">Section 5.2</a>).  When a stream terminates cleanly, if the last frame on the stream was truncated, this MUST be treated as a connection error (see HTTP_MALFORMED_* in <a href="#http-error-codes" class="xref">Section 7.1</a>).  Streams which terminate abruptly may be reset at any point in the frame.</p>
+<p id="rfc.section.4.p.6">These streams carry frames related to the request/response (see <a href="#frames" class="xref">Section 5.2</a>).  When a stream terminates cleanly, if the last frame on the stream was truncated, this MUST be treated as a connection error (see HTTP_MALFORMED_FRAME in <a href="#http-error-codes" class="xref">Section 7.1</a>).  Streams which terminate abruptly may be reset at any point in the frame.</p>
 <p id="rfc.section.4.p.7">Streams SHOULD be used sequentially, with no gaps.</p>
 <p id="rfc.section.4.p.8">HTTP does not need to do any separate multiplexing when using QUIC - data sent over a QUIC stream always maps to a particular HTTP transaction. Requests and responses are considered complete when the corresponding QUIC stream is closed in the appropriate direction.</p>
 <h2 id="rfc.section.4.1">
@@ -628,9 +628,9 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 1: Push Stream Header</p>
-<p id="rfc.section.4.4.p.5">A push stream always starts with a Push ID.  A client MUST treat receiving a push stream that contains a truncated variable-length integer as a connection error of type HTTP_MALFORMED_PUSH.</p>
-<p id="rfc.section.4.4.p.6">A server SHOULD use Push IDs sequentially, starting at 0.  A client uses the MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>) to limit the number of pushes that a server can promise.  A client MUST treat receipt of a push stream with a Push ID that is greater than the maximum Push ID as a connection error of type HTTP_MALFORMED_PUSH.</p>
-<p id="rfc.section.4.4.p.7">Each Push ID MUST only be used once in a push stream header.  If a push stream header includes a Push ID that was used in another push stream header, the client MUST treat this as a connection error of type HTTP_MALFORMED_PUSH.  The same Push ID can be used in multiple PUSH_PROMISE frames (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
+<p id="rfc.section.4.4.p.5">A push stream always starts with a Push ID.  A client MUST treat receiving a push stream that contains a truncated variable-length integer as a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.4.4.p.6">A server SHOULD use Push IDs sequentially, starting at 0.  A client uses the MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>) to limit the number of pushes that a server can promise.  A client MUST treat receipt of a push stream with a Push ID that is greater than the maximum Push ID as a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.4.4.p.7">Each Push ID MUST only be used once in a push stream header.  If a push stream header includes a Push ID that was used in another push stream header, the client MUST treat this as a connection error of type HTTP_MALFORMED_FRAME.  The same Push ID can be used in multiple PUSH_PROMISE frames (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
 <p id="rfc.section.4.4.p.8">After the push stream header, a push contains a response (<a href="#request-response" class="xref">Section 4.2</a>), with response headers, a response body (if any) carried by DATA frames, then trailers (if any) carried by HEADERS frames.</p>
 <p id="rfc.section.4.4.p.9">If a promised server push is not needed by the client, the client SHOULD send a CANCEL_PUSH frame; if the push stream is already open, a QUIC STOP_SENDING frame with an appropriate error code can be used instead (e.g., HTTP_PUSH_REFUSED, HTTP_PUSH_ALREADY_IN_CACHE; see <a href="#errors" class="xref">Section 7</a>).  This asks the server not to transfer the data and indicates that it will be discarded upon receipt.</p>
 <h1 id="rfc.section.5">
@@ -675,13 +675,13 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.5.2.1.p.1">DATA frames (type=0x0) convey arbitrary, variable-length sequences of octets associated with an HTTP request or response payload.</p>
 <p id="rfc.section.5.2.1.p.2">The DATA frame defines no flags.</p>
 <p id="rfc.section.5.2.1.p.3">DATA frames MUST be associated with an HTTP request or response.  If a DATA frame is received on either control stream, the recipient MUST respond with a connection error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_WRONG_STREAM.</p>
-<p id="rfc.section.5.2.1.p.4">DATA frames MUST contain a non-zero-length payload.  If a DATA frame is received with a payload length of zero, the recipient MUST respond with a stream error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_MALFORMED_DATA.</p>
+<p id="rfc.section.5.2.1.p.4">DATA frames MUST contain a non-zero-length payload.  If a DATA frame is received with a payload length of zero, the recipient MUST respond with a stream error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_MALFORMED_FRAME.</p>
 <h3 id="rfc.section.5.2.2">
 <a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#frame-headers" id="frame-headers">HEADERS</a>
 </h3>
 <p id="rfc.section.5.2.2.p.1">The HEADERS frame (type=0x1) is used to carry a header block, compressed using HPACK <a href="#header-compression" class="xref">Section 4.2.1</a>.</p>
 <p id="rfc.section.5.2.2.p.2">No flags are defined for the HEADERS frame.</p>
-<p id="rfc.section.5.2.2.p.3">A HEADERS frame with any flags set MUST be treated as a connection error of type HTTP_MALFORMED_HEADERS.</p>
+<p id="rfc.section.5.2.2.p.3">A HEADERS frame with any flags set MUST be treated as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <h3 id="rfc.section.5.2.3">
 <a href="#rfc.section.5.2.3">5.2.3.</a> <a href="#frame-priority" id="frame-priority">PRIORITY</a>
 </h3>
@@ -725,10 +725,10 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 </dl>
 <p id="rfc.section.5.2.3.p.7">A PRIORITY frame identifies a request to prioritize, and a request upon which that request is dependent.  A Prioritized Request ID or Stream Dependency ID identifies a client-initiated request using the corresponding stream ID when the corresponding PUSH_PRIORITIZED or PUSH_DEPENDENT flag is not set.  Setting the PUSH_PRIORITIZED or PUSH_DEPENDENT flag causes the Prioritized Request ID or Stream Dependency ID (respectively) to identify a server push using a Push ID (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a> for details).</p>
 <p id="rfc.section.5.2.3.p.8">A PRIORITY frame MAY identify a Stream Dependency ID using a Stream ID of 0; as in <a href="#RFC7540" class="xref">[RFC7540]</a>, this makes the request dependent on the root of the dependency tree.</p>
-<p id="rfc.section.5.2.3.p.9">A PRIORITY frame MUST identify a client-initiated, bidirectional stream.  A server MUST treat receipt of PRIORITY frame with a Stream ID of any other type as a connection error of type HTTP_MALFORMED_PRIORITY.</p>
-<p id="rfc.section.5.2.3.p.10">Stream ID 0 cannot be reprioritized. A Prioritized Request ID that identifies Stream 0 MUST be treated as a connection error of type HTTP_MALFORMED_PRIORITY.</p>
-<p id="rfc.section.5.2.3.p.11">A PRIORITY frame that does not reference a request MUST be treated as a HTTP_MALFORMED_PRIORITY error, unless it references Stream ID 0.  A PRIORITY that sets a PUSH_PRIORITIZED or PUSH_DEPENDENT flag, but then references a non-existent Push ID MUST be treated as a HTTP_MALFORMED_PRIORITY error.</p>
-<p id="rfc.section.5.2.3.p.12">A PRIORITY frame MUST contain only the identified fields.  A PRIORITY frame that contains more or fewer fields, or a PRIORITY frame that includes a truncated integer encoding MUST be treated as a connection error of type HTTP_MALFORMED_PRIORITY.</p>
+<p id="rfc.section.5.2.3.p.9">A PRIORITY frame MUST identify a client-initiated, bidirectional stream.  A server MUST treat receipt of PRIORITY frame with a Stream ID of any other type as a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.5.2.3.p.10">Stream ID 0 cannot be reprioritized. A Prioritized Request ID that identifies Stream 0 MUST be treated as a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.5.2.3.p.11">A PRIORITY frame that does not reference a request MUST be treated as a HTTP_MALFORMED_FRAME error, unless it references Stream ID 0.  A PRIORITY that sets a PUSH_PRIORITIZED or PUSH_DEPENDENT flag, but then references a non-existent Push ID MUST be treated as a HTTP_MALFORMED_FRAME error.</p>
+<p id="rfc.section.5.2.3.p.12">A PRIORITY frame MUST contain only the identified fields.  A PRIORITY frame that contains more or fewer fields, or a PRIORITY frame that includes a truncated integer encoding MUST be treated as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <h3 id="rfc.section.5.2.4">
 <a href="#rfc.section.5.2.4">5.2.4.</a> <a href="#frame-cancel-push" id="frame-cancel-push">CANCEL_PUSH</a>
 </h3>
@@ -739,14 +739,14 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.5.2.4.p.5">The CANCEL_PUSH frame has no defined flags.</p>
 <p id="rfc.section.5.2.4.p.6">The CANCEL_PUSH frame carries a Push ID encoded as a variable-length integer.  The Push ID identifies the server push that is being cancelled (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).</p>
 <p id="rfc.section.5.2.4.p.7">If the client receives a CANCEL_PUSH frame, that frame might identify a Push ID that has not yet been mentioned by a PUSH_PROMISE frame.</p>
-<p id="rfc.section.5.2.4.p.8">A server MUST treat a CANCEL_PUSH frame payload does not contain exactly one variable-length integer as a connection error of type HTTP_MALFORMED_CANCEL_PUSH.</p>
+<p id="rfc.section.5.2.4.p.8">A server MUST treat a CANCEL_PUSH frame payload does not contain exactly one variable-length integer as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <h3 id="rfc.section.5.2.5">
 <a href="#rfc.section.5.2.5">5.2.5.</a> <a href="#frame-settings" id="frame-settings">SETTINGS</a>
 </h3>
 <p id="rfc.section.5.2.5.p.1">The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints communicate, such as preferences and constraints on peer behavior, and is different from <a href="#RFC7540" class="xref">[RFC7540]</a>. Individually, a SETTINGS parameter can also be referred to as a &#8220;setting&#8221;.</p>
 <p id="rfc.section.5.2.5.p.2">SETTINGS parameters are not negotiated; they describe characteristics of the sending peer, which can be used by the receiving peer. However, a negotiation can be implied by the use of SETTINGS &#8211; a peer uses SETTINGS to advertise a set of supported values. The recipient can then choose which entries from this list are also acceptable and proceed with the value it has chosen. (This choice could be announced in a field of an extension frame, or in its own value in SETTINGS.)</p>
 <p id="rfc.section.5.2.5.p.3">Different values for the same parameter can be advertised by each peer. For example, a client might be willing to consume very large response headers, while servers are more cautious about request size.</p>
-<p id="rfc.section.5.2.5.p.4">Parameters MUST NOT occur more than once.  A receiver MAY treat the presence of the same parameter more than once as a connection error of type HTTP_MALFORMED_SETTINGS.</p>
+<p id="rfc.section.5.2.5.p.4">Parameters MUST NOT occur more than once.  A receiver MAY treat the presence of the same parameter more than once as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.5.p.5">The SETTINGS frame defines no flags.</p>
 <p id="rfc.section.5.2.5.p.6">The payload of a SETTINGS frame consists of zero or more parameters, each consisting of an unsigned 16-bit setting identifier and a length-prefixed binary value.</p>
 <div id="rfc.figure.4"></div>
@@ -762,10 +762,10 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 </pre>
 <p class="figure">Figure 4: SETTINGS value format</p>
 <p id="rfc.section.5.2.5.p.7">A zero-length content indicates that the setting value is a Boolean and true.  False is indicated by the absence of the setting.</p>
-<p id="rfc.section.5.2.5.p.8">Non-zero-length values MUST be compared against the remaining length of the SETTINGS frame.  Any value which purports to cross the end of the frame MUST cause the SETTINGS frame to be considered malformed and trigger a connection error of type HTTP_MALFORMED_SETTINGS.</p>
+<p id="rfc.section.5.2.5.p.8">Non-zero-length values MUST be compared against the remaining length of the SETTINGS frame.  Any value which purports to cross the end of the frame MUST cause the SETTINGS frame to be considered malformed and trigger a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.5.p.9">An implementation MUST ignore the contents for any SETTINGS identifier it does not understand.</p>
-<p id="rfc.section.5.2.5.p.10">SETTINGS frames always apply to a connection, never a single stream.  A SETTINGS frame MUST be sent as the first frame of either control stream (see <a href="#stream-mapping" class="xref">Section 4</a>) by each peer, and MUST NOT be sent subsequently or on any other stream. If an endpoint receives an SETTINGS frame on a different stream, the endpoint MUST respond with a connection error of type HTTP_WRONG_STREAM.  If an endpoint receives a second SETTINGS frame, the endpoint MUST respond with a connection error of type HTTP_MULTIPLE_SETTINGS.</p>
-<p id="rfc.section.5.2.5.p.11">The SETTINGS frame affects connection state. A badly formed or incomplete SETTINGS frame MUST be treated as a connection error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_MALFORMED_SETTINGS.</p>
+<p id="rfc.section.5.2.5.p.10">SETTINGS frames always apply to a connection, never a single stream.  A SETTINGS frame MUST be sent as the first frame of either control stream (see <a href="#stream-mapping" class="xref">Section 4</a>) by each peer, and MUST NOT be sent subsequently or on any other stream. If an endpoint receives an SETTINGS frame on a different stream, the endpoint MUST respond with a connection error of type HTTP_WRONG_STREAM.  If an endpoint receives a second SETTINGS frame, the endpoint MUST respond with a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.5.2.5.p.11">The SETTINGS frame affects connection state. A badly formed or incomplete SETTINGS frame MUST be treated as a connection error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_MALFORMED_FRAME.</p>
 <h4 id="rfc.section.5.2.5.1">
 <a href="#rfc.section.5.2.5.1">5.2.5.1.</a> <a href="#integer-encoding" id="integer-encoding">Integer encoding</a>
 </h4>
@@ -826,9 +826,9 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <dt>Header Block:</dt>
 <dd style="margin-left: 8">HPACK-compressed request headers for the promised response.</dd>
 </dl>
-<p id="rfc.section.5.2.6.p.4">A server MUST NOT use a Push ID that is larger than the client has provided in a MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>).  A client MUST treat receipt of a PUSH_PROMISE that contains a larger Push ID than the client has advertised as a connection error of type HTTP_MALFORMED_PUSH_PROMISE.</p>
+<p id="rfc.section.5.2.6.p.4">A server MUST NOT use a Push ID that is larger than the client has provided in a MAX_PUSH_ID frame (<a href="#frame-max-push-id" class="xref">Section 5.2.8</a>).  A client MUST treat receipt of a PUSH_PROMISE that contains a larger Push ID than the client has advertised as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.6.p.5">A server MAY use the same Push ID in multiple PUSH_PROMISE frames.  This allows the server to use the same server push in response to multiple concurrent requests.  Referencing the same server push ensures that a PUSH_PROMISE can be made in relation to every response in which server push might be needed without duplicating pushes.</p>
-<p id="rfc.section.5.2.6.p.6">A server that uses the same Push ID in multiple PUSH_PROMISE frames MUST include the same header fields each time.  The octets of the header block MAY be different due to differing encoding, but the header fields and their values MUST be identical.  Note that ordering of header fields is significant.  A client MUST treat receipt of a PUSH_PROMISE with conflicting header field values for the same Push ID as a connection error of type HTTP_MALFORMED_PUSH_PROMISE.</p>
+<p id="rfc.section.5.2.6.p.6">A server that uses the same Push ID in multiple PUSH_PROMISE frames MUST include the same header fields each time.  The octets of the header block MAY be different due to differing encoding, but the header fields and their values MUST be identical.  Note that ordering of header fields is significant.  A client MUST treat receipt of a PUSH_PROMISE with conflicting header field values for the same Push ID as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.6.p.7">Allowing duplicate references to the same Push ID is primarily to reduce duplication caused by concurrent requests.  A server SHOULD avoid reusing a Push ID over a long period.  Clients are likely to consume server push responses and not retain them for reuse over time.  Clients that see a PUSH_PROMISE that uses a Push ID that they have since consumed and discarded are forced to ignore the PUSH_PROMISE.</p>
 <h3 id="rfc.section.5.2.7">
 <a href="#rfc.section.5.2.7">5.2.7.</a> <a href="#frame-goaway" id="frame-goaway">GOAWAY</a>
@@ -836,7 +836,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <p id="rfc.section.5.2.7.p.1">The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of a connection by a server.  GOAWAY allows a server to stop accepting new requests while still finishing processing of previously received requests.  This enables administrative actions, like server maintenance.  GOAWAY by itself does not close a connection.</p>
 <p id="rfc.section.5.2.7.p.2">The GOAWAY frame does not define any flags, and the payload is a QUIC Stream ID for a client-initiated, bidirectional stream encoded as a variable-length integer.</p>
 <p id="rfc.section.5.2.7.p.3">Clients do not need to send GOAWAY to initiate a graceful shutdown; they simply stop making new requests.  A server MUST treat receipt of a GOAWAY frame as a connection error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_UNEXPECTED_GOAWAY.</p>
-<p id="rfc.section.5.2.7.p.4">A client MUST treat receipt of a GOAWAY frame containing a Stream ID of any other type as a connection error of type HTTP_MALFORMED_GOAWAY.</p>
+<p id="rfc.section.5.2.7.p.4">A client MUST treat receipt of a GOAWAY frame containing a Stream ID of any other type as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.7.p.5">The GOAWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat a GOAWAY frame on a stream other than the control stream as a connection error (<a href="#errors" class="xref">Section 7</a>) of type HTTP_WRONG_STREAM.</p>
 <p id="rfc.section.5.2.7.p.6">New client requests might already have been sent before the client receives the server&#8217;s GOAWAY frame.  The GOAWAY frame contains the Stream ID of the last client-initiated request that was or might be processed in this connection, which enables client and server to agree on which requests were accepted prior to the connection shutdown.  This identifier MAY be lower than the stream limit identified by a QUIC MAX_STREAM_ID frame, and MAY be zero if no requests were processed.  Servers SHOULD NOT increase the MAX_STREAM_ID limit after sending a GOAWAY frame.</p>
 <p></p>
@@ -859,11 +859,11 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 </h3>
 <p id="rfc.section.5.2.8.p.1">The MAX_PUSH_ID frame (type=0xD) is used by clients to control the number of server pushes that the server can initiate.  This sets the maximum value for a Push ID that the server can use in a PUSH_PROMISE frame.  Consequently, this also limits the number of push streams that the server can initiate in addition to the limit set by the QUIC MAX_STREAM_ID frame.</p>
 <p id="rfc.section.5.2.8.p.2">The MAX_PUSH_ID frame is always sent on a control stream.  Receipt of a MAX_PUSH_ID frame on any other stream MUST be treated as a connection error of type HTTP_WRONG_STREAM.</p>
-<p id="rfc.section.5.2.8.p.3">A server MUST NOT send a MAX_PUSH_ID frame.  A client MUST treat the receipt of a MAX_PUSH_ID frame as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
+<p id="rfc.section.5.2.8.p.3">A server MUST NOT send a MAX_PUSH_ID frame.  A client MUST treat the receipt of a MAX_PUSH_ID frame as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <p id="rfc.section.5.2.8.p.4">The maximum Push ID is unset when a connection is created, meaning that a server cannot push until it receives a MAX_PUSH_ID frame.  A client that wishes to manage the number of promised server pushes can increase the maximum Push ID by sending a MAX_PUSH_ID frame as the server fulfills or cancels server pushes.</p>
 <p id="rfc.section.5.2.8.p.5">The MAX_PUSH_ID frame has no defined flags.</p>
-<p id="rfc.section.5.2.8.p.6">The MAX_PUSH_ID frame carries a single variable-length integer that identifies the maximum value for a Push ID that the server can use (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).  A MAX_PUSH_ID frame cannot reduce the maximum Push ID; receipt of a MAX_PUSH_ID that contains a smaller value than previously received MUST be treated as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
-<p id="rfc.section.5.2.8.p.7">A server MUST treat a MAX_PUSH_ID frame payload that does not contain a single variable-length integer as a connection error of type HTTP_MALFORMED_MAX_PUSH_ID.</p>
+<p id="rfc.section.5.2.8.p.6">The MAX_PUSH_ID frame carries a single variable-length integer that identifies the maximum value for a Push ID that the server can use (see <a href="#frame-push-promise" class="xref">Section 5.2.6</a>).  A MAX_PUSH_ID frame cannot reduce the maximum Push ID; receipt of a MAX_PUSH_ID that contains a smaller value than previously received MUST be treated as a connection error of type HTTP_MALFORMED_FRAME.</p>
+<p id="rfc.section.5.2.8.p.7">A server MUST treat a MAX_PUSH_ID frame payload that does not contain a single variable-length integer as a connection error of type HTTP_MALFORMED_FRAME.</p>
 <h1 id="rfc.section.6">
 <a href="#rfc.section.6">6.</a> <a href="#connection-management" id="connection-management">Connection Management</a>
 </h1>
@@ -901,30 +901,10 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <dd style="margin-left: 8">The endpoint detected that its peer is exhibiting a behavior that might be generating excessive load.</dd>
 <dt>HTTP_VERSION_FALLBACK (0x09):</dt>
 <dd style="margin-left: 8">The requested operation cannot be served over HTTP/QUIC.  The peer should retry over HTTP/2.</dd>
-<dt>HTTP_MALFORMED_HEADERS (0x0A):</dt>
-<dd style="margin-left: 8">A HEADERS frame has been received with an invalid format.</dd>
-<dt>HTTP_MALFORMED_PRIORITY (0x0B):</dt>
-<dd style="margin-left: 8">A PRIORITY frame has been received with an invalid format.</dd>
-<dt>HTTP_MALFORMED_SETTINGS (0x0C):</dt>
-<dd style="margin-left: 8">A SETTINGS frame has been received with an invalid format.</dd>
-<dt>HTTP_MALFORMED_PUSH_PROMISE (0x0D):</dt>
-<dd style="margin-left: 8">A PUSH_PROMISE frame has been received with an invalid format.</dd>
-<dt>HTTP_MALFORMED_DATA (0x0E):</dt>
-<dd style="margin-left: 8">A DATA frame has been received with an invalid format.</dd>
-<dt>HTTP_INTERRUPTED_HEADERS (0x0F):</dt>
-<dd style="margin-left: 8">A HEADERS frame without the End Header Block flag was followed by a frame other than HEADERS.</dd>
-<dt>HTTP_WRONG_STREAM (0x10):</dt>
+<dt>HTTP_WRONG_STREAM (0x0A):</dt>
 <dd style="margin-left: 8">A frame was received on stream where it is not permitted.</dd>
-<dt>HTTP_MULTIPLE_SETTINGS (0x11):</dt>
-<dd style="margin-left: 8">More than one SETTINGS frame was received.</dd>
-<dt>HTTP_MALFORMED_PUSH (0x12):</dt>
-<dd style="margin-left: 8">A push stream header was malformed or included an invalid Push ID.</dd>
-<dt>HTTP_MALFORMED_MAX_PUSH_ID (0x13):</dt>
-<dd style="margin-left: 8">A MAX_PUSH_ID frame has been received with an invalid format.</dd>
-<dt>HTTP_UNEXPECTED_GOAWAY (0x14):</dt>
-<dd style="margin-left: 8">A GOAWAY frame has been received by a server.</dd>
-<dt>HTTP_MALFORMED_GOAWAY (0x15):</dt>
-<dd style="margin-left: 8">A GOAWAY frame was malformed or contained an invalid Stream ID.</dd>
+<dt>HTTP_MALFORMED_FRAME (0x01XX):</dt>
+<dd style="margin-left: 8">An error in a specific frame type.  The frame type is included as the last octet of the error code.  For example, an error in a MAX_PUSH_ID frame would be indicated with the code (0x10D).</dd>
 </dl>
 <h1 id="rfc.section.8">
 <a href="#rfc.section.8">8.</a> <a href="#considerations-for-transitioning-from-http2" id="considerations-for-transitioning-from-http2">Considerations for Transitioning from HTTP/2</a>
@@ -1005,7 +985,7 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <dt>NO_ERROR (0x0):</dt>
 <dd style="margin-left: 8">HTTP_NO_ERROR in <a href="#http-error-codes" class="xref">Section 7.1</a>.</dd>
 <dt>PROTOCOL_ERROR (0x1):</dt>
-<dd style="margin-left: 8">No single mapping.  See new HTTP_MALFORMED_* error codes defined in <a href="#http-error-codes" class="xref">Section 7.1</a>.</dd>
+<dd style="margin-left: 8">No single mapping.  See new HTTP_MALFORMED_FRAME error codes defined in <a href="#http-error-codes" class="xref">Section 7.1</a>.</dd>
 <dt>INTERNAL_ERROR (0x2):</dt>
 <dd style="margin-left: 8">HTTP_INTERNAL_ERROR in <a href="#http-error-codes" class="xref">Section 7.1</a>.</dd>
 <dt>FLOW_CONTROL_ERROR (0x3):</dt>
@@ -1234,134 +1214,74 @@ Alt-Svc: hq=":49288";quic=1;quic=51303334
 <tbody>
 <tr>
 <td class="left">STOPPING</td>
-<td class="left">0x00</td>
+<td class="left">0x0000</td>
 <td class="left">Reserved by QUIC</td>
 <td class="left"><a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_NO_ERROR</td>
-<td class="left">0x01</td>
+<td class="left">0x0001</td>
 <td class="left">No error</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_PUSH_REFUSED</td>
-<td class="left">0x02</td>
+<td class="left">0x0002</td>
 <td class="left">Client refused pushed content</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_INTERNAL_ERROR</td>
-<td class="left">0x03</td>
+<td class="left">0x0003</td>
 <td class="left">Internal error</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_PUSH_ALREADY_IN_CACHE</td>
-<td class="left">0x04</td>
+<td class="left">0x0004</td>
 <td class="left">Pushed content already cached</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_REQUEST_CANCELLED</td>
-<td class="left">0x05</td>
+<td class="left">0x0005</td>
 <td class="left">Data no longer needed</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_HPACK_DECOMPRESSION_FAILED</td>
-<td class="left">0x06</td>
+<td class="left">0x0006</td>
 <td class="left">HPACK cannot continue</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_CONNECT_ERROR</td>
-<td class="left">0x07</td>
+<td class="left">0x0007</td>
 <td class="left">TCP reset or error on CONNECT request</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_EXCESSIVE_LOAD</td>
-<td class="left">0x08</td>
+<td class="left">0x0008</td>
 <td class="left">Peer generating excessive load</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
 <td class="left">HTTP_VERSION_FALLBACK</td>
-<td class="left">0x09</td>
+<td class="left">0x0009</td>
 <td class="left">Retry over HTTP/2</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
-<td class="left">HTTP_MALFORMED_HEADERS</td>
-<td class="left">0x0A</td>
-<td class="left">Invalid HEADERS frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_PRIORITY</td>
-<td class="left">0x0B</td>
-<td class="left">Invalid PRIORITY frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_SETTINGS</td>
-<td class="left">0x0C</td>
-<td class="left">Invalid SETTINGS frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_PUSH_PROMISE</td>
-<td class="left">0x0D</td>
-<td class="left">Invalid PUSH_PROMISE frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_DATA</td>
-<td class="left">0x0E</td>
-<td class="left">Invalid DATA frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_INTERRUPTED_HEADERS</td>
-<td class="left">0x0F</td>
-<td class="left">Incomplete HEADERS block</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
 <td class="left">HTTP_WRONG_STREAM</td>
-<td class="left">0x10</td>
+<td class="left">0x000A</td>
 <td class="left">A frame was sent on the wrong stream</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 <tr>
-<td class="left">HTTP_MULTIPLE_SETTINGS</td>
-<td class="left">0x11</td>
-<td class="left">Multiple SETTINGS frames</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_PUSH</td>
-<td class="left">0x12</td>
-<td class="left">Invalid push stream header</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_MAX_PUSH_ID</td>
-<td class="left">0x13</td>
-<td class="left">Invalid MAX_PUSH_ID frame</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_UNEXPECTED_GOAWAY</td>
-<td class="left">0x14</td>
-<td class="left">A server received GOAWAY</td>
-<td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
-</tr>
-<tr>
-<td class="left">HTTP_MALFORMED_GOAWAY</td>
-<td class="left">0x15</td>
-<td class="left">Invalid GOAWAY frame</td>
+<td class="left">HTTP_MALFORMED_FRAME</td>
+<td class="left">0x01XX</td>
+<td class="left">Error in frame formatting or use</td>
 <td class="left"><a href="#http-error-codes" class="xref">Section 7.1</a></td>
 </tr>
 </tbody>

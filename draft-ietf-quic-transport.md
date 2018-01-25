@@ -848,6 +848,7 @@ explained in more detail as they are referenced later in the document.
 | 0x0c        | STOP_SENDING      | {{frame-stop-sending}}      |
 | 0x0d        | PONG              | {{frame-pong}}              |
 | 0x0e        | ACK               | {{frame-ack}}               |
+| 0x0f        | EXTENSION         | {{frame-extension}}         |
 | 0x10 - 0x17 | STREAM            | {{frame-stream}}            |
 {: #frame-types title="Frame Types"}
 
@@ -2591,6 +2592,47 @@ by a client in protected packets, because it is certain that the server is able
 to decipher the packet.
 
 
+## EXTENSION Frames {#frame-extension}
+
+EXTENSION frames (type=0x0f) are provided to support extending the protocol.
+These frames can be used to add features to the protocol.
+
+~~~
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|      Extension Type (16)      |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                   Extension Data Length (i)                 ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                       Extension Data (*)                    ...
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+~~~
+{: #extension-format title="EXTENSION Frame Format"}
+
+Extension Type:
+
+: The type of the extension encoded as a 16-bit integer.  Values for this field
+  can be registered as described in {{iana-extension-types}}.
+
+Extension Data Length:
+
+: The length of the Extension Data field encoded as a variable-length integer.
+
+Extension Data:
+
+: The data contained.  The format of the Extension Data field is specific to the
+  type of the extension.
+
+EXTENSION frames are used to add capabilities to the protocol.  Implementations
+MUST discard frames that have unknown or unsupported Extension Type fields.
+This means that EXTENSION frames can be safely used by extensions without prior
+arrangement or negotiation.
+
+The rules for retransmission of the data carried in EXTENSION frames MUST be
+specified when defining the extension type.
+
+
 ## STREAM Frames {#frame-stream}
 
 STREAM frames implicitly create a stream and carry stream data.  The STREAM
@@ -3832,6 +3874,41 @@ the range from 0xFE00 to 0xFFFF.
 {: #iana-error-table title="Initial QUIC Transport Error Codes Entries"}
 
 
+## EXTENSION Frame Types {#iana-extension-types}
+
+IANA \[SHALL add/has added] a registry for "QUIC EXTENSION Frame Types" under a
+"QUIC Protocol" heading.
+
+The "QUIC EXTENSION Frame Types" registry governs a 16-bit space.  Values are
+assigned using the Expert Review policy {{!RFC8126}}.  Registrations can be
+provisional or non-provisional.  Non-provisional registrations can only be made
+with the inclusion of a specification, as defined by the Specification Required
+policy {{!RFC8126}}.  Provisional registrations can be removed at the discretion
+of the assigned expert after 1 year unless they are renewed.  Provisional
+registrations do not require that a specification be referenced.
+
+Registrations MUST include the following fields:
+
+Extension Type:
+
+: The numeric value of the assignment (registrations will be between 0x0000 and
+  0xffff).
+
+Code:
+
+: A short mnemonic for the extension.
+
+Specification:
+
+: A reference to a publicly available specification for the extension.  This may
+  be omitted for a provisional registration.
+
+Provisional Expiration:
+
+: For a provisional registration, the date at which the registration needs to be
+  renewed.  Provisional registrations can be removed beyond this date.
+
+
 --- back
 
 # Contributors
@@ -3867,7 +3944,7 @@ Issue and pull request numbers are listed with a leading octothorp.
 
 ## Since draft-ietf-quic-transport-08
 
-No significant changes.
+- Add extension frame (#58)
 
 ## Since draft-ietf-quic-transport-07
 

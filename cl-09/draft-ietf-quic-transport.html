@@ -1320,9 +1320,6 @@ address {
          case encrypted_extensions:
             QuicVersion negotiated_version;
             QuicVersion supported_versions&lt;4..2^8-4&gt;;
-
-         case new_session_ticket:
-            struct {};
       };
       TransportParameter parameters&lt;22..2^16-1&gt;;
    } TransportParameters;
@@ -1371,7 +1368,7 @@ address {
 <h3 id="rfc.section.7.4.2">
 <a href="#rfc.section.7.4.2">7.4.2.</a> <a href="#zerortt-parameters" id="zerortt-parameters">Values of Transport Parameters for 0-RTT</a>
 </h3>
-<p id="rfc.section.7.4.2.p.1">Transport parameters from the server MUST be remembered by the client for use with 0-RTT data.  If the TLS NewSessionTicket message includes the quic_transport_parameters extension, then those values are used for the server values when establishing a new connection using that ticket.  Otherwise, the transport parameters that the server advertises during connection establishment are used.</p>
+<p id="rfc.section.7.4.2.p.1">A client that attempts to send 0-RTT data MUST remember the transport parameters used by the server.  The transport parameters that the server advertises during connection establishment apply to all connections that are resumed using the keying material established during that handshake.  Remembered transport parameters apply to the new connection until the handshake completes and new transport parameters from the server can be provided.</p>
 <p id="rfc.section.7.4.2.p.2">A server can remember the transport parameters that it advertised, or store an integrity-protected copy of the values in the ticket and recover the information when accepting 0-RTT data.  A server uses the transport parameters in determining whether to accept 0-RTT data.</p>
 <p id="rfc.section.7.4.2.p.3">A server MAY accept 0-RTT and subsequently provide different values for transport parameters for use in the new connection.  If 0-RTT data is accepted by the server, the server MUST NOT reduce any limits or alter any values that might be violated by the client with its 0-RTT data.  In particular, a server that accepts 0-RTT data MUST NOT set values for initial_max_data or initial_max_stream_data that are smaller than the remembered value of those parameters.  Similarly, a server MUST NOT reduce the value of initial_max_stream_id_bidi or initial_max_stream_id_uni.</p>
 <p id="rfc.section.7.4.2.p.4">Omitting or setting a zero value for certain transport parameters can result in 0-RTT data being enabled, but not usable.  The following transport parameters SHOULD be set to non-zero values for 0-RTT: initial_max_stream_id_bidi, initial_max_stream_id_uni, initial_max_data, initial_max_stream_data.</p>
@@ -1392,7 +1389,7 @@ address {
 <p id="rfc.section.7.4.4.p.6">If the initial_version is different from the version of QUIC that is in use, a stateless server MUST check that it would have sent a version negotiation packet if it had received a packet with the indicated initial_version.  If a server would have accepted the version included in the initial_version and the value differs from the QUIC version that is in use, the server MUST terminate the connection with a VERSION_NEGOTIATION_ERROR error.</p>
 <p id="rfc.section.7.4.4.p.7">The server includes both the version of QUIC that is in use and a list of the QUIC versions that the server supports.</p>
 <p id="rfc.section.7.4.4.p.8">The negotiated_version field is the version that is in use.  This MUST be set by the server to the value that is on the Initial packet that it accepts (not an Initial packet that triggers a Retry or Version Negotiation packet).  A client that receives a negotiated_version that does not match the version of QUIC that is in use MUST terminate the connection with a VERSION_NEGOTIATION_ERROR error code.</p>
-<p id="rfc.section.7.4.4.p.9">The server includes a list of versions that it would send in any version negotiation packet (<a href="#packet-version" class="xref">Section 5.3</a>) in the supported_versions field.  The server populates this field even if it did not send a version negotiation packet.  This field is absent if the parameters are included in a NewSessionTicket message.</p>
+<p id="rfc.section.7.4.4.p.9">The server includes a list of versions that it would send in any version negotiation packet (<a href="#packet-version" class="xref">Section 5.3</a>) in the supported_versions field.  The server populates this field even if it did not send a version negotiation packet.</p>
 <p id="rfc.section.7.4.4.p.10">The client validates that the negotiated_version is included in the supported_versions list and - if version negotiation was performed - that it would have selected the negotiated version.  A client MUST terminate the connection with a VERSION_NEGOTIATION_ERROR error code if the current QUIC version is not listed in the supported_versions list.  A client MUST terminate with a VERSION_NEGOTIATION_ERROR error code if version negotiation occurred but it would have selected a different version based on the value of the supported_versions list.</p>
 <p id="rfc.section.7.4.4.p.11">When an endpoint accepts multiple QUIC versions, it can potentially interpret transport parameters as they are defined by any of the QUIC versions it supports.  The version field in the QUIC packet header is authenticated using transport parameters.  The position and the format of the version fields in transport parameters MUST either be identical across different QUIC versions, or be unambiguously different to ensure no confusion about their interpretation.  One way that a new format could be introduced is to define a TLS extension with a different codepoint.</p>
 <h2 id="rfc.section.7.5">
@@ -2849,6 +2846,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <li>Stateless reset clarified as version-specific (#930, #986)</li>
 <li>initial_max_stream_id_x transport parameters are optional (#970, #971)</li>
 <li>Ack Delay assumes a default value during the handshake (#1007, #1009)</li>
+<li>Removed transport parameters from NewSessionTicket (#1015)</li>
 </ul>
 <h2 id="rfc.appendix.C.2">
 <a href="#rfc.appendix.C.2">C.2.</a> <a href="#since-draft-ietf-quic-transport-07" id="since-draft-ietf-quic-transport-07">Since draft-ietf-quic-transport-07</a>

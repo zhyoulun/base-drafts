@@ -3546,9 +3546,11 @@ Internet-Draft           QUIC Transport Protocol            January 2018
    concurrently send data interleaved with other streams, and can be
    cancelled.
 
-   Data that is received on a stream is delivered in order within that
-   stream, but there is no particular delivery order across streams.
-   Transmit ordering among streams is left to the implementation.
+   Stream offsets allow for the octets on a stream to be placed in
+   order.  An endpoint MUST be capable of delivering data received on a
+   stream in order.  Implementations MAY choose to offer the ability to
+   deliver data out of order.  There is no means of ensuring ordering
+   between octets on different streams.
 
    The creation and destruction of streams are expected to have minimal
    bandwidth and computational cost.  A single STREAM frame may create,
@@ -3576,8 +3578,6 @@ Internet-Draft           QUIC Transport Protocol            January 2018
    initiator of the stream.  Clients initiate even-numbered streams
    (those with the least significant bit set to 0); servers initiate
    odd-numbered streams (with the bit set to 1).  Separation of the
-   stream identifiers ensures that client and server are able to open
-   streams without the latency imposed by negotiating for an identifier.
 
 
 
@@ -3585,6 +3585,9 @@ Iyengar & Thomson        Expires August 3, 2018                [Page 64]
 
 Internet-Draft           QUIC Transport Protocol            January 2018
 
+
+   stream identifiers ensures that client and server are able to open
+   streams without the latency imposed by negotiating for an identifier.
 
    If an endpoint receives a frame for a stream that it expects to
    initiate (i.e., odd-numbered for the client or even-numbered for the
@@ -3632,9 +3635,6 @@ Internet-Draft           QUIC Transport Protocol            January 2018
    (Section 10.2.1); another for streams from which an endpoint receives
    data (Section 10.2.2).
 
-   Unidirectional streams use the applicable state machine directly.
-   Bidirectional streams use both state machines.  For the most part,
-
 
 
 Iyengar & Thomson        Expires August 3, 2018                [Page 65]
@@ -3642,6 +3642,8 @@ Iyengar & Thomson        Expires August 3, 2018                [Page 65]
 Internet-Draft           QUIC Transport Protocol            January 2018
 
 
+   Unidirectional streams use the applicable state machine directly.
+   Bidirectional streams use both state machines.  For the most part,
    the use of these state machines is the same whether the stream is
    unidirectional or bidirectional.  The conditions for opening a stream
    are slightly more complex for a bidirectional stream because the
@@ -3671,8 +3673,6 @@ Internet-Draft           QUIC Transport Protocol            January 2018
 
    Figure 10 shows the states for the part of a stream that sends data
    to a peer.
-
-
 
 
 
@@ -3870,10 +3870,10 @@ Internet-Draft           QUIC Transport Protocol            January 2018
    frame if packets are lost or reordered.
 
    In the "Recv" state, the endpoint receives STREAM and STREAM_BLOCKED
-   frames.  Incoming data is buffered and reassembled into the correct
-   order for delivery to the application.  As data is consumed by the
-   application and buffer space becomes available, the endpoint sends
-   MAX_STREAM_DATA frames to allow the peer to send more data.
+   frames.  Incoming data is buffered and can be reassembled into the
+   correct order for delivery to the application.  As data is consumed
+   by the application and buffer space becomes available, the endpoint
+   sends MAX_STREAM_DATA frames to allow the peer to send more data.
 
    When a STREAM frame with a FIN bit is received, the final offset (see
    Section 11.3) is known.  The receive stream enters the "Size Known"
@@ -4102,13 +4102,13 @@ Internet-Draft           QUIC Transport Protocol            January 2018
 
    When new data is to be sent on a stream, a sender MUST set the
    encapsulating STREAM frame's offset field to the stream offset of the
-   first byte of this new data.  The first byte of data that is sent on
-   a stream has the stream offset 0.  The largest offset delivered on a
-   stream MUST be less than 2^62.  A receiver MUST ensure that received
-   stream data is delivered to the application as an ordered byte-
-   stream.  Data received out of order MUST be buffered for later
-   delivery, as long as it is not in violation of the receiver's flow
-   control limits.
+   first byte of this new data.  The first octet of data on a stream has
+   an offset of 0.  An endpoint is expected to send every stream octet.
+   The largest offset delivered on a stream MUST be less than 2^62.  A
+   receiver MUST ensure that received stream data is delivered to the
+   application as an ordered byte-stream.  Data received out of order
+   MUST be buffered for later delivery, as long as it is not in
+   violation of the receiver's flow control limits.
 
    An endpoint MUST NOT send data on any stream without ensuring that it
    is within the data limits set by its peer.  The cryptographic

@@ -130,7 +130,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
        7.7.1.  Privacy Implications of Connection Migration  . . . .  35
        7.7.2.  Address Validation for Migrated Connections . . . . .  36
      7.8.  Spurious Connection Migrations  . . . . . . . . . . . . .  38
-     7.9.  Connection Termination  . . . . . . . . . . . . . . . . .  38
+     7.9.  Connection Termination  . . . . . . . . . . . . . . . . .  39
        7.9.1.  Closing and Draining Connection States  . . . . . . .  39
        7.9.2.  Idle Timeout  . . . . . . . . . . . . . . . . . . . .  40
        7.9.3.  Immediate Close . . . . . . . . . . . . . . . . . . .  40
@@ -159,7 +159,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
      8.18. STREAM Frames . . . . . . . . . . . . . . . . . . . . . .  59
    9.  Packetization and Reliability . . . . . . . . . . . . . . . .  60
      9.1.  Packet Size . . . . . . . . . . . . . . . . . . . . . . .  62
-     9.2.  Path Maximum Transmission Unit  . . . . . . . . . . . . .  63
+     9.2.  Path Maximum Transmission Unit  . . . . . . . . . . . . .  62
        9.2.1.  Special Considerations for PMTU Discovery . . . . . .  63
        9.2.2.  Special Considerations for Packetization Layer PMTU
 
@@ -2006,8 +2006,8 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    PATH_CHALLENGE frame containing a payload that is hard to guess.
    This frame MUST be sent in a packet that is sent to the new address.
    Once a PATH_RESPONSE frame containing the same payload is received,
-   the address is considered to be valid.  The PATH_RESPONSE frame can
-   use any path on its return.
+   the address is considered to be valid.
+
 
 
 
@@ -2018,13 +2018,18 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 36]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   The new address is not considered valid until a PATH_RESPONSE frame
+   containing the same payload is received, even if the packet
+   containing the PATH_CHALLENGE frame is acknowledged.
+
+   The PATH_RESPONSE frame can use any path on its return.
+
    An endpoint MAY send multiple PATH_CHALLENGE frames to handle packet
    loss or to make additional measurements on a new network path.
 
    An endpoint MUST use fresh random data in every PATH_CHALLENGE frame
    so that it can associate the peer's response with the causative
-   PATH_CHALLENGE.  Using fresh values allows the endpoint to measure
-   the time taken to respond to a challenge.
+   PATH_CHALLENGE.
 
    If the PATH_CHALLENGE frame is determined to be lost, a new
    PATH_CHALLENGE frame SHOULD be generated.  This PATH_CHALLENGE frame
@@ -2036,7 +2041,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    the connection.  When setting this timer, implementations are
    cautioned that the new path could have a longer round trip time than
    the original.  The endpoint MUST NOT send a CONNECTION_CLOSE frame in
-   this case; it has to assume that the remote peer does not want to
+   this case; it has to assume that the remote peer cannot want to
    receive any more packets.
 
    If the remote address is validated successfully, the endpoint MAY
@@ -2060,12 +2065,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    peer is still in possession of its address after a period of
    quiescence.
 
-   Upon seeing a connection migration, an endpoint that sees a new
-   address MUST abandon any address validation it is performing with
-   other addresses on the expectation that the validation is likely to
-   fail.  Abandoning address validation primarily means not closing the
-   connection when a PATH_RESPONSE frame is not received, but it could
-   also mean ceasing subsequent transmissions of the PATH_CHALLENGE
+
 
 
 
@@ -2074,6 +2074,12 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 37]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   Upon seeing a connection migration, an endpoint that sees a new
+   address MUST abandon any address validation it is performing with
+   other addresses on the expectation that the validation is likely to
+   fail.  Abandoning address validation primarily means not closing the
+   connection when a PATH_RESPONSE frame is not received, but it could
+   also mean ceasing subsequent transmissions of the PATH_CHALLENGE
    frame.  An endpoint MUST ignore any subsequently received
    PATH_RESPONSE frames from that address.
 
@@ -2116,12 +2122,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    being identical to the initial remote address, the endpoint MAY
    abandon address validation for that address.
 
-7.9.  Connection Termination
-
-   Connections should remain open until they become idle for a pre-
-   negotiated period of time.  A QUIC connection, once established, can
-   be terminated in one of three ways:
-
 
 
 
@@ -2129,6 +2129,12 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 38]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+7.9.  Connection Termination
+
+   Connections should remain open until they become idle for a pre-
+   negotiated period of time.  A QUIC connection, once established, can
+   be terminated in one of three ways:
 
    o  idle timeout (Section 7.9.2)
 
@@ -2172,12 +2178,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    period would have ended.  In other words, the endpoint can use the
    same end time, but cease retransmission of the closing packet.
 
-   Disposing of connection state prior to the end of the closing or
-   draining period could cause delayed or reordered packets to be
-   handled poorly.  Endpoints that have some alternative means to ensure
-   that late-arriving packets on the connection do not create QUIC
-   state, such as those that are able to close the UDP socket, MAY use
-   an abbreviated draining period which can allow for faster resource
 
 
 
@@ -2186,6 +2186,12 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 39]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   Disposing of connection state prior to the end of the closing or
+   draining period could cause delayed or reordered packets to be
+   handled poorly.  Endpoints that have some alternative means to ensure
+   that late-arriving packets on the connection do not create QUIC
+   state, such as those that are able to close the UDP socket, MAY use
+   an abbreviated draining period which can allow for faster resource
    recovery.  Servers that retain an open socket for accepting new
    connections SHOULD NOT exit the closing or draining period early.
 
@@ -2227,13 +2233,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    closing frame causes all streams to immediately become closed; open
    streams can be assumed to be implicitly reset.
 
-   After sending a closing frame, endpoints immediately enter the
-   closing state.  During the closing period, an endpoint that sends a
-   closing frame SHOULD respond to any packet that it receives with
-   another packet containing a closing frame.  To minimize the state
-   that an endpoint maintains for a closing connection, endpoints MAY
-   send the exact same packet.  However, endpoints SHOULD limit the
-   number of packets they generate containing a closing frame.  For
+
 
 
 
@@ -2242,6 +2242,13 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 40]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   After sending a closing frame, endpoints immediately enter the
+   closing state.  During the closing period, an endpoint that sends a
+   closing frame SHOULD respond to any packet that it receives with
+   another packet containing a closing frame.  To minimize the state
+   that an endpoint maintains for a closing connection, endpoints MAY
+   send the exact same packet.  However, endpoints SHOULD limit the
+   number of packets they generate containing a closing frame.  For
    instance, an endpoint could progressively increase the number of
    packets that it receives before sending additional packets or
    increase the time between packets.
@@ -2284,19 +2291,15 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    is protected by encryption, so only client and server know this
    value.
 
-   A server that receives packets that it cannot process sends a packet
-   in the following layout:
-
-
-
-
-
 
 
 Iyengar & Thomson        Expires August 5, 2018                [Page 41]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   A server that receives packets that it cannot process sends a packet
+   in the following layout:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2343,9 +2346,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    This design ensures that a stateless reset packet is - to the extent
    possible - indistinguishable from a regular packet.
 
-   A stateless reset is not appropriate for signaling error conditions.
-   An endpoint that wishes to communicate a fatal connection error MUST
-
 
 
 
@@ -2354,6 +2354,8 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 42]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   A stateless reset is not appropriate for signaling error conditions.
+   An endpoint that wishes to communicate a fatal connection error MUST
    use a CONNECTION_CLOSE or APPLICATION_CLOSE frame if it has
    sufficient state to do so.
 
@@ -2400,8 +2402,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    Stateless Reset Secret.  The connection ID comes from the packet that
    the server receives.
 
-   This design relies on the client always sending a connection ID in
-   its packets so that the server can use the connection ID from a
 
 
 
@@ -2410,6 +2410,8 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 43]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   This design relies on the client always sending a connection ID in
+   its packets so that the server can use the connection ID from a
    packet to reset the connection.  A server that uses this design
    cannot allow clients to omit a connection ID (that is, it cannot use
    the truncate_connection_id transport parameter Section 7.4.1).
@@ -2447,8 +2449,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    This means that integers are encoded on 1, 2, 4, or 8 octets and can
    encode 6, 14, 30, or 62 bit values respectively.  Table 4 summarizes
    the encoding properties.
-
-
 
 
 
@@ -3226,10 +3226,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    is to guess the value correctly.
 
    The recipient of this frame MUST generate a PATH_RESPONSE frame
-   (Section 8.17) containing the same Data.  An endpoint that receives a
-   PATH_CHALLENGE frame containing an empty payload MUST generate a
-   connection error of type FRAME_ERROR, indicating the PATH_CHALLENGE
-   frame (that is, 0x0e).
+   (Section 8.17) containing the same Data.
 
 8.17.  PATH_RESPONSE Frame
 
@@ -3237,10 +3234,13 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    PATH_CHALLENGE frame.  Its format is identical to the PATH_CHALLENGE
    frame (Section 8.16).
 
-   An endpoint that receives a PATH_RESPONSE frame containing an empty
-   payload MUST generate a connection error of type FRAME_ERROR,
-   indicating the PATH_RESPONSE frame (that is, 0x0f).  If the content
-   of a PATH_RESPONSE frame does not match the content of a
+   If the content of a PATH_RESPONSE frame does not match the content of
+   a PATH_CHALLENGE frame previously sent by the endpoint, the endpoint
+   MAY generate a connection error of type UNSOLICITED_PATH_RESPONSE.
+
+
+
+
 
 
 
@@ -3249,9 +3249,6 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 58]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
-
-   PATH_CHALLENGE frame previously sent by the endpoint, the endpoint
-   MAY generate a connection error of type UNSOLICITED_PATH_RESPONSE.
 
 8.18.  STREAM Frames
 
@@ -3297,7 +3294,10 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    Stream ID:  A variable-length integer indicating the stream ID of the
       stream (see Section 10.1).
 
-
+   Offset:  A variable-length integer specifying the byte offset in the
+      stream for the data in this STREAM frame.  This field is present
+      when the OFF bit is set to 1.  When the Offset field is absent,
+      the offset is 0.
 
 
 
@@ -3305,11 +3305,6 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 59]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
-
-   Offset:  A variable-length integer specifying the byte offset in the
-      stream for the data in this STREAM frame.  This field is present
-      when the OFF bit is set to 1.  When the Offset field is absent,
-      the offset is 0.
 
    Length:  A variable-length integer specifying the length of the
       Stream Data field in this STREAM frame.  This field is present
@@ -3354,6 +3349,11 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    use heuristics about expected application sending behavior to
    determine whether and for how long to wait.  This waiting period is
    an implementation decision, and an implementation should be careful
+   to delay conservatively, since any delay is likely to increase
+   application-visible latency.
+
+   Regular QUIC packets are "containers" of frames.  A packet is never
+   retransmitted whole.  How an endpoint handles the loss of a frame
 
 
 
@@ -3362,26 +3362,10 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 60]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
-   to delay conservatively, since any delay is likely to increase
-   application-visible latency.
-
-   Regular QUIC packets are "containers" of frames.  When an endpoint
-   receives an ACK frame for one or more transmitted packets, all frames
-   in the acknowledged packets are considered to have been delivered to
-   the peer, with one exception.  A PATH_CHALLENGE frame (see
-   Section 8.16) is used to validate a peer's ownership of its address.
-   An ACK frame received for a PATH_CHALLENGE frame is not adequate to
-   indicate that the PATH_CHALLENGE was in fact received.  A
-   PATH_CHALLENGE is considered acknowledged only when the corresponding
-   PATH_RESPONSE (see Section 8.17) is received for it.
-
-   A packet is never retransmitted whole.  How an endpoint handles the
-   loss of a frame depends on the type of the frame.  Some frames are
-   simply retransmitted, some have their contents moved to new frames,
-   and others are never retransmitted.
-
-   When a packet is detected as lost, the sender re-sends any frames as
-   necessary:
+   depends on the type of the frame.  Some frames are simply
+   retransmitted, some have their contents moved to new frames, and
+   others are never retransmitted.  When a packet is detected as lost,
+   the sender re-sends any frames as necessary:
 
    o  All application data sent in STREAM frames MUST be retransmitted,
       unless the endpoint has sent a RST_STREAM for that stream.  When
@@ -3411,13 +3395,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       If the limit has been increased since the frame was originally
       sent, the frame SHOULD NOT be retransmitted.
 
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 61]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    o  PATH_CHALLENGE frames MUST NOT be retransmitted, but a new
       PATH_CHALLENGE frame MAY be sent with new data.  PATH_RESPONSE
       frames MUST NOT be retransmitted.
@@ -3433,6 +3410,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    processed.  For STREAM frames, this means the data has been queued
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 61]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
+
    frames have occurred.  Once the packet has been fully processed, a
    receiver acknowledges receipt by sending one or more ACK frames
    containing the packet number of the received packet.
@@ -3467,13 +3452,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    otherwise behave as if any part of the offending packet was processed
    as valid.
 
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 62]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
 9.2.  Path Maximum Transmission Unit
 
    The Path Maximum Transmission Unit (PMTU) is the maximum size of the
@@ -3487,6 +3465,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    ([PLPMTUD]).  Endpoints MAY use PMTU Discovery ([PMTUDv4], [PMTUDv6])
    for detecting the PMTU, setting the PMTU appropriately, and storing
    the result of previous PMTU determinations.
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 62]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
    In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
    packets larger than 1280 octets.  Assuming the minimum IP header
@@ -3521,15 +3507,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    8 bytes of transport header echoed in the ICMP message to validate
    the TCP sequence number as valid for the current connection.
    However, as QUIC operates over UDP, in IPv4 the echoed information
-
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 63]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    could consist only of the IP and UDP headers, which usually has
    insufficient entropy to mitigate off-path attacks.
 
@@ -3544,6 +3521,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    o  Store additional information from the IP or UDP headers from DF
       packets (for example, the IP ID or UDP checksum) to further
       authenticate incoming Datagram Too Big messages.
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 63]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
    o  Any reduction in PMTU due to a report contained in an ICMP packet
       is provisional until QUIC's loss detection algorithm determines
@@ -3578,14 +3563,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    carry data in one direction only; bidirectional streams allow for
    data to be sent in both directions.  Different stream identifiers are
    used to distinguish between unidirectional and bidirectional streams,
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 64]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    as well as to create a separation between streams that are initiated
    by the client and server (see Section 10.1).
 
@@ -3601,6 +3578,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The creation and destruction of streams are expected to have minimal
    bandwidth and computational cost.  A single STREAM frame may create,
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 64]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
+
    carry data for, and terminate a stream, or a stream may last the
    entire duration of a connection.
 
@@ -3633,6 +3618,21 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    server), but which it has not yet opened, it MUST close the
    connection with error code STREAM_STATE_ERROR.
 
+   The second least significant bit (0x2) of the Stream ID
+   differentiates between unidirectional streams and bidirectional
+   streams.  Unidirectional streams always have this bit set to 1 and
+   bidirectional streams have this bit set to 0.
+
+   The two type bits from a Stream ID therefore identify streams as
+   summarized in Table 5.
+
+
+
+
+
+
+
+
 
 
 
@@ -3641,14 +3641,6 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 65]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
-
-   The second least significant bit (0x2) of the Stream ID
-   differentiates between unidirectional streams and bidirectional
-   streams.  Unidirectional streams always have this bit set to 1 and
-   bidirectional streams have this bit set to 0.
-
-   The two type bits from a Stream ID therefore identify streams as
-   summarized in Table 5.
 
               +----------+----------------------------------+
               | Low Bits | Stream Type                      |
@@ -3691,6 +3683,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    opening of either send or receive causes the stream to open in both
    directions.
 
+   Opening a stream causes all lower-numbered streams of the same type
+   to implicitly open.  This includes both send and receive streams if
+   the stream is bidirectional.  For bidirectional streams, an endpoint
+   can send data on an implicitly opened stream.  On both unidirectional
+   and bidirectional streams, an endpoint MAY send MAX_STREAM_DATA or
+   STOP_SENDING on implicitly opened streams.  An endpoint SHOULD NOT
+
+
 
 
 Iyengar & Thomson        Expires August 5, 2018                [Page 66]
@@ -3698,12 +3698,6 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 66]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
-   Opening a stream causes all lower-numbered streams of the same type
-   to implicitly open.  This includes both send and receive streams if
-   the stream is bidirectional.  For bidirectional streams, an endpoint
-   can send data on an implicitly opened stream.  On both unidirectional
-   and bidirectional streams, an endpoint MAY send MAX_STREAM_DATA or
-   STOP_SENDING on implicitly opened streams.  An endpoint SHOULD NOT
    implicitly open streams that it initiates, instead opening streams in
    order.
 
@@ -3721,6 +3715,12 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    Figure 10 shows the states for the part of a stream that sends data
    to a peer.
+
+
+
+
+
+
 
 
 

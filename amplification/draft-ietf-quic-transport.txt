@@ -853,15 +853,19 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    Protected, or Handshake packet).
 
    Servers MUST NOT send more than three Handshake packets without
-   receiving a packet from a verified source address.  If the server
-   expects to generate more than three Handshake packets in response to
-   an Initial packet, it SHOULD include a PATH_CHALLENGE frame in each
-   Handshake packet that it sends.  After receiving at least one valid
-   PATH_RESPONSE frame in a Handshake packet, the server can send its
-   remaining Handshake packets.  (Servers MAY instead perform address
+   receiving a packet from a verified source address.  Source addresses
+   can be verified through an address validation token, receipt of the
+   final cryptographic message from the client, or by receiving a valid
+   PATH_RESPONSE frame from the client.
+
+   If the server expects to generate more than three Handshake packets
+   in response to an Initial packet, it SHOULD include a PATH_CHALLENGE
+   frame in each Handshake packet that it sends.  After receiving at
+   least one valid PATH_RESPONSE frame, the server can send its
+   remaining Handshake packets.  Servers can instead perform address
    validation using a Retry packet; this requires less state on the
    server, but could involve additional computational effort depending
-   on implementation choices.)
+   on implementation choices.
 
    The payload of this packet contains STREAM frames and could contain
    PADDING, ACK, PATH_CHALLENGE, or PATH_RESPONSE frames.
@@ -885,11 +889,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The version field for protected packets is the current QUIC version.
 
-   The packet number field contains a packet number, which increases
-   with each packet sent, see Section 5.7 for details.
 
-   The payload is protected using authenticated encryption.  [QUIC-TLS]
-   describes packet protection in detail.  After decryption, the
 
 
 
@@ -898,6 +898,11 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 16]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   The packet number field contains a packet number, which increases
+   with each packet sent, see Section 5.7 for details.
+
+   The payload is protected using authenticated encryption.  [QUIC-TLS]
+   describes packet protection in detail.  After decryption, the
    plaintext consists of a sequence of frames, as described in
    Section 6.
 
@@ -940,12 +945,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    connection (that is, under the same cryptographic keys).  If the
    packet number for sending reaches 2^62 - 1, the sender MUST close the
    connection without sending a CONNECTION_CLOSE frame or any further
-   packets; a server MAY send a Stateless Reset (Section 7.9.4) in
-   response to further packets that it receives.
 
-   For the packet header, the number of bits required to represent the
-   packet number are reduced by including only the least significant
-   bits of the packet number.  The actual packet number for each packet
 
 
 
@@ -954,6 +954,12 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 17]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   packets; a server MAY send a Stateless Reset (Section 7.9.4) in
+   response to further packets that it receives.
+
+   For the packet header, the number of bits required to represent the
+   packet number are reduced by including only the least significant
+   bits of the packet number.  The actual packet number for each packet
    is reconstructed at the receiver based on the largest packet number
    received on a successfully authenticated packet.
 
@@ -996,12 +1002,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    Limiting the range allows both for loss of packets and for any
    stateless exchanges.  Packet numbers are incremented for subsequent
-   packets, but packet loss and stateless handling can both mean that
-   the first packet sent by an endpoint isn't necessarily the first
-   packet received by its peer.  The first packet received by a peer
-   cannot be 2^32 or greater or the recipient will incorrectly assume a
-   packet number that is 2^32 values lower and discard the packet.
-
 
 
 
@@ -1009,6 +1009,12 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 18]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   packets, but packet loss and stateless handling can both mean that
+   the first packet sent by an endpoint isn't necessarily the first
+   packet received by its peer.  The first packet received by a peer
+   cannot be 2^32 or greater or the recipient will incorrectly assume a
+   packet number that is 2^32 values lower and discard the packet.
 
    Use of a secure random number generator [RFC4086] is not necessary
    for generating the initial packet number, nor is it necessary that
@@ -1040,6 +1046,26 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    consists of a sequence of frames, as shown in Figure 4.  Version
    Negotiation and Stateless Reset do not contain frames.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 19]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
+
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1056,15 +1082,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    Protected payloads MUST contain at least one frame, and MAY contain
    multiple frames and multiple frame types.
-
-
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 19]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
 
    Frames MUST fit within a single QUIC packet and MUST NOT span a QUIC
    packet boundary.  Each frame begins with a Frame Type byte,
@@ -1083,23 +1100,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    For all other frames, the Frame Type byte simply identifies the
    frame.  These frames are explained in more detail as they are
    referenced later in the document.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

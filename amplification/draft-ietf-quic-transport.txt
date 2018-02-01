@@ -150,12 +150,12 @@ Internet-Draft           QUIC Transport Protocol           February 2018
      8.12. STREAM_ID_BLOCKED Frame . . . . . . . . . . . . . . . . .  52
      8.13. NEW_CONNECTION_ID Frame . . . . . . . . . . . . . . . . .  52
      8.14. STOP_SENDING Frame  . . . . . . . . . . . . . . . . . . .  53
-     8.15. PATH_CHALLENGE Frame  . . . . . . . . . . . . . . . . . .  54
-     8.16. PATH_RESPONSE Frame . . . . . . . . . . . . . . . . . . .  55
-     8.17. ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  55
-       8.17.1.  ACK Block Section  . . . . . . . . . . . . . . . . .  56
-       8.17.2.  Sending ACK Frames . . . . . . . . . . . . . . . . .  58
-       8.17.3.  ACK Frames and Packet Protection . . . . . . . . . .  59
+     8.15. ACK Frame . . . . . . . . . . . . . . . . . . . . . . . .  54
+       8.15.1.  ACK Block Section  . . . . . . . . . . . . . . . . .  55
+       8.15.2.  Sending ACK Frames . . . . . . . . . . . . . . . . .  57
+       8.15.3.  ACK Frames and Packet Protection . . . . . . . . . .  58
+     8.16. PATH_CHALLENGE Frame  . . . . . . . . . . . . . . . . . .  59
+     8.17. PATH_RESPONSE Frame . . . . . . . . . . . . . . . . . . .  59
      8.18. STREAM Frames . . . . . . . . . . . . . . . . . . . . . .  60
    9.  Packetization and Reliability . . . . . . . . . . . . . . . .  61
      9.1.  Packet Size . . . . . . . . . . . . . . . . . . . . . . .  63
@@ -1151,11 +1151,11 @@ Internet-Draft           QUIC Transport Protocol           February 2018
             |             |                   |              |
             | 0x0c        | STOP_SENDING      | Section 8.14 |
             |             |                   |              |
-            | 0x0d        | ACK               | Section 8.17 |
+            | 0x0d        | ACK               | Section 8.15 |
             |             |                   |              |
-            | 0x0e        | PATH_CHALLENGE    | Section 8.15 |
+            | 0x0e        | PATH_CHALLENGE    | Section 8.16 |
             |             |                   |              |
-            | 0x0f        | PATH_RESPONSE     | Section 8.16 |
+            | 0x0f        | PATH_RESPONSE     | Section 8.17 |
             |             |                   |              |
             | 0x10 - 0x17 | STREAM            | Section 8.18 |
             +-------------+-------------------+--------------+
@@ -1609,7 +1609,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    ack_delay_exponent (0x0007):  An 8-bit unsigned integer value
       indicating an exponent used to decode the ACK Delay field in the
-      ACK frame, see Section 8.17.  If this value is absent, a default
+      ACK frame, see Section 8.15.  If this value is absent, a default
       value of 3 is assumed (indicating a multiplier of 8).  The default
       value is also used for ACK frames that are sent in Initial,
       Handshake, and Retry packets.  Values above 20 are invalid.
@@ -2062,9 +2062,9 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    PATH_CHALLENGE frame containing a payload that is hard to guess.
    This frame MUST be sent in a packet that is sent to the new address.
    Once a PATH_RESPONSE frame containing the same payload is received,
-   the address is considered to be valid.  The PATH_RESPONSE frame can
-   use any path on its return.  A PATH_CHALLENGE frame containing 12
-   randomly generated [RFC4086] octets is sufficient to ensure that it
+   the address is considered to be valid.
+
+
 
 
 
@@ -2074,16 +2074,18 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 37]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
-   is easier to receive the packet than it is to guess the value
-   correctly.
+   The new address is not considered valid until a PATH_RESPONSE frame
+   containing the same payload is received, even if the packet
+   containing the PATH_CHALLENGE frame is acknowledged.
+
+   The PATH_RESPONSE frame can use any path on its return.
 
    An endpoint MAY send multiple PATH_CHALLENGE frames to handle packet
    loss or to make additional measurements on a new network path.
 
    An endpoint MUST use fresh random data in every PATH_CHALLENGE frame
    so that it can associate the peer's response with the causative
-   PATH_CHALLENGE, additionally helping the endpoint make more accurate
-   path measurements.
+   PATH_CHALLENGE.
 
    If the PATH_CHALLENGE frame is determined to be lost, a new
    PATH_CHALLENGE frame SHOULD be generated.  This PATH_CHALLENGE frame
@@ -2095,7 +2097,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    the connection.  When setting this timer, implementations are
    cautioned that the new path could have a longer round trip time than
    the original.  The endpoint MUST NOT send a CONNECTION_CLOSE frame in
-   this case; it has to assume that the remote peer does not want to
+   this case; it has to assume that the remote peer cannot want to
    receive any more packets.
 
    If the remote address is validated successfully, the endpoint MAY
@@ -2119,9 +2121,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    peer is still in possession of its address after a period of
    quiescence.
 
-   Upon seeing a connection migration, an endpoint that sees a new
-   address MUST abandon any address validation it is performing with
-   other addresses on the expectation that the validation is likely to
+
 
 
 
@@ -2130,6 +2130,9 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 38]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
+   Upon seeing a connection migration, an endpoint that sees a new
+   address MUST abandon any address validation it is performing with
+   other addresses on the expectation that the validation is likely to
    fail.  Abandoning address validation primarily means not closing the
    connection when a PATH_RESPONSE frame is not received, but it could
    also mean ceasing subsequent transmissions of the PATH_CHALLENGE
@@ -2174,9 +2177,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    migrations occur in quick succession with the final remote address
    being identical to the initial remote address, the endpoint MAY
    abandon address validation for that address.
-
-
-
 
 
 
@@ -2785,7 +2785,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    are still alive or to check reachability to the peer.  The PING frame
    contains no additional fields.
 
-   The receiver of a PING frame simply need to acknowledge the packet
+   The receiver of a PING frame simply needs to acknowledge the packet
    containing this frame.
 
    The PING frame can be used to keep a connection alive when an
@@ -2986,64 +2986,9 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    Application Error Code:  A 16-bit, application-specified reason the
       sender is ignoring the stream (see Section 12.4).
 
-8.15.  PATH_CHALLENGE Frame
+8.15.  ACK Frame
 
-   Endpoints can use PATH_CHALLENGE frames (type=0x0e) to check
-   reachability to the peer, to verify a new path's PMTU, and for
-   address validation during connection establishment and connection
-   migration.
-
-   PATH_CHALLENGE frames contain a variable-length payload.
-
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |   Length(8)   |                 Data (*)                    ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-   Length:  This 8-bit value describes the length of the Data field.
-
-   Data:  This variable-length field contains arbitrary data.
-
-   The sender of this frame MUST include at least one octet of data in
-   the Data field.
-
-   The recipient of this frame MUST generate a PATH_RESPONSE frame
-   (Section 8.16) containing the same Data.  An endpoint that receives a
-   PATH_CHALLENGE frame containing an empty payload MUST generate a
-   connection error of type FRAME_ERROR, indicating the PATH_CHALLENGE
-   frame (that is, 0x0e).
-
-   A PATH_CHALLENGE frame MUST NOT elicit acknowledgements; the
-   corresponding PATH_RESPONSE serves to indicate receipt of the
-   PATH_CHALLENGE.
-
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 54]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
-8.16.  PATH_RESPONSE Frame
-
-   The PATH_RESPONSE frame (type=0x0f) is sent in response to a
-   PATH_CHALLENGE frame.  Its format is identical to the PATH_CHALLENGE
-   frame (Section 8.15).
-
-   An endpoint that receives a PATH_RESPONSE frame containing an empty
-   payload MUST generate a connection error of type FRAME_ERROR,
-   indicating the PATH_RESPONSE frame (that is, 0x0e).  If the content
-   of a PATH_RESPONSE frame does not match the content of a
-   PATH_CHALLENGE frame previously sent by the endpoint, the endpoint
-   MAY generate a connection error of type UNSOLICITED_PATH_RESPONSE.
-
-   A PATH_RESPONSE frame MUST NOT elicit an acknowledgement.
-
-8.17.  ACK Frame
-
-   Receivers send ACK frames (type=0xe) to inform senders which packets
+   Receivers send ACK frames (type=0x0d) to inform senders which packets
    they have received and processed.  A sent packet that has never been
    acknowledged is missing.  The ACK frame contains any number of ACK
    blocks.  ACK blocks are ranges of acknowledged packets.
@@ -3076,8 +3021,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
 
 
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 55]
+Iyengar & Thomson        Expires August 5, 2018                [Page 54]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
@@ -3119,9 +3063,9 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       after the First ACK Block.
 
    ACK Blocks:  Contains one or more blocks of packet numbers which have
-      been successfully received, see Section 8.17.1.
+      been successfully received, see Section 8.15.1.
 
-8.17.1.  ACK Block Section
+8.15.1.  ACK Block Section
 
    The ACK Block Section consists of alternating Gap and ACK Block
    fields in descending packet number order.  A First Ack Block field is
@@ -3133,7 +3077,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
 
 
-Iyengar & Thomson        Expires August 5, 2018                [Page 56]
+Iyengar & Thomson        Expires August 5, 2018                [Page 55]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
@@ -3189,7 +3133,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
 
 
-Iyengar & Thomson        Expires August 5, 2018                [Page 57]
+Iyengar & Thomson        Expires August 5, 2018                [Page 56]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
@@ -3223,7 +3167,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       number of contiguous acknowledged packets preceding the largest
       packet number, as determined by the preceding Gap.
 
-8.17.2.  Sending ACK Frames
+8.15.2.  Sending ACK Frames
 
    Implementations MUST NOT generate packets that only contain ACK
    frames in response to packets which only contain ACK frames.
@@ -3245,7 +3189,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
 
 
-Iyengar & Thomson        Expires August 5, 2018                [Page 58]
+Iyengar & Thomson        Expires August 5, 2018                [Page 57]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
@@ -3262,7 +3206,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    the receiver SHOULD repeatedly acknowledge newly received packets in
    preference to packets received in the past.
 
-8.17.3.  ACK Frames and Packet Protection
+8.15.3.  ACK Frames and Packet Protection
 
    ACK frames that acknowledge protected packets MUST be carried in a
    packet that has an equivalent or greater level of packet protection.
@@ -3301,7 +3245,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
 
 
-Iyengar & Thomson        Expires August 5, 2018                [Page 59]
+Iyengar & Thomson        Expires August 5, 2018                [Page 58]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
@@ -3313,6 +3257,54 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    ServerHello through to Finished) might be acknowledged by a client in
    protected packets, because it is certain that the server is able to
    decipher the packet.
+
+8.16.  PATH_CHALLENGE Frame
+
+   Endpoints can use PATH_CHALLENGE frames (type=0x0e) to check
+   reachability to the peer and for address validation during connection
+   establishment and connection migration.
+
+   PATH_CHALLENGE frames contain an 8-byte payload.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                            Data (8)                           +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+   Data:  This 8-byte field contains arbitrary data.
+
+   A PATH_CHALLENGE frame containing 8 octets that are hard to guess is
+   sufficient to ensure that it is easier to receive the packet than it
+   is to guess the value correctly.
+
+   The recipient of this frame MUST generate a PATH_RESPONSE frame
+   (Section 8.17) containing the same Data.
+
+8.17.  PATH_RESPONSE Frame
+
+   The PATH_RESPONSE frame (type=0x0f) is sent in response to a
+   PATH_CHALLENGE frame.  Its format is identical to the PATH_CHALLENGE
+   frame (Section 8.16).
+
+   If the content of a PATH_RESPONSE frame does not match the content of
+   a PATH_CHALLENGE frame previously sent by the endpoint, the endpoint
+   MAY generate a connection error of type UNSOLICITED_PATH_RESPONSE.
+
+
+
+
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 59]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
 8.18.  STREAM Frames
 
@@ -3355,13 +3347,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The STREAM frame contains the following fields:
 
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 60]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    Stream ID:  A variable-length integer indicating the stream ID of the
       stream (see Section 10.1).
 
@@ -3369,6 +3354,13 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       stream for the data in this STREAM frame.  This field is present
       when the OFF bit is set to 1.  When the Offset field is absent,
       the offset is 0.
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 60]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
    Length:  A variable-length integer specifying the length of the
       Stream Data field in this STREAM frame.  This field is present
@@ -3410,6 +3402,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    sender MAY wait for a short period of time to bundle multiple frames
    before sending a packet that is not maximally packed, to avoid
    sending out large numbers of small packets.  An implementation may
+   use heuristics about expected application sending behavior to
+   determine whether and for how long to wait.  This waiting period is
+   an implementation decision, and an implementation should be careful
+   to delay conservatively, since any delay is likely to increase
+   application-visible latency.
+
+   Regular QUIC packets are "containers" of frames.  A packet is never
+   retransmitted whole.  How an endpoint handles the loss of a frame
 
 
 
@@ -3418,20 +3418,10 @@ Iyengar & Thomson        Expires August 5, 2018                [Page 61]
 Internet-Draft           QUIC Transport Protocol           February 2018
 
 
-   use heuristics about expected application sending behavior to
-   determine whether and for how long to wait.  This waiting period is
-   an implementation decision, and an implementation should be careful
-   to delay conservatively, since any delay is likely to increase
-   application-visible latency.
-
-   Regular QUIC packets are "containers" of frames; a packet is never
-   retransmitted whole.  How an endpoint handles the loss of the frame
    depends on the type of the frame.  Some frames are simply
    retransmitted, some have their contents moved to new frames, and
-   others are never retransmitted.
-
-   When a packet is detected as lost, the sender re-sends any frames as
-   necessary:
+   others are never retransmitted.  When a packet is detected as lost,
+   the sender re-sends any frames as necessary:
 
    o  All application data sent in STREAM frames MUST be retransmitted,
       unless the endpoint has sent a RST_STREAM for that stream.  When
@@ -3441,7 +3431,7 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    o  ACK and PADDING frames MUST NOT be retransmitted.  ACK frames
       containing updated information will be sent as described in
-      Section 8.17.
+      Section 8.15.
 
    o  STOP_SENDING frames MUST be retransmitted until the receive stream
       enters either a "Data Recvd" or "Reset Recvd" state.  See
@@ -3462,17 +3452,10 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       sent, the frame SHOULD NOT be retransmitted.
 
    o  PATH_CHALLENGE frames MUST NOT be retransmitted, but a new
-      PATH_CHALLENGE frame MAY be sent with new random data.
-      PATH_RESPONSE frames MUST NOT be retransmitted.
+      PATH_CHALLENGE frame MAY be sent with new data.  PATH_RESPONSE
+      frames MUST NOT be retransmitted.
 
    o  All other frames MUST be retransmitted.
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 62]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
 
    Upon detecting losses, a sender MUST take appropriate congestion
    control action.  The details of loss detection and congestion control
@@ -3483,6 +3466,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    processed.  For STREAM frames, this means the data has been queued
    (but not necessarily delivered to the application).  This also means
    that any stream state transitions triggered by STREAM or RST_STREAM
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 62]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
+
    frames have occurred.  Once the packet has been fully processed, a
    receiver acknowledges receipt by sending one or more ACK frames
    containing the packet number of the received packet.
@@ -3521,15 +3512,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The Path Maximum Transmission Unit (PMTU) is the maximum size of the
    entire IP header, UDP header, and UDP payload.  The UDP payload
-
-
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 63]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    includes the QUIC packet header, protected payload, and any
    authentication fields.
 
@@ -3539,6 +3521,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    ([PLPMTUD]).  Endpoints MAY use PMTU Discovery ([PMTUDv4], [PMTUDv6])
    for detecting the PMTU, setting the PMTU appropriately, and storing
    the result of previous PMTU determinations.
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 63]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
    In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
    packets larger than 1280 octets.  Assuming the minimum IP header
@@ -3579,13 +3569,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    As a result, endpoints that implement PMTUD in IPv4 SHOULD take steps
    to mitigate this risk.  For instance, an application could:
 
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 64]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    o  Set the IPv4 Don't Fragment (DF) bit on a small proportion of
       packets, so that most invalid ICMP messages arrive when there are
       no DF packets outstanding, and can therefore be identified as
@@ -3594,6 +3577,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    o  Store additional information from the IP or UDP headers from DF
       packets (for example, the IP ID or UDP checksum) to further
       authenticate incoming Datagram Too Big messages.
+
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 64]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
 
    o  Any reduction in PMTU due to a report contained in an ICMP packet
       is provisional until QUIC's loss detection algorithm determines
@@ -3635,13 +3626,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    concurrently send data interleaved with other streams, and can be
    cancelled.
 
-
-
-Iyengar & Thomson        Expires August 5, 2018                [Page 65]
-
-Internet-Draft           QUIC Transport Protocol           February 2018
-
-
    Stream offsets allow for the octets on a stream to be placed in
    order.  An endpoint MUST be capable of delivering data received on a
    stream in order.  Implementations MAY choose to offer the ability to
@@ -3650,6 +3634,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The creation and destruction of streams are expected to have minimal
    bandwidth and computational cost.  A single STREAM frame may create,
+
+
+
+Iyengar & Thomson        Expires August 5, 2018                [Page 65]
+
+Internet-Draft           QUIC Transport Protocol           February 2018
+
+
    carry data for, and terminate a stream, or a stream may last the
    entire duration of a connection.
 
@@ -3689,6 +3681,14 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The two type bits from a Stream ID therefore identify streams as
    summarized in Table 5.
+
+
+
+
+
+
+
+
 
 
 
@@ -5119,7 +5119,7 @@ C.1.  Since draft-ietf-quic-transport-09
 
    o  Added PATH_CHALLENGE and PATH_RESPONSE frames to replace PING with
       Data and PONG frame.  Changed ACK frame type from 0x0e to 0x0d.
-      (#000)
+      (#1091, #1086)
 
 C.2.  Since draft-ietf-quic-transport-08
 

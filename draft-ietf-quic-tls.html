@@ -327,7 +327,8 @@ address {
 <link href="#rfc.section.8.1.2" rel="Chapter" title="8.1.2 ACK Frames">
 <link href="#rfc.section.8.1.3" rel="Chapter" title="8.1.3 Updates to Data and Stream Limits">
 <link href="#rfc.section.8.1.4" rel="Chapter" title="8.1.4 Handshake Failures">
-<link href="#rfc.section.8.1.5" rel="Chapter" title="8.1.5 Denial of Service with Unprotected Packets">
+<link href="#rfc.section.8.1.5" rel="Chapter" title="8.1.5 Address Verification">
+<link href="#rfc.section.8.1.6" rel="Chapter" title="8.1.6 Denial of Service with Unprotected Packets">
 <link href="#rfc.section.8.2" rel="Chapter" title="8.2 Use of 0-RTT Keys">
 <link href="#rfc.section.8.3" rel="Chapter" title="8.3 Receiving Out-of-Order Protected Frames">
 <link href="#rfc.section.9" rel="Chapter" title="9 QUIC-Specific Additions to the TLS Handshake">
@@ -362,7 +363,7 @@ address {
 
   <meta name="dct.creator" content="Thomson, M., Ed. and S. Turner, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-tls-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2018-2-1" />
+  <meta name="dct.issued" scheme="ISO8601" content="2018-2-2" />
   <meta name="dct.abstract" content="This document describes how Transport Layer Security (TLS) is used to secure QUIC." />
   <meta name="description" content="This document describes how Transport Layer Security (TLS) is used to secure QUIC." />
 
@@ -386,12 +387,12 @@ address {
 <td class="right">S. Turner, Ed.</td>
 </tr>
 <tr>
-<td class="left">Expires: August 5, 2018</td>
+<td class="left">Expires: August 6, 2018</td>
 <td class="right">sn3rd</td>
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">February 1, 2018</td>
+<td class="right">February 2, 2018</td>
 </tr>
 
     	
@@ -410,7 +411,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 5, 2018.</p>
+<p>This Internet-Draft will expire on August 6, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2018 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -510,7 +511,9 @@ address {
 </li>
 <li>8.1.4.   <a href="#rfc.section.8.1.4">Handshake Failures</a>
 </li>
-<li>8.1.5.   <a href="#rfc.section.8.1.5">Denial of Service with Unprotected Packets</a>
+<li>8.1.5.   <a href="#rfc.section.8.1.5">Address Verification</a>
+</li>
+<li>8.1.6.   <a href="#rfc.section.8.1.6">Denial of Service with Unprotected Packets</a>
 </li>
 </ul><li>8.2.   <a href="#rfc.section.8.2">Use of 0-RTT Keys</a>
 </li>
@@ -1097,13 +1100,17 @@ packet_number_secret =
 </h3>
 <p id="rfc.section.8.1.4.p.1">The <samp>CONNECTION_CLOSE</samp> frame MAY be sent by either endpoint in a Handshake packet.  This allows an endpoint to signal a fatal error with connection establishment.  A <samp>STREAM</samp> frame carrying a TLS alert MAY be included in the same packet.</p>
 <h3 id="rfc.section.8.1.5">
-<a href="#rfc.section.8.1.5">8.1.5.</a> <a href="#denial-of-service-with-unprotected-packets" id="denial-of-service-with-unprotected-packets">Denial of Service with Unprotected Packets</a>
+<a href="#rfc.section.8.1.5">8.1.5.</a> <a href="#address-verification" id="address-verification">Address Verification</a>
 </h3>
-<p id="rfc.section.8.1.5.p.1">Accepting unprotected - specifically unauthenticated - packets presents a denial of service risk to endpoints.  An attacker that is able to inject unprotected packets can cause a recipient to drop even protected packets with a matching sequence number.  The spurious packet shadows the genuine packet, causing the genuine packet to be ignored as redundant.</p>
-<p id="rfc.section.8.1.5.p.2">Once the TLS handshake is complete, both peers MUST ignore unprotected packets.  From that point onward, unprotected messages can be safely dropped.</p>
-<p id="rfc.section.8.1.5.p.3">Since only TLS handshake packets and acknowledgments are sent in the clear, an attacker is able to force implementations to rely on retransmission for packets that are lost or shadowed.  Thus, an attacker that intends to deny service to an endpoint has to drop or shadow protected packets in order to ensure that their victim continues to accept unprotected packets.  The ability to shadow packets means that an attacker does not need to be on path.</p>
-<p id="rfc.section.8.1.5.p.4">In addition to causing valid packets to be dropped, an attacker can generate packets with an intent of causing the recipient to expend processing resources.  See <a href="#useless" class="xref">Section 10.2</a> for a discussion of these risks.</p>
-<p id="rfc.section.8.1.5.p.5">To avoid receiving TLS packets that contain no useful data, a TLS implementation MUST reject empty TLS handshake records and any record that is not permitted by the TLS state machine.  Any TLS application data or alerts that is received prior to the end of the handshake MUST be treated as a fatal error.</p>
+<p id="rfc.section.8.1.5.p.1">In order to perform source-address verification before the handshake is complete, <samp>PATH_CHALLENGE</samp> and <samp>PATH_RESPONSE</samp> frames MAY be exchanged unprotected.</p>
+<h3 id="rfc.section.8.1.6">
+<a href="#rfc.section.8.1.6">8.1.6.</a> <a href="#denial-of-service-with-unprotected-packets" id="denial-of-service-with-unprotected-packets">Denial of Service with Unprotected Packets</a>
+</h3>
+<p id="rfc.section.8.1.6.p.1">Accepting unprotected - specifically unauthenticated - packets presents a denial of service risk to endpoints.  An attacker that is able to inject unprotected packets can cause a recipient to drop even protected packets with a matching sequence number.  The spurious packet shadows the genuine packet, causing the genuine packet to be ignored as redundant.</p>
+<p id="rfc.section.8.1.6.p.2">Once the TLS handshake is complete, both peers MUST ignore unprotected packets.  From that point onward, unprotected messages can be safely dropped.</p>
+<p id="rfc.section.8.1.6.p.3">Since only TLS handshake packets and acknowledgments are sent in the clear, an attacker is able to force implementations to rely on retransmission for packets that are lost or shadowed.  Thus, an attacker that intends to deny service to an endpoint has to drop or shadow protected packets in order to ensure that their victim continues to accept unprotected packets.  The ability to shadow packets means that an attacker does not need to be on path.</p>
+<p id="rfc.section.8.1.6.p.4">In addition to causing valid packets to be dropped, an attacker can generate packets with an intent of causing the recipient to expend processing resources.  See <a href="#useless" class="xref">Section 10.2</a> for a discussion of these risks.</p>
+<p id="rfc.section.8.1.6.p.5">To avoid receiving TLS packets that contain no useful data, a TLS implementation MUST reject empty TLS handshake records and any record that is not permitted by the TLS state machine.  Any TLS application data or alerts that is received prior to the end of the handshake MUST be treated as a fatal error.</p>
 <h2 id="rfc.section.8.2">
 <a href="#rfc.section.8.2">8.2.</a> <a href="#using-early-data" id="using-early-data">Use of 0-RTT Keys</a>
 </h2>

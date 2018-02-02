@@ -376,6 +376,7 @@ address {
 <link href="#rfc.section.11.1" rel="Chapter" title="11.1 Edge Cases and Other Considerations">
 <link href="#rfc.section.11.1.1" rel="Chapter" title="11.1.1 Response to a RST_STREAM">
 <link href="#rfc.section.11.1.2" rel="Chapter" title="11.1.2 Data Limit Increments">
+<link href="#rfc.section.11.1.3" rel="Chapter" title="11.1.3 Handshake Exemption">
 <link href="#rfc.section.11.2" rel="Chapter" title="11.2 Stream Limit Increment">
 <link href="#rfc.section.11.2.1" rel="Chapter" title="11.2.1 Blocking on Flow Control">
 <link href="#rfc.section.11.3" rel="Chapter" title="11.3 Stream Final Offset">
@@ -662,6 +663,8 @@ address {
 <ul><li>11.1.1.   <a href="#rfc.section.11.1.1">Response to a RST_STREAM</a>
 </li>
 <li>11.1.2.   <a href="#rfc.section.11.1.2">Data Limit Increments</a>
+</li>
+<li>11.1.3.   <a href="#rfc.section.11.1.3">Handshake Exemption</a>
 </li>
 </ul><li>11.2.   <a href="#rfc.section.11.2">Stream Limit Increment</a>
 </li>
@@ -2407,7 +2410,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.11.p.5">A receiver MUST close the connection with a FLOW_CONTROL_ERROR error (<a href="#error-handling" class="xref">Section 12</a>) if the peer violates the advertised connection or stream data limits.</p>
 <p id="rfc.section.11.p.6">A sender SHOULD send BLOCKED or STREAM_BLOCKED frames to indicate it has data to write but is blocked by flow control limits.  These frames are expected to be sent infrequently in common cases, but they are considered useful for debugging and monitoring purposes.</p>
 <p id="rfc.section.11.p.7">A receiver advertises credit for a stream by sending a MAX_STREAM_DATA frame with the Stream ID set appropriately. A receiver could use the current offset of data consumed to determine the flow control offset to be advertised.  A receiver MAY send MAX_STREAM_DATA frames in multiple packets in order to make sure that the sender receives an update before running out of flow control credit, even if one of the packets is lost.</p>
-<p id="rfc.section.11.p.8">Connection flow control is a limit to the total bytes of stream data sent in STREAM frames on all streams.  A receiver advertises credit for a connection by sending a MAX_DATA frame.  A receiver maintains a cumulative sum of bytes received on all streams, which are used to check for flow control violations. A receiver might use a sum of bytes consumed on all contributing streams to determine the maximum data limit to be advertised.</p>
+<p id="rfc.section.11.p.8">Connection flow control is a limit to the total bytes of stream data sent in STREAM frames on all streams except stream 0.  A receiver advertises credit for a connection by sending a MAX_DATA frame.  A receiver maintains a cumulative sum of bytes received on all contributing streams, which are used to check for flow control violations. A receiver might use a sum of bytes consumed on all contributing streams to determine the maximum data limit to be advertised.</p>
 <h2 id="rfc.section.11.1">
 <a href="#rfc.section.11.1">11.1.</a> <a href="#edge-cases-and-other-considerations" id="edge-cases-and-other-considerations">Edge Cases and Other Considerations</a>
 </h2>
@@ -2424,6 +2427,11 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 </h3>
 <p id="rfc.section.11.1.2.p.1">This document leaves when and how many bytes to advertise in a MAX_DATA or MAX_STREAM_DATA to implementations, but offers a few considerations.  These frames contribute to connection overhead.  Therefore frequently sending frames with small changes is undesirable.  At the same time, infrequent updates require larger increments to limits if blocking is to be avoided.  Thus, larger updates require a receiver to commit to larger resource commitments.  Thus there is a tradeoff between resource commitment and overhead when determining how large a limit is advertised.</p>
 <p id="rfc.section.11.1.2.p.2">A receiver MAY use an autotuning mechanism to tune the frequency and amount that it increases data limits based on a roundtrip time estimate and the rate at which the receiving application consumes data, similar to common TCP implementations.</p>
+<h3 id="rfc.section.11.1.3">
+<a href="#rfc.section.11.1.3">11.1.3.</a> <a href="#handshake-exemption" id="handshake-exemption">Handshake Exemption</a>
+</h3>
+<p id="rfc.section.11.1.3.p.1">During the initial handshake, an endpoint could need to send a larger message on stream 0 than would ordinarily be permitted by the peer&#8217;s initial stream flow control window. Since MAX_STREAM_DATA frames are not permitted in these early packets, the peer cannot provide additional flow control window in order to complete the handshake.</p>
+<p id="rfc.section.11.1.3.p.2">Endpoints MAY exceed the flow control limits on stream 0 prior to the completion of the cryptographic handshake.  (That is, in Initial, Retry, and Handshake packets.)  However, once the handshake is complete, endpoints MUST NOT send additional data beyond the peer&#8217;s permitted offset.  If the amount of data sent during the handshake exceeds the peer&#8217;s maximum offset, the endpoint cannot send additional data on stream 0 until the peer has sent a MAX_STREAM_DATA frame indicating a larger maximum offset.</p>
 <h2 id="rfc.section.11.2">
 <a href="#rfc.section.11.2">11.2.</a> <a href="#stream-limit-increment" id="stream-limit-increment">Stream Limit Increment</a>
 </h2>

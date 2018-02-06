@@ -346,7 +346,7 @@ address {
 
   <meta name="dct.creator" content="Bishop, M., Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-http-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2018-2-2" />
+  <meta name="dct.issued" scheme="ISO8601" content="2018-2-6" />
   <meta name="dct.abstract" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  This document also identifies HTTP/2 features that are subsumed by QUIC, and describes how HTTP/2 extensions can be ported to QUIC." />
   <meta name="description" content="The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  This document also identifies HTTP/2 features that are subsumed by QUIC, and describes how HTTP/2 extensions can be ported to QUIC." />
 
@@ -367,10 +367,10 @@ address {
 </tr>
 <tr>
 <td class="left">Intended status: Standards Track</td>
-<td class="right">February 2, 2018</td>
+<td class="right">February 6, 2018</td>
 </tr>
 <tr>
-<td class="left">Expires: August 6, 2018</td>
+<td class="left">Expires: August 10, 2018</td>
 <td class="right"></td>
 </tr>
 
@@ -390,7 +390,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 6, 2018.</p>
+<p>This Internet-Draft will expire on August 10, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2018 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -547,16 +547,19 @@ Alt-Svc: hq=":50781"
 <h3 id="rfc.section.2.1.1">
 <a href="#rfc.section.2.1.1">2.1.1.</a> <a href="#alt-svc-version-hint" id="alt-svc-version-hint">QUIC Version Hints</a>
 </h3>
-<p id="rfc.section.2.1.1.p.1">This document defines the &#8220;quic&#8221; parameter for Alt-Svc, which MAY be used to provide version-negotiation hints to HTTP/QUIC clients. QUIC versions are four-octet sequences with no additional constraints on format. Syntax:</p>
+<p id="rfc.section.2.1.1.p.1">This document defines the &#8220;quic&#8221; parameter for Alt-Svc, which MAY be used to provide version-negotiation hints to HTTP/QUIC clients. QUIC versions are four-octet sequences with no additional constraints on format.  Leading zeros SHOULD be omitted for brevity.</p>
+<p id="rfc.section.2.1.1.p.2">Syntax:</p>
 <pre>
-quic = version-number
+quic = DQUOTE version-number [ "," version-number ] * DQUOTE
 version-number = 1*8HEXDIG; hex-encoded QUIC version
 </pre>
-<p id="rfc.section.2.1.1.p.2">Leading zeros SHOULD be omitted for brevity.  When multiple versions are supported, the &#8220;quic&#8221; parameter MAY be repeated multiple times in a single Alt-Svc entry.  For example, if a server supported both version 0x00000001 and the version rendered in ASCII as &#8220;Q034&#8221;, it could specify the following header:</p>
+<p id="rfc.section.2.1.1.p.3">Where multiple versions are listed, the order of the values reflects the server&#8217;s preference (with the first value being the most preferred version).  Reserved versions MAY be listed, but unreserved versions which are not supported by the alternative SHOULD NOT be present in the list. Origins MAY omit supported versions for any reason.</p>
+<p id="rfc.section.2.1.1.p.4">Clients MUST ignore any included versions which they do not support.  The &#8220;quic&#8221; parameter MUST NOT occur more than once; clients SHOULD process only the first occurrence.</p>
+<p id="rfc.section.2.1.1.p.5">For example, suppose a server supported both version 0x00000001 and the version rendered in ASCII as &#8220;Q034&#8221;.  If it opted to include the reserved versions (from Section 4 of <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a>) 0x0 and 0x1abadaba, it could specify the following header:</p>
 <pre>
-Alt-Svc: hq=":49288";quic=1;quic=51303334
+Alt-Svc: hq=":49288";quic="1,1abadaba,51303334,0"
 </pre>
-<p id="rfc.section.2.1.1.p.3">Where multiple versions are listed, the order of the values reflects the server&#8217;s preference (with the first value being the most preferred version).  Origins SHOULD list only versions which are supported by the alternative, but MAY omit supported versions for any reason.</p>
+<p id="rfc.section.2.1.1.p.6">A client acting on this header would drop the reserved versions (because it does not support them), then attempt to connect to the alternative using the first version in the list which it does support.</p>
 <h2 id="rfc.section.2.2">
 <a href="#rfc.section.2.2">2.2.</a> <a href="#connection-establishment" id="connection-establishment">Connection Establishment</a>
 </h2>

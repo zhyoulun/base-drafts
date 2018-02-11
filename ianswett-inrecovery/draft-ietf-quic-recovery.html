@@ -1056,13 +1056,13 @@ DetectLostPackets(largest_acked):
 </h3>
 <p id="rfc.section.4.7.5.p.1">Invoked from loss detection&#8217;s OnPacketAcked and is supplied with acked_packet from sent_packets.</p>
 <pre>
-   InRecovery()
-     return acked_packet.packet_number &lt;= end_of_recovery
+   InRecovery(packet_number)
+     return packet_number &lt;= end_of_recovery
 
    OnPacketAckedCC(acked_packet):
      // Remove from bytes_in_flight.
      bytes_in_flight -= acked_packet.bytes
-     if (InRecovery()):
+     if (InRecovery(acked_packet.packet_number)):
        // Do not increase congestion window in recovery period.
        return
      if (congestion_window &lt; ssthresh):
@@ -1085,7 +1085,7 @@ DetectLostPackets(largest_acked):
      largest_lost_packet = lost_packets.last()
      // Start a new recovery epoch if the lost packet is larger
      // than the end of the previous recovery epoch.
-     if (end_of_recovery &lt; largest_lost_packet.packet_number):
+     if (!InRecovery(largest_lost_packet.packet_number)):
        end_of_recovery = largest_sent_packet
        congestion_window *= kLossReductionFactor
        congestion_window = max(congestion_window, kMinimumWindow)

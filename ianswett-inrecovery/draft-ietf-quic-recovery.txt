@@ -1234,13 +1234,13 @@ Iyengar & Swett          Expires August 15, 2018               [Page 22]
 Internet-Draft             QUIC Loss Detection             February 2018
 
 
-      InRecovery()
-        return acked_packet.packet_number <= end_of_recovery
+      InRecovery(packet_number)
+        return packet_number <= end_of_recovery
 
       OnPacketAckedCC(acked_packet):
         // Remove from bytes_in_flight.
         bytes_in_flight -= acked_packet.bytes
-        if (InRecovery()):
+        if (InRecovery(acked_packet.packet_number)):
           // Do not increase congestion window in recovery period.
           return
         if (congestion_window < ssthresh):
@@ -1263,7 +1263,7 @@ Internet-Draft             QUIC Loss Detection             February 2018
         largest_lost_packet = lost_packets.last()
         // Start a new recovery epoch if the lost packet is larger
         // than the end of the previous recovery epoch.
-        if (end_of_recovery < largest_lost_packet.packet_number):
+        if (!InRecovery(largest_lost_packet.packet_number)):
           end_of_recovery = largest_sent_packet
           congestion_window *= kLossReductionFactor
           congestion_window = max(congestion_window, kMinimumWindow)

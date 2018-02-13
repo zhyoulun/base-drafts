@@ -306,7 +306,6 @@ address {
 <link href="#rfc.section.5.6" rel="Chapter" title="5.6 Connection ID">
 <link href="#rfc.section.5.7" rel="Chapter" title="5.7 Packet Numbers">
 <link href="#rfc.section.5.7.1" rel="Chapter" title="5.7.1 Initial Packet Number">
-<link href="#rfc.section.5.8" rel="Chapter" title="5.8 Handling Packets from Different Versions">
 <link href="#rfc.section.6" rel="Chapter" title="6 Frames and Frame Types">
 <link href="#rfc.section.7" rel="Chapter" title="7 Life of a Connection">
 <link href="#rfc.section.7.1" rel="Chapter" title="7.1 Matching Packets to Connections">
@@ -415,7 +414,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2018-2-05" />
+  <meta name="dct.issued" scheme="ISO8601" content="2018-2-13" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -439,12 +438,12 @@ address {
 <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-<td class="left">Expires: August 9, 2018</td>
+<td class="left">Expires: August 17, 2018</td>
 <td class="right">Mozilla</td>
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">February 05, 2018</td>
+<td class="right">February 13, 2018</td>
 </tr>
 
     	
@@ -463,7 +462,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 9, 2018.</p>
+<p>This Internet-Draft will expire on August 17, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2018 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -521,9 +520,7 @@ address {
 </li>
 <ul><li>5.7.1.   <a href="#rfc.section.5.7.1">Initial Packet Number</a>
 </li>
-</ul><li>5.8.   <a href="#rfc.section.5.8">Handling Packets from Different Versions</a>
-</li>
-</ul><li>6.   <a href="#rfc.section.6">Frames and Frame Types</a>
+</ul></ul><li>6.   <a href="#rfc.section.6">Frames and Frame Types</a>
 </li>
 <li>7.   <a href="#rfc.section.7">Life of a Connection</a>
 </li>
@@ -735,6 +732,7 @@ address {
 <p id="rfc.section.1.p.1">QUIC is a multiplexed and secure transport protocol that runs on top of UDP.  QUIC aims to provide a flexible set of features that allow it to be a general-purpose transport for multiple applications.</p>
 <p id="rfc.section.1.p.2">QUIC implements techniques learned from experience with TCP, SCTP and other transport protocols.  QUIC uses UDP as substrate so as to not require changes to legacy client operating systems and middleboxes to be deployable.  QUIC authenticates all of its headers and encrypts most of the data it exchanges, including its signaling.  This allows the protocol to evolve without incurring a dependency on upgrades to middleboxes.  This document describes the core QUIC protocol, including the conceptual design, wire format, and mechanisms of the QUIC protocol for connection establishment, stream multiplexing, stream and connection-level flow control, and data reliability.</p>
 <p id="rfc.section.1.p.3">Accompanying documents describe QUIC&#8217;s loss detection and congestion control <a href="#QUIC-RECOVERY" class="xref">[QUIC-RECOVERY]</a>, and the use of TLS 1.3 for key negotiation <a href="#QUIC-TLS" class="xref">[QUIC-TLS]</a>.</p>
+<p id="rfc.section.1.p.4">QUIC version 1 conforms to the protocol invariants in <a href="#QUIC-INVARIANTS" class="xref">[QUIC-INVARIANTS]</a>.</p>
 <h1 id="rfc.section.2">
 <a href="#rfc.section.2">2.</a> <a href="#conventions-and-definitions" id="conventions-and-definitions">Conventions and Definitions</a>
 </h1>
@@ -827,14 +825,15 @@ address {
 </h1>
 <p id="rfc.section.4.p.1">QUIC versions are identified using a 32-bit unsigned number.</p>
 <p id="rfc.section.4.p.2">The version 0x00000000 is reserved to represent version negotiation.  This version of the specification is identified by the number 0x00000001.</p>
-<p id="rfc.section.4.p.3">Version 0x00000001 of QUIC uses TLS as a cryptographic handshake protocol, as described in <a href="#QUIC-TLS" class="xref">[QUIC-TLS]</a>.</p>
-<p id="rfc.section.4.p.4">Versions with the most significant 16 bits of the version number cleared are reserved for use in future IETF consensus documents.</p>
-<p id="rfc.section.4.p.5">Versions that follow the pattern 0x?a?a?a?a are reserved for use in forcing version negotiation to be exercised.  That is, any version number where the low four bits of all octets is 1010 (in binary).  A client or server MAY advertise support for any of these reserved versions.</p>
-<p id="rfc.section.4.p.6">Reserved version numbers will probably never represent a real protocol; a client MAY use one of these version numbers with the expectation that the server will initiate version negotiation; a server MAY advertise support for one of these versions and can expect that clients ignore the value.</p>
-<p id="rfc.section.4.p.7">[[RFC editor: please remove the remainder of this section before publication.]]</p>
-<p id="rfc.section.4.p.8">The version number for the final version of this specification (0x00000001), is reserved for the version of the protocol that is published as an RFC.</p>
-<p id="rfc.section.4.p.9">Version numbers used to identify IETF drafts are created by adding the draft number to 0xff000000.  For example, draft-ietf-quic-transport-13 would be identified as 0xff00000D.</p>
-<p id="rfc.section.4.p.10">Implementors are encouraged to register version numbers of QUIC that they are using for private experimentation on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
+<p id="rfc.section.4.p.3">Other versions of QUIC might have different properties to this version.  The properties of QUIC that are guaranteed to be consistent across all versions of the protocol are described in <a href="#QUIC-INVARIANTS" class="xref">[QUIC-INVARIANTS]</a>.</p>
+<p id="rfc.section.4.p.4">Version 0x00000001 of QUIC uses TLS as a cryptographic handshake protocol, as described in <a href="#QUIC-TLS" class="xref">[QUIC-TLS]</a>.</p>
+<p id="rfc.section.4.p.5">Versions with the most significant 16 bits of the version number cleared are reserved for use in future IETF consensus documents.</p>
+<p id="rfc.section.4.p.6">Versions that follow the pattern 0x?a?a?a?a are reserved for use in forcing version negotiation to be exercised.  That is, any version number where the low four bits of all octets is 1010 (in binary).  A client or server MAY advertise support for any of these reserved versions.</p>
+<p id="rfc.section.4.p.7">Reserved version numbers will probably never represent a real protocol; a client MAY use one of these version numbers with the expectation that the server will initiate version negotiation; a server MAY advertise support for one of these versions and can expect that clients ignore the value.</p>
+<p id="rfc.section.4.p.8">[[RFC editor: please remove the remainder of this section before publication.]]</p>
+<p id="rfc.section.4.p.9">The version number for the final version of this specification (0x00000001), is reserved for the version of the protocol that is published as an RFC.</p>
+<p id="rfc.section.4.p.10">Version numbers used to identify IETF drafts are created by adding the draft number to 0xff000000.  For example, draft-ietf-quic-transport-13 would be identified as 0xff00000D.</p>
+<p id="rfc.section.4.p.11">Implementors are encouraged to register version numbers of QUIC that they are using for private experimentation on the <a href="https://github.com/quicwg/base-drafts/wiki/QUIC-Versions">github wiki</a>.</p>
 <h1 id="rfc.section.5">
 <a href="#rfc.section.5">5.</a> <a href="#packet-types-and-formats" id="packet-types-and-formats">Packet Types and Formats</a>
 </h1>
@@ -914,7 +913,7 @@ address {
 </tr>
 </tbody>
 </table>
-<p id="rfc.section.5.1.p.4">The header form, packet type, connection ID, packet number and version fields of a long header packet are version-independent. The types of packets defined in <a href="#long-packet-types" class="xref">Table 1</a> are version-specific.  See <a href="#version-specific" class="xref">Section 5.8</a> for details on how packets from different versions of QUIC are interpreted.</p>
+<p id="rfc.section.5.1.p.4">The header form, packet type, connection ID, packet number and version fields of a long header packet are version-independent. The types of packets defined in <a href="#long-packet-types" class="xref">Table 1</a> are version-specific.  See <a href="#QUIC-INVARIANTS" class="xref">[QUIC-INVARIANTS]</a> for details on how packets from different versions of QUIC are interpreted.</p>
 <p id="rfc.section.5.1.p.5">The interpretation of the fields and the payload are specific to a version and packet type.  Type-specific semantics for this version are described in the following sections.</p>
 <h2 id="rfc.section.5.2">
 <a href="#rfc.section.5.2">5.2.</a> <a href="#short-header" id="short-header">Short Header</a>
@@ -980,7 +979,7 @@ address {
 </tr>
 </tbody>
 </table>
-<p id="rfc.section.5.2.p.4">The header form, omit connection ID flag, and connection ID of a short header packet are version-independent.  The remaining fields are specific to the selected QUIC version.  See <a href="#version-specific" class="xref">Section 5.8</a> for details on how packets from different versions of QUIC are interpreted.</p>
+<p id="rfc.section.5.2.p.4">The header form, omit connection ID flag, and connection ID of a short header packet are version-independent.  The remaining fields are specific to the selected QUIC version.  See <a href="#QUIC-INVARIANTS" class="xref">[QUIC-INVARIANTS]</a> for details on how packets from different versions of QUIC are interpreted.</p>
 <h2 id="rfc.section.5.3">
 <a href="#rfc.section.5.3">5.3.</a> <a href="#packet-version" id="packet-version">Version Negotiation Packet</a>
 </h2>
@@ -1079,20 +1078,6 @@ address {
 <p id="rfc.section.5.7.1.p.1">The initial value for packet number MUST be selected randomly from a range between 0 and 2^32 - 1025 (inclusive).  This value is selected so that Initial and Handshake packets exercise as many possible values for the Packet Number field as possible.</p>
 <p id="rfc.section.5.7.1.p.2">Limiting the range allows both for loss of packets and for any stateless exchanges.  Packet numbers are incremented for subsequent packets, but packet loss and stateless handling can both mean that the first packet sent by an endpoint isn&#8217;t necessarily the first packet received by its peer.  The first packet received by a peer cannot be 2^32 or greater or the recipient will incorrectly assume a packet number that is 2^32 values lower and discard the packet.</p>
 <p id="rfc.section.5.7.1.p.3">Use of a secure random number generator <a href="#RFC4086" class="xref">[RFC4086]</a> is not necessary for generating the initial packet number, nor is it necessary that the value be uniformly distributed.</p>
-<h2 id="rfc.section.5.8">
-<a href="#rfc.section.5.8">5.8.</a> <a href="#version-specific" id="version-specific">Handling Packets from Different Versions</a>
-</h2>
-<p id="rfc.section.5.8.p.1">Between different versions the following things are guaranteed to remain constant:</p>
-<p></p>
-
-<ul>
-<li>the location of the header form flag,</li>
-<li>the location of the Omit Connection ID flag in short headers,</li>
-<li>the location and size of the Connection ID field in both header forms,</li>
-<li>the location and size of the Version field in long headers,</li>
-<li>the format and semantics of the Version Negotiation packet.</li>
-</ul>
-<p id="rfc.section.5.8.p.3">Implementations MUST assume that an unsupported version uses an unknown packet format. All other fields MUST be ignored when processing a packet that contains an unsupported version.</p>
 <h1 id="rfc.section.6">
 <a href="#rfc.section.6">6.</a> <a href="#frames" id="frames">Frames and Frame Types</a>
 </h1>
@@ -2769,6 +2754,11 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <td class="reference"><b id="HTTP2">[HTTP2]</b></td>
 <td class="top">
 <a>Belshe, M.</a>, <a>Peon, R.</a> and <a>M. Thomson</a>, "<a href="https://tools.ietf.org/html/rfc7540">Hypertext Transfer Protocol Version 2 (HTTP/2)</a>", RFC 7540, DOI 10.17487/RFC7540, May 2015.</td>
+</tr>
+<tr>
+<td class="reference"><b id="QUIC-INVARIANTS">[QUIC-INVARIANTS]</b></td>
+<td class="top">
+<a title="Mozilla">Thomson, M.</a>, "<a href="https://tools.ietf.org/html/draft-ietf-quic-invariants">Version-Independent Properties of QUIC</a>", Internet-Draft draft-ietf-quic-invariants, February 2018.</td>
 </tr>
 <tr>
 <td class="reference"><b id="RFC2104">[RFC2104]</b></td>

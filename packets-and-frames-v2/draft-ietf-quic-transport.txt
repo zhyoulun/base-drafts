@@ -3447,8 +3447,13 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    QUIC packets that are determined to be lost are not retransmitted
    whole.  The same applies to the frames that are contained within lost
    packets.  Instead, the information that might be carried in frames is
-   sent again in new frames as needed.  New frames and packets are used
-   to carry information that is determined to have been lost.
+   sent again in new frames as needed.
+
+   New frames and packets are used to carry information that is
+   determined to have been lost.  In general, information is sent again
+   when a packet containing that information is determined to be lost
+   and sending ceases when a packet containing that information is
+   acknowledged.
 
    o  Application data sent in STREAM frames is retransmitted in new
       STREAM frames unless the endpoint has sent a RST_STREAM for that
@@ -3461,11 +3466,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    o  Cancellation of stream transmission, as carried in a RST_STREAM
       frame, is sent until acknowledged or until all stream data is
-      acknowledged by the peer (that is, either the "Reset Recvd" or
-      "Data Recvd" state is reached on the send stream).  The content of
-      a RST_STREAM frame MUST NOT change when it is sent again.
-
-
 
 
 
@@ -3473,6 +3473,10 @@ Iyengar & Thomson        Expires August 17, 2018               [Page 62]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+      acknowledged by the peer (that is, either the "Reset Recvd" or
+      "Data Recvd" state is reached on the send stream).  The content of
+      a RST_STREAM frame MUST NOT change when it is sent again.
 
    o  Similarly, a request to cancel stream transmission, as encoded in
       a STOP_SENDING frame, is sent until the receive stream enters
@@ -3498,30 +3502,26 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       MAX_STREAM_DATA frames when the receive stream enters a "Size
       Known" state.
 
-   o  The maximum stream ID is sent in MAX_STREAM_ID frames.  Like
-      MAX_DATA, an updated value is sent when a packet containing the
-      most recent MAX_STREAM_ID frame is declared lost or when the limit
-      is updated, with care taken to prevent the frame from being sent
-      too often.
+   o  The maximum stream ID for a stream of a given type is sent in
+      MAX_STREAM_ID frames.  Like MAX_DATA, an updated value is sent
+      when a packet containing the most recent MAX_STREAM_ID for a
+      stream type frame is declared lost or when the limit is updated,
+      with care taken to prevent the frame from being sent too often.
 
    o  Blocked signals are carried in BLOCKED, STREAM_BLOCKED, and
-      STREAM_ID_BLOCKED frames until acknowledged, but only while the
-      endpoint is blocked on the corresponding limit.  These frames
-      always include the limit that is causing blocking at the time that
-      they are transmitted.
+      STREAM_ID_BLOCKED frames.  BLOCKED streams have connection scope,
+      STREAM_BLOCKED frames have stream scope, and STREAM_ID_BLOCKED
+      frames are scoped to a specific stream type.  New frames are sent
+      if packets containing the most recent frame for a scope is lost,
+      but only while the endpoint is blocked on the corresponding limit.
+      These frames always include the limit that is causing blocking at
+      the time that they are transmitted.
 
    o  A liveness or path validation check using PATH_CHALLENGE frames is
-      sent until acknowledged or until there is no remaining need for
-      liveness or path validation checking.  PATH_CHALLENGE frames with
-      a payload SHOULD include a different payload each time they are
-      sent.
-
-   o  Responses to path validation using PATH_RESPONSE frames are sent
-      just once.  A new PATH_CHALLENGE frame will be sent if another
-      PATH_RESPONSE frame is needed.
-
-   o  New connection IDs are sent in NEW_CONNECTION_ID frames until
-      acknowledged.
+      sent periodically until a matching PATH_RESPONSE frame is received
+      or until there is no remaining need for liveness or path
+      validation checking.  PATH_CHALLENGE frames include a different
+      payload each time they are sent.
 
 
 
@@ -3529,6 +3529,13 @@ Iyengar & Thomson        Expires August 17, 2018               [Page 63]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   o  Responses to path validation using PATH_RESPONSE frames are sent
+      just once.  A new PATH_CHALLENGE frame will be sent if another
+      PATH_RESPONSE frame is needed.
+
+   o  New connection IDs are sent in NEW_CONNECTION_ID frames and
+      retransmitted if the packet containing them is lost.
 
    o  PADDING frames contain no information, so lost PADDING frames do
       not require repair.
@@ -3572,19 +3579,19 @@ Internet-Draft           QUIC Transport Protocol           February 2018
    for detecting the PMTU, setting the PMTU appropriately, and storing
    the result of previous PMTU determinations.
 
-   In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
-   packets larger than 1280 octets.  Assuming the minimum IP header
-   size, this results in a QUIC packet size of 1232 octets for IPv6 and
-   1252 octets for IPv4.  Some QUIC implementations MAY wish to be more
-   conservative in computing allowed QUIC packet size given unknown
-   tunneling overheads or IP header options.
-
 
 
 Iyengar & Thomson        Expires August 17, 2018               [Page 64]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   In the absence of these mechanisms, QUIC endpoints SHOULD NOT send IP
+   packets larger than 1280 octets.  Assuming the minimum IP header
+   size, this results in a QUIC packet size of 1232 octets for IPv6 and
+   1252 octets for IPv4.  Some QUIC implementations MAY wish to be more
+   conservative in computing allowed QUIC packet size given unknown
+   tunneling overheads or IP header options.
 
    QUIC endpoints that implement any kind of PMTU discovery SHOULD
    maintain an estimate for each combination of local and remote IP
@@ -3627,13 +3634,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
       packets (for example, the IP ID or UDP checksum) to further
       authenticate incoming Datagram Too Big messages.
 
-   o  Any reduction in PMTU due to a report contained in an ICMP packet
-      is provisional until QUIC's loss detection algorithm determines
-      that the packet is actually lost.
-
-
-
-
 
 
 
@@ -3641,6 +3641,10 @@ Iyengar & Thomson        Expires August 17, 2018               [Page 65]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   o  Any reduction in PMTU due to a report contained in an ICMP packet
+      is provisional until QUIC's loss detection algorithm determines
+      that the packet is actually lost.
 
 9.4.2.  Special Considerations for Packetization Layer PMTU Discovery
 
@@ -3686,10 +3690,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The creation and destruction of streams are expected to have minimal
    bandwidth and computational cost.  A single STREAM frame may create,
-   carry data for, and terminate a stream, or a stream may last the
-   entire duration of a connection.
-
-
 
 
 
@@ -3697,6 +3697,9 @@ Iyengar & Thomson        Expires August 17, 2018               [Page 66]
 
 Internet-Draft           QUIC Transport Protocol           February 2018
 
+
+   carry data for, and terminate a stream, or a stream may last the
+   entire duration of a connection.
 
    Streams are individually flow controlled, allowing an endpoint to
    limit memory commitment and to apply back pressure.  The creation of
@@ -3734,9 +3737,6 @@ Internet-Draft           QUIC Transport Protocol           February 2018
 
    The two type bits from a Stream ID therefore identify streams as
    summarized in Table 5.
-
-
-
 
 
 

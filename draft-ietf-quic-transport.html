@@ -310,6 +310,8 @@ address {
 <link href="#rfc.section.6" rel="Chapter" title="6 Frames and Frame Types">
 <link href="#rfc.section.7" rel="Chapter" title="7 Life of a Connection">
 <link href="#rfc.section.7.1" rel="Chapter" title="7.1 Matching Packets to Connections">
+<link href="#rfc.section.7.1.1" rel="Chapter" title="7.1.1 Client Packet Handling">
+<link href="#rfc.section.7.1.2" rel="Chapter" title="7.1.2 Server Packet Handling">
 <link href="#rfc.section.7.2" rel="Chapter" title="7.2 Version Negotiation">
 <link href="#rfc.section.7.2.1" rel="Chapter" title="7.2.1 Sending Version Negotiation Packets">
 <link href="#rfc.section.7.2.2" rel="Chapter" title="7.2.2 Handling Version Negotiation Packets">
@@ -415,12 +417,12 @@ address {
 <link href="#rfc.authors" rel="Chapter">
 
 
-  <meta name="generator" content="xml2rfc version 2.8.5 - https://tools.ietf.org/tools/xml2rfc" />
+  <meta name="generator" content="xml2rfc version 2.9.3 - https://tools.ietf.org/tools/xml2rfc" />
   <link rel="schema.dct" href="http://purl.org/dc/terms/" />
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and M. Thomson, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-transport-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2018-2-15" />
+  <meta name="dct.issued" scheme="ISO8601" content="2018-02-16" />
   <meta name="dct.abstract" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
   <meta name="description" content="This document defines the core of the QUIC transport protocol.  This document describes connection establishment, packet format, multiplexing and reliability.  Accompanying documents describe the cryptographic handshake and loss detection." />
 
@@ -444,12 +446,12 @@ address {
 <td class="right">M. Thomson, Ed.</td>
 </tr>
 <tr>
-<td class="left">Expires: August 19, 2018</td>
+<td class="left">Expires: August 20, 2018</td>
 <td class="right">Mozilla</td>
 </tr>
 <tr>
 <td class="left"></td>
-<td class="right">February 15, 2018</td>
+<td class="right">February 16, 2018</td>
 </tr>
 
     	
@@ -468,7 +470,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 19, 2018.</p>
+<p>This Internet-Draft will expire on August 20, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2018 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -534,7 +536,11 @@ address {
 </li>
 <ul><li>7.1.   <a href="#rfc.section.7.1">Matching Packets to Connections</a>
 </li>
-<li>7.2.   <a href="#rfc.section.7.2">Version Negotiation</a>
+<ul><li>7.1.1.   <a href="#rfc.section.7.1.1">Client Packet Handling</a>
+</li>
+<li>7.1.2.   <a href="#rfc.section.7.1.2">Server Packet Handling</a>
+</li>
+</ul><li>7.2.   <a href="#rfc.section.7.2">Version Negotiation</a>
 </li>
 <ul><li>7.2.1.   <a href="#rfc.section.7.2.1">Sending Version Negotiation Packets</a>
 </li>
@@ -1247,26 +1253,34 @@ address {
 <h2 id="rfc.section.7.1">
 <a href="#rfc.section.7.1">7.1.</a> <a href="#packet-handling" id="packet-handling">Matching Packets to Connections</a>
 </h2>
-<p id="rfc.section.7.1.p.1">Incoming packets are classified on receipt.  Packets can either be associated with an existing connection, be discarded, or - for servers - potentially create a new connection.</p>
-<p id="rfc.section.7.1.p.2">Packets that can be associated with an existing connection are handled according to the current state of that connection.  Packets are associated with existing connections using connection ID if it is present; this might include connection IDs that were advertised using NEW_CONNECTION_ID (<a href="#frame-new-connection-id" class="xref">Section 8.13</a>).  Packets without connection IDs and long-form packets for connections that have incomplete cryptographic handshakes are associated with an existing connection using the tuple of source and destination IP addresses and ports.</p>
-<p id="rfc.section.7.1.p.3">A packet that uses the short header could be associated with an existing connection with an incomplete cryptographic handshake.  Such a packet could be a valid packet that has been reordered with respect to the long-form packets that will complete the cryptographic handshake.  This might happen after the final set of cryptographic handshake messages from either peer.  These packets are expected to be correlated with a connection using the tuple of IP addresses and ports.  Packets that might be reordered in this fashion SHOULD be buffered in anticipation of the handshake completing.</p>
-<p id="rfc.section.7.1.p.4">0-RTT packets might be received prior to a Client Initial packet at a server.  If the version of these packets is acceptable to the server, it MAY buffer these packets in anticipation of receiving a reordered Client Initial packet.</p>
-<p id="rfc.section.7.1.p.5">Buffering ensures that data is not lost, which improves performance; conversely, discarding these packets could create false loss signals for the congestion controllers.  However, limiting the number and size of buffered packets might be needed to prevent exposure to denial of service.</p>
-<p id="rfc.section.7.1.p.6">For clients, any packet that cannot be associated with an existing connection SHOULD be discarded if it is not buffered.  Discarded packets MAY be logged for diagnostic or security purposes.</p>
-<p id="rfc.section.7.1.p.7">For servers, packets that aren&#8217;t associated with a connection potentially create a new connection.  However, only packets that use the long packet header and that are at least the minimum size defined for the protocol version can be initial packets.  A server MAY discard packets with a short header or packets that are smaller than the smallest minimum size for any version that the server supports.  A server that discards a packet that cannot be associated with a connection MAY also generate a stateless reset (<a href="#stateless-reset" class="xref">Section 7.9.4</a>).</p>
-<p id="rfc.section.7.1.p.8">This version of QUIC defines a minimum size for initial packets of 1200 octets (see <a href="#packetization" class="xref">Section 9</a>).  Versions of QUIC that define smaller minimum initial packet sizes need to be aware that initial packets will be discarded without action by servers that only support versions with larger minimums.  Clients that support multiple QUIC versions can avoid this problem by ensuring that they increase the size of their initial packets to the largest minimum size across all of the QUIC versions they support.  Servers need to recognize initial packets that are the minimum size of all QUIC versions they support.</p>
+<p id="rfc.section.7.1.p.1">Incoming packets are classified on receipt.  Packets can either be associated with an existing connection, or - for servers - potentially create a new connection.</p>
+<p id="rfc.section.7.1.p.2">Hosts try to associate the packet with an existing connection. If the packet has a connection ID corresponding to an existing connection, QUIC processes that packet accordingly. Note that a NEW_CONNECTION_ID frame (<a href="#frame-new-connection-id" class="xref">Section 8.13</a>) would associate more than one connection ID with a connection.</p>
+<p id="rfc.section.7.1.p.3">If there is no connection ID, but the packet matches the address/port tuple of a connection where the host did not require connection IDs, QUIC processes the packet as part of that connection. Endpoints MUST drop packets that omit connection IDs if they do not meet both of these criteria.</p>
+<h3 id="rfc.section.7.1.1">
+<a href="#rfc.section.7.1.1">7.1.1.</a> <a href="#client-pkt-handling" id="client-pkt-handling">Client Packet Handling</a>
+</h3>
+<p id="rfc.section.7.1.1.p.1">If a client receives a packet with an unknown connection ID, and it matches the tuple of a connection with no received packets, it is a reply to an Initial packet with a server-generated connection ID and will be processed accordingly. Clients SHOULD discard any packets with new connection IDs that do not meet these criteria.</p>
+<p id="rfc.section.7.1.1.p.2">Note that a successfully associated packet may be a Version Negotiation packet, which is handled in accordance with <a href="#handle-vn" class="xref">Section 7.2.2</a>.</p>
+<p id="rfc.section.7.1.1.p.3">Due to packet reordering or loss, clients might receive packets for a connection encrypted with a key it has not yet computed. Clients MAY drop these packets, or MAY buffer them in anticipation of later packets that allow it to compute the key.</p>
+<h3 id="rfc.section.7.1.2">
+<a href="#rfc.section.7.1.2">7.1.2.</a> <a href="#server-pkt-handling" id="server-pkt-handling">Server Packet Handling</a>
+</h3>
+<p id="rfc.section.7.1.2.p.1">If a server receives a packet that has an unsupported version and sufficient length to be an Initial packet for some version supported by the server, it SHOULD send a Version Negotiation packet as described in <a href="#send-vn" class="xref">Section 7.2.1</a>. Servers MAY rate control these packets to avoid storms of Version Negotiation packets.</p>
+<p id="rfc.section.7.1.2.p.2">Servers MUST drop other packets that contain unsupported versions.</p>
+<p id="rfc.section.7.1.2.p.3">Packets with a supported version, or no version field, are matched to a connection as described in <a href="#packet-handling" class="xref">Section 7.1</a>. If not matched, the server continues below.</p>
+<p id="rfc.section.7.1.2.p.4">If the packet is an Initial packet fully conforming with the specification, the server proceeds with the handshake (<a href="#handshake" class="xref">Section 7.3</a>).  This commits the server to the version that the client selected.</p>
+<p id="rfc.section.7.1.2.p.5">If the packet is a 0-RTT packet, the server MAY buffer a limited number of these packets in anticipation of a late-arriving Initial Packet. Clients are forbidden from sending Handshake packets prior to receiving a server response, so servers SHOULD ignore any such packets.</p>
+<p id="rfc.section.7.1.2.p.6">Servers MUST drop incoming packets under all other circumstances.</p>
 <h2 id="rfc.section.7.2">
 <a href="#rfc.section.7.2">7.2.</a> <a href="#version-negotiation" id="version-negotiation">Version Negotiation</a>
 </h2>
-<p id="rfc.section.7.2.p.1">QUIC&#8217;s connection establishment begins with version negotiation, since all communication between the endpoints, including packet and frame formats, relies on the two endpoints agreeing on a version.</p>
-<p id="rfc.section.7.2.p.2">A QUIC connection begins with a client sending an Initial packet (<a href="#packet-initial" class="xref">Section 5.4.1</a>). The details of the handshake mechanisms are described in <a href="#handshake" class="xref">Section 7.3</a>, but any Initial packet sent from the client to the server MUST use the long header format - which includes the version of the protocol being used - and they MUST be padded to at least 1200 octets.</p>
-<p id="rfc.section.7.2.p.3">The server receives this packet and determines whether it potentially creates a new connection (see <a href="#packet-handling" class="xref">Section 7.1</a>).  If the packet might generate a new connection, the server then checks whether it understands the version that the client has selected.</p>
-<p id="rfc.section.7.2.p.4">If the packet contains a version that is acceptable to the server, the server proceeds with the handshake (<a href="#handshake" class="xref">Section 7.3</a>).  This commits the server to the version that the client selected.</p>
+<p id="rfc.section.7.2.p.1">Version negotiation ensures that client and server agree to a QUIC version that is mutually supported. A server sends a Version Negotiation packet in response to each packet that might initiate a new connection, see <a href="#packet-handling" class="xref">Section 7.1</a> for details.</p>
+<p id="rfc.section.7.2.p.2">The size of the first packet sent by a client will determine whether a server sends a Version Negotiation packet. Clients that support multiple QUIC versions SHOULD pad their Initial packets to reflect the largest minimum Initial packet size of all their versions. This ensures that that the server responds if there are any mutually supported versions.</p>
 <h3 id="rfc.section.7.2.1">
 <a href="#rfc.section.7.2.1">7.2.1.</a> <a href="#send-vn" id="send-vn">Sending Version Negotiation Packets</a>
 </h3>
 <p id="rfc.section.7.2.1.p.1">If the version selected by the client is not acceptable to the server, the server responds with a Version Negotiation packet (<a href="#packet-version" class="xref">Section 5.3</a>).  This includes a list of versions that the server will accept.</p>
-<p id="rfc.section.7.2.1.p.2">A server sends a Version Negotiation packet for any packet with an unacceptable version if that packet could create a new connection.  This allows a server to process packets with unsupported versions without retaining state.  Though either the Client Initial packet or the version negotiation packet that is sent in response could be lost, the client will send new packets until it successfully receives a response or it abandons the connection attempt.</p>
+<p id="rfc.section.7.2.1.p.2">This system allows a server to process packets with unsupported versions without retaining state.  Though either the Initial packet or the Version Negotiation packet that is sent in response could be lost, the client will send new packets until it successfully receives a response or it abandons the connection attempt.</p>
 <h3 id="rfc.section.7.2.2">
 <a href="#rfc.section.7.2.2">7.2.2.</a> <a href="#handle-vn" id="handle-vn">Handling Version Negotiation Packets</a>
 </h3>

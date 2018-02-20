@@ -28,6 +28,16 @@ Abstract
    mechanisms in the HTTP/QUIC mapping that allow the flexibility to
    avoid header-compression-induced HoL blocking.
 
+Note to Readers
+
+   Discussion of this draft takes place on the QUIC working group
+   mailing list (quic@ietf.org), which is archived at
+   https://mailarchive.ietf.org/arch/search/?email_list=quic [1].
+
+   Working Group information can be found at https://github.com/quicwg
+   [2]; source code and issues list for this draft can be found at
+   https://github.com/quicwg/base-drafts/labels/-qcram [3].
+
 Status of This Memo
 
    This Internet-Draft is submitted in full conformance with the
@@ -40,6 +50,14 @@ Status of This Memo
 
    Internet-Drafts are draft documents valid for a maximum of six months
    and may be updated, replaced, or obsoleted by other documents at any
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 1]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
@@ -49,14 +67,6 @@ Copyright Notice
 
    Copyright (c) 2018 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
-
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 1]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
    This document is subject to BCP 78 and the IETF Trust's Legal
    Provisions Relating to IETF Documents
@@ -70,30 +80,39 @@ Internet-Draft                    QCRAM                    February 2018
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Head-of-Line Blocking in HPACK  . . . . . . . . . . . . .   3
-     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   3
+     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   4
    2.  HPACK extensions  . . . . . . . . . . . . . . . . . . . . . .   4
      2.1.  Allowed Instructions  . . . . . . . . . . . . . . . . . .   4
-     2.2.  Header Block Prefix . . . . . . . . . . . . . . . . . . .   4
+     2.2.  Header Block Prefix . . . . . . . . . . . . . . . . . . .   5
      2.3.  Hybrid absolute-relative indexing . . . . . . . . . . . .   5
      2.4.  Preventing Eviction Races . . . . . . . . . . . . . . . .   6
-       2.4.1.  Blocked Evictions . . . . . . . . . . . . . . . . . .   6
+       2.4.1.  Blocked Evictions . . . . . . . . . . . . . . . . . .   7
      2.5.  Refreshing Entries with Duplication . . . . . . . . . . .   7
    3.  Performance considerations  . . . . . . . . . . . . . . . . .   7
      3.1.  Speculative table updates . . . . . . . . . . . . . . . .   7
-     3.2.  Additional state beyond HPACK.  . . . . . . . . . . . . .   7
-       3.2.1.  Vulnerable Entries  . . . . . . . . . . . . . . . . .   7
+     3.2.  Additional state beyond HPACK.  . . . . . . . . . . . . .   8
+       3.2.1.  Vulnerable Entries  . . . . . . . . . . . . . . . . .   8
        3.2.2.  Safe evictions  . . . . . . . . . . . . . . . . . . .   8
        3.2.3.  Decoder Blocking  . . . . . . . . . . . . . . . . . .   8
-       3.2.4.  Fixed overhead. . . . . . . . . . . . . . . . . . . .   8
+       3.2.4.  Fixed overhead. . . . . . . . . . . . . . . . . . . .   9
    4.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
    6.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .   9
    7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
-     7.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .  10
      7.2.  Informative References  . . . . . . . . . . . . . . . . .  10
+     7.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  10
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
+
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 2]
+
+Internet-Draft                    QCRAM                    February 2018
+
 
 1.  Introduction
 
@@ -106,14 +125,6 @@ Table of Contents
    because all HTTP/2 streams are multiplexed onto a single TCP
    connection with its in-order semantics.  QUIC can maintain
    independence between streams because it implements core transport
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 2]
-
-Internet-Draft                    QCRAM                    February 2018
-
-
    functionality in a fully stream-aware manner.  However, the HTTP/QUIC
    mapping is still subject to HoL blocking if HPACK is used directly.
    HPACK exploits multiplexing for greater compression, shrinking the
@@ -151,6 +162,14 @@ Internet-Draft                    QCRAM                    February 2018
    problem which QUIC solves in general, but which is reintroduced by
    HPACK when the loss includes a HEADERS frame.
 
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 3]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
 1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
 
    In the example above, the second stream contained a reference to data
@@ -162,13 +181,6 @@ Internet-Draft                    QCRAM                    February 2018
    higher compression ratio (by permitting vulnerable references) or HoL
    resilience (by avoiding them).  This is signaled by the BLOCKING flag
    in HEADERS and PUSH_PROMISE frames (see [QUIC-HTTP]).
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 3]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
    If a header block contains no vulnerable header fields, BLOCKING MUST
    be 0.  This implies that the header fields are represented either as
@@ -206,6 +218,14 @@ Internet-Draft                    QCRAM                    February 2018
    HEADERS and PUSH_PROMISE frames on request and push streams MUST NOT
    contain Literal with Incremental Indexing and Indexed with
    Duplication representations.  Frames on these streams reference the
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 4]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    dynamic table in a particular state without modifying it, but emit
    the headers for an HTTP request or response.
 
@@ -216,15 +236,6 @@ Internet-Draft                    QCRAM                    February 2018
    "Base index" is the cumulative number of entries added to the dynamic
    table prior to encoding the current block, including any entries
    already evicted.  It is encoded as a single 8-bit prefix integer:
-
-
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 4]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
        0 1 2 3 4 5 6 7
       +-+-+-+-+-+-+-+-+
@@ -264,6 +275,13 @@ Internet-Draft                    QCRAM                    February 2018
    totally ordered, but are problematic in the out-of-order context of
    QUIC.
 
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 5]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    QCRAM uses a hybrid absolute-relative indexing approach.
 
    When the encoder adds a new entry to its header table, it can compute
@@ -273,15 +291,6 @@ Internet-Draft                    QCRAM                    February 2018
 
    Since literals with indexing are only sent on the control stream, the
    decoder can be guaranteed to compute the same absolute index values
-
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 5]
-
-Internet-Draft                    QCRAM                    February 2018
-
-
    when it adds corresponding entries to its table, just as in HPACK and
    HTTP/2.
 
@@ -319,6 +328,16 @@ Internet-Draft                    QCRAM                    February 2018
    encoder will not evict entries that have outstanding (unacknowledged)
    references.
 
+
+
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 6]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
 2.4.1.  Blocked Evictions
 
    The encoder MUST NOT permit an entry to be evicted while a reference
@@ -330,13 +349,6 @@ Internet-Draft                    QCRAM                    February 2018
    The encoder can emit a literal representation for the new header in
    order to avoid encoding delays, and MAY insert the header into the
    table later if desired.
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 6]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
    To ensure that the blocked eviction case is rare, references to the
    oldest entries in the dynamic table SHOULD be avoided.  When one of
@@ -373,6 +385,15 @@ Internet-Draft                    QCRAM                    February 2018
    (Section 2.2), ensuring they have small indices and hence minimal
    size on the wire.
 
+
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 7]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
 3.2.  Additional state beyond HPACK.
 
 3.2.1.  Vulnerable Entries
@@ -385,14 +406,6 @@ Internet-Draft                    QCRAM                    February 2018
    practice, much less than the total number of entries, so a data
    tracking only vulnerable (un-acknowledged) entries, separate from the
    main header table, might be more space efficient.
-
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 7]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
 3.2.2.  Safe evictions
 
@@ -429,6 +442,14 @@ Internet-Draft                    QCRAM                    February 2018
    "Depends Index" values to streams can be used.  Whenever the decoder
    processes a header block, it can drain any members of the blocked
    streams map that have "Depends Index <= M" where "[1,M]" is the first
+
+
+
+Krasic, et al.           Expires August 24, 2018                [Page 8]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    member of the added- entries sub-ranges set.  Again, the complexity
    of operations would be at most O(log N), N being the number of
    concurrently blocked streams.
@@ -440,15 +461,6 @@ Internet-Draft                    QCRAM                    February 2018
    some per-entry state to track acknowledgment status and eviction
    reference count.  A larger value than 32 might be more accurate for
    QCRAM.
-
-
-
-
-
-Krasic, et al.           Expires August 24, 2018                [Page 8]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
 4.  Security Considerations
 
@@ -483,18 +495,6 @@ Internet-Draft                    QCRAM                    February 2018
 
 7.  References
 
-7.1.  Normative References
-
-   [QUIC-HTTP]
-              Bishop, M., "Hypertext Transfer Protocol (HTTP) over
-              QUIC", draft-ietf-quic-http-09 (work in progress), January
-              2018.
-
-   [RFC7541]  Peon, R. and H. Ruellan, "HPACK: Header Compression for
-              HTTP/2", RFC 7541, DOI 10.17487/RFC7541, May 2015,
-              <https://www.rfc-editor.org/info/rfc7541>.
-
-
 
 
 
@@ -505,6 +505,17 @@ Krasic, et al.           Expires August 24, 2018                [Page 9]
 
 Internet-Draft                    QCRAM                    February 2018
 
+
+7.1.  Normative References
+
+   [QUIC-HTTP]
+              Bishop, M., "Hypertext Transfer Protocol (HTTP) over
+              QUIC", draft-ietf-quic-http-09 (work in progress), January
+              2018.
+
+   [RFC7541]  Peon, R. and H. Ruellan, "HPACK: Header Compression for
+              HTTP/2", RFC 7541, DOI 10.17487/RFC7541, May 2015,
+              <https://www.rfc-editor.org/info/rfc7541>.
 
 7.2.  Informative References
 
@@ -518,6 +529,14 @@ Internet-Draft                    QCRAM                    February 2018
               DOI 10.17487/RFC7540, May 2015,
               <https://www.rfc-editor.org/info/rfc7540>.
 
+7.3.  URIs
+
+   [1] https://mailarchive.ietf.org/arch/search/?email_list=quic
+
+   [2] https://github.com/quicwg
+
+   [3] https://github.com/quicwg/base-drafts/labels/-qcram
+
 Authors' Addresses
 
    Charles 'Buck' Krasic
@@ -530,6 +549,17 @@ Authors' Addresses
    Akamai Technologies
 
    Email: mbishop@evequefou.be
+
+
+
+
+
+
+
+
+Krasic, et al.           Expires August 24, 2018               [Page 10]
+
+Internet-Draft                    QCRAM                    February 2018
 
 
    Alan Frindell (editor)
@@ -557,4 +587,30 @@ Authors' Addresses
 
 
 
-Krasic, et al.           Expires August 24, 2018               [Page 10]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Krasic, et al.           Expires August 24, 2018               [Page 11]

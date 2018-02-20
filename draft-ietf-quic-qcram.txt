@@ -16,17 +16,10 @@ Expires: August 24, 2018                             Akamai Technologies
 
 Abstract
 
-   The design of the core QUIC transport subsumes many HTTP/2 features,
-   prominent among them stream multiplexing.  A key advantage of the
-   QUIC transport is stream multiplexing free of head-of-line (HoL)
-   blocking between streams.  In HTTP/2, multiplexed streams can suffer
-   HoL blocking due to TCP.
-
-   If HTTP/2's HPACK is used for header compression, HTTP/QUIC is still
-   vulnerable to HoL blocking, because of HPACK's assumption of in-order
-   delivery.  This draft defines QCRAM, a variation of HPACK and
-   mechanisms in the HTTP/QUIC mapping that allow the flexibility to
-   avoid header-compression-induced HoL blocking.
+   This specification defines QCRAM, a compression format for
+   efficiently representing HTTP header fields, to be used in HTTP over
+   QUIC.  This is a variation of HPACK header compression that seeks to
+   reduce head-of-line blocking.
 
 Note to Readers
 
@@ -50,6 +43,13 @@ Status of This Memo
 
    Internet-Drafts are draft documents valid for a maximum of six months
    and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on August 24, 2018.
+
+
+
 
 
 
@@ -57,11 +57,6 @@ Krasic, et al.           Expires August 24, 2018                [Page 1]
 
 Internet-Draft                    QCRAM                    February 2018
 
-
-   time.  It is inappropriate to use Internet-Drafts as reference
-   material or to cite them other than as "work in progress."
-
-   This Internet-Draft will expire on August 24, 2018.
 
 Copyright Notice
 
@@ -80,9 +75,9 @@ Copyright Notice
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
      1.1.  Head-of-Line Blocking in HPACK  . . . . . . . . . . . . .   3
-     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   4
+     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   3
    2.  HPACK extensions  . . . . . . . . . . . . . . . . . . . . . .   4
      2.1.  Allowed Instructions  . . . . . . . . . . . . . . . . . .   4
      2.2.  Header Block Prefix . . . . . . . . . . . . . . . . . . .   5
@@ -106,6 +101,11 @@ Table of Contents
      7.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  10
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
 
+1.  Introduction
+
+   The QUIC transport protocol was designed from the outset to support
+   HTTP semantics, and its design subsumes many of the features of
+   HTTP/2.  QUIC's stream multiplexing comes into some conflict with
 
 
 
@@ -114,11 +114,6 @@ Krasic, et al.           Expires August 24, 2018                [Page 2]
 Internet-Draft                    QCRAM                    February 2018
 
 
-1.  Introduction
-
-   The QUIC transport protocol was designed from the outset to support
-   HTTP semantics, and its design subsumes many of the features of
-   HTTP/2.  QUIC's stream multiplexing comes into some conflict with
    header compression.  A key goal of the design of QUIC is to improve
    stream multiplexing relative to HTTP/2 by eliminating HoL (head of
    line) blocking, which can occur in HTTP/2.  HoL blocking can happen
@@ -162,6 +157,11 @@ Internet-Draft                    QCRAM                    February 2018
    problem which QUIC solves in general, but which is reintroduced by
    HPACK when the loss includes a HEADERS frame.
 
+1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
+
+   In the example above, the second stream contained a reference to data
+   which might not yet have been processed by the recipient.  Such
+
 
 
 
@@ -170,10 +170,6 @@ Krasic, et al.           Expires August 24, 2018                [Page 3]
 Internet-Draft                    QCRAM                    February 2018
 
 
-1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
-
-   In the example above, the second stream contained a reference to data
-   which might not yet have been processed by the recipient.  Such
    references are called "vulnerable," because the loss of a different
    packet can keep the reference from being usable.
 
@@ -218,6 +214,10 @@ Internet-Draft                    QCRAM                    February 2018
    HEADERS and PUSH_PROMISE frames on request and push streams MUST NOT
    contain Literal with Incremental Indexing and Indexed with
    Duplication representations.  Frames on these streams reference the
+   dynamic table in a particular state without modifying it, but emit
+   the headers for an HTTP request or response.
+
+
 
 
 
@@ -225,9 +225,6 @@ Krasic, et al.           Expires August 24, 2018                [Page 4]
 
 Internet-Draft                    QCRAM                    February 2018
 
-
-   dynamic table in a particular state without modifying it, but emit
-   the headers for an HTTP request or response.
 
 2.2.  Header Block Prefix
 
@@ -275,14 +272,15 @@ Internet-Draft                    QCRAM                    February 2018
    totally ordered, but are problematic in the out-of-order context of
    QUIC.
 
+   QCRAM uses a hybrid absolute-relative indexing approach.
+
+
 
 
 Krasic, et al.           Expires August 24, 2018                [Page 5]
 
 Internet-Draft                    QCRAM                    February 2018
 
-
-   QCRAM uses a hybrid absolute-relative indexing approach.
 
    When the encoder adds a new entry to its header table, it can compute
    an absolute index:
@@ -327,6 +325,8 @@ Internet-Draft                    QCRAM                    February 2018
    evicted.  QCRAM employs a two-phase eviction algorithm, in which the
    encoder will not evict entries that have outstanding (unacknowledged)
    references.
+
+
 
 
 

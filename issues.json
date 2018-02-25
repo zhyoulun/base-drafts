@@ -38,9 +38,9 @@
 
     ],
     "milestone": null,
-    "comments": 0,
+    "comments": 1,
     "created_at": "2018-02-23T20:24:56Z",
-    "updated_at": "2018-02-25T01:20:45Z",
+    "updated_at": "2018-02-25T13:55:43Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "pull_request": {
@@ -103,9 +103,9 @@
 
     ],
     "milestone": null,
-    "comments": 0,
+    "comments": 1,
     "created_at": "2018-02-23T18:20:16Z",
-    "updated_at": "2018-02-23T18:20:16Z",
+    "updated_at": "2018-02-25T13:54:58Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "body": "According to the spec \"Base index is the cumulative number of entries added to the dynamic table prior to encoding the current block, including any entries already evicted.\"\r\n\r\nHowever if you try to make a single pass encoder, you may end up with references to headers inserted while encoding the current block, which will be larger than the encoded base.  The hybrid representation would be negative, and HPACK cannot encode negative numbers.\r\n\r\n```\r\nencodedBase = baseIndex\r\nwriteBaseIndex(encodedBase, requestStream)\r\n# save space for Depends\r\nfor h in headers:\r\n  absIndex = getAbsoluteIndex(h)\r\n  if absIndex == 0:\r\n    if shouldIndex(h):\r\n      absIndex = writeTableUpdate(h, controlStream)\r\n    else:\r\n      writeLiteral(h, requestStream)\r\n      continue\r\n  hybridIndex = encodedBase - absIndex\r\n  # oops, absIndex may be larger than encodedBase\r\n  writeIndexRef(hybridIndex, requestStream)\r\n ```\r\n\r\nThe only solution to implement the draft as specific is to make two passes, one that performs all necessary table inserts to get the right value of Base Index, and another to encode all the references relative to Base Index.\r\n\r\nMy QCRAM prototype did something bizarre to make this work in a single pass (https://goo.gl/nghK89) - using the maximum length of the dynamic table (MAX_HEADER_TABLE_SIZE / 32) to normalize negative numbers.  With the default maximum of 4KB, the first hybrid index after encodedBase is 128, then 127 and so on."
@@ -151,7 +151,7 @@
     "milestone": null,
     "comments": 0,
     "created_at": "2018-02-23T09:12:18Z",
-    "updated_at": "2018-02-23T09:12:18Z",
+    "updated_at": "2018-02-25T14:16:48Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "pull_request": {
@@ -377,9 +377,9 @@
 
     ],
     "milestone": null,
-    "comments": 2,
+    "comments": 4,
     "created_at": "2018-02-21T08:45:53Z",
-    "updated_at": "2018-02-22T18:45:50Z",
+    "updated_at": "2018-02-25T14:51:37Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "body": ""
@@ -665,9 +665,9 @@
 
     ],
     "milestone": null,
-    "comments": 8,
+    "comments": 9,
     "created_at": "2018-02-21T03:18:42Z",
-    "updated_at": "2018-02-23T00:36:36Z",
+    "updated_at": "2018-02-25T14:45:32Z",
     "closed_at": null,
     "author_association": "MEMBER",
     "body": "A duplication instruction never references the static table.  Currently however, this is possible, and it's not a great idea.\r\n\r\nAside from it being pointless to duplicate entries in the static table (it costs space and time to do this, and references to these new entries will have longer encodings than static table references), in the current design the encoding of the duplication instruction is such that virtually every duplication instruction has to use a two octet encoding because exactly one entry in the dynamic table can be duplicated in one octet.  Duplication of this entry is completely useless because duplicating it does nothing to improve its position in the table."
@@ -783,9 +783,9 @@
 
     ],
     "milestone": null,
-    "comments": 3,
+    "comments": 4,
     "created_at": "2018-02-21T03:10:41Z",
-    "updated_at": "2018-02-22T17:47:05Z",
+    "updated_at": "2018-02-25T14:59:12Z",
     "closed_at": null,
     "author_association": "MEMBER",
     "body": "Tracking which header blocks are unacknowledged is a little tricky.  Each stream can have multiple blocks outstanding and each needs acknowledgment (in order).  An encoder needs to track the tuple of request identifier (which might also be a stream identifier) and which header block is referred to.  A server might send a large number of header blocks on the same stream if it sends PUSH_PROMISE frames.\r\n\r\nIf only the request identifier is used, then an acknowledgment for one header block might be mistaken as acknowledging a different header block that was sent on the same stream."
@@ -1092,9 +1092,9 @@
 
     ],
     "milestone": null,
-    "comments": 7,
+    "comments": 8,
     "created_at": "2018-02-21T02:47:19Z",
-    "updated_at": "2018-02-23T17:21:20Z",
+    "updated_at": "2018-02-25T14:03:44Z",
     "closed_at": null,
     "author_association": "MEMBER",
     "body": "QCRAM doesn't need to use the control stream for its activities.  I propose two streams:\r\n\r\n1. A stream for header updates.\r\n\r\n2. A stream for header block acknowledgments.\r\n\r\nThese could probably be arranged as a bidirectional stream that is initiated by the encoding side with header updates on the send direction and acknowledgments in the other direction.  However, the timing of creation of these streams suggests that unidirectional streams are better.  It is possible that header blocks would need to be acknowledged before the encoder commits any changes to the header table, and having the acknowledgments blocked on the creation of a remote stream would add unnecessary delays.\r\n\r\nThis separation allows for several advantages and I can't see any significant downsides:\r\n\r\n* Framing overheads can be removed entirely (or significantly reduced).  Neither stream requires any framing in practice (header table updates can be a contiguous stream of changes), and acknowledgments can be a continuous sequence of integers.\r\n\r\n* An encoder can be given exclusive use of a write stream for sending header updates and a read stream for receiving acknowledgments.  A decoder can be given exclusive access to the reciprocal streams.\r\n\r\n* More streams means less unnecessary blocking.  Though there is generally a cost to more streams, these streams have no interaction with other control stream functions (SETTINGS, PRIORITY, etc...).  Increased independence means fewer chances for head-of-line blocking."
@@ -1140,7 +1140,7 @@
     "milestone": null,
     "comments": 2,
     "created_at": "2018-02-21T02:01:39Z",
-    "updated_at": "2018-02-23T13:31:19Z",
+    "updated_at": "2018-02-25T14:09:50Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "pull_request": {
@@ -5028,17 +5028,17 @@
         "default": false
       }
     ],
-    "state": "open",
+    "state": "closed",
     "locked": false,
     "assignee": null,
     "assignees": [
 
     ],
     "milestone": null,
-    "comments": 4,
+    "comments": 5,
     "created_at": "2018-01-14T19:00:26Z",
-    "updated_at": "2018-02-23T02:42:57Z",
-    "closed_at": null,
+    "updated_at": "2018-02-25T14:39:15Z",
+    "closed_at": "2018-02-25T14:39:15Z",
     "author_association": "NONE",
     "body": "The definition of PING and PONG frames are ambiguous.   \r\n\r\nSection 8.9 states:\r\n> If the Data field is not empty, the recipient of this frame MUST generate a \r\n> PONG frame (Section 8.15) containing the same Data. \r\n\r\n\r\nSection 8.15 states:\r\n> If the content of a PONG frame does not match the content of a PING frame\r\n> previously sent by the endpoint, the endpoint MAY generate a connection error of type\r\n> UNSOLICITED_PONG.\r\n\r\nThe way I see it either the `MAY` in Section 8.15 has to be a `MUST` to solve this ambiguity or the part in Section 8.9 has to be changed into something less strict. \r\nThis would be my preferred option since it gives the PING/PONG frames a little bit more semantic leeway."
   },
@@ -7329,7 +7329,7 @@
     "milestone": null,
     "comments": 3,
     "created_at": "2017-12-13T00:16:04Z",
-    "updated_at": "2018-02-23T04:29:23Z",
+    "updated_at": "2018-02-25T14:34:12Z",
     "closed_at": null,
     "author_association": "NONE",
     "pull_request": {

@@ -75,9 +75,9 @@ Copyright Notice
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Head-of-Line Blocking in HPACK  . . . . . . . . . . . . .   3
-     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   3
+     1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC . . . . . . .   4
    2.  Wire Format . . . . . . . . . . . . . . . . . . . . . . . . .   4
      2.1.  HEADERS Frames on the Control Stream  . . . . . . . . . .   5
        2.1.1.  Insert  . . . . . . . . . . . . . . . . . . . . . . .   5
@@ -85,27 +85,27 @@ Table of Contents
      2.2.  HEADER_ACK Frames . . . . . . . . . . . . . . . . . . . .   6
      2.3.  Request Streams . . . . . . . . . . . . . . . . . . . . .   7
        2.3.1.  Index Encoding  . . . . . . . . . . . . . . . . . . .   7
-       2.3.2.  Instructions  . . . . . . . . . . . . . . . . . . . .   9
-   3.  Encoding Strategies . . . . . . . . . . . . . . . . . . . . .  10
-     3.1.  Reference Tracking  . . . . . . . . . . . . . . . . . . .  10
+       2.3.2.  Hybrid absolute-relative indexing . . . . . . . . . .   8
+       2.3.3.  Instructions  . . . . . . . . . . . . . . . . . . . .   9
+   3.  Encoding Strategies . . . . . . . . . . . . . . . . . . . . .  11
+     3.1.  Reference Tracking  . . . . . . . . . . . . . . . . . . .  11
        3.1.1.  Blocked Eviction  . . . . . . . . . . . . . . . . . .  11
-     3.2.  Blocked Decoding  . . . . . . . . . . . . . . . . . . . .  11
+     3.2.  Blocked Decoding  . . . . . . . . . . . . . . . . . . . .  12
      3.3.  Speculative table updates . . . . . . . . . . . . . . . .  12
        3.3.1.  Fixed overhead. . . . . . . . . . . . . . . . . . . .  12
    4.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
-     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  12
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .  12
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  13
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  13
      6.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  13
    Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  13
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  13
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  14
 
-1.  Introduction
 
-   The QUIC transport protocol was designed from the outset to support
-   HTTP semantics, and its design subsumes many of the features of
-   HTTP/2.  QUIC's stream multiplexing comes into some conflict with
+
+
+
 
 
 
@@ -114,6 +114,11 @@ Krasic, et al.           Expires August 31, 2018                [Page 2]
 Internet-Draft                    QCRAM                    February 2018
 
 
+1.  Introduction
+
+   The QUIC transport protocol was designed from the outset to support
+   HTTP semantics, and its design subsumes many of the features of
+   HTTP/2.  QUIC's stream multiplexing comes into some conflict with
    header compression.  A key goal of the design of QUIC is to improve
    stream multiplexing relative to HTTP/2 by eliminating HoL (head of
    line) blocking, which can occur in HTTP/2.  HoL blocking can happen
@@ -157,11 +162,6 @@ Internet-Draft                    QCRAM                    February 2018
    problem which QUIC solves in general, but which is reintroduced by
    HPACK when the loss includes a HEADERS frame.
 
-1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
-
-   In the example above, the second stream contained a reference to data
-   which might not yet have been processed by the recipient.  Such
-
 
 
 
@@ -170,6 +170,10 @@ Krasic, et al.           Expires August 31, 2018                [Page 3]
 Internet-Draft                    QCRAM                    February 2018
 
 
+1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
+
+   In the example above, the second stream contained a reference to data
+   which might not yet have been processed by the recipient.  Such
    references are called "vulnerable," because the loss of a different
    packet can keep the reference from being usable.
 
@@ -191,11 +195,11 @@ Internet-Draft                    QCRAM                    February 2018
    The header block contains a prefix (Section 2.3.1).  This prefix
    contains table offset information that establishes total ordering
    among all headers, regardless of reordering in the transport (see
-   Section 2.3.1.1).
+   Section 2.3.2).
 
    In blocking mode, the prefix additionally identifies the minimum
    state required to process any vulnerable references in the header
-   block (see "Depends Index" in Section 2.3.1.1).  The decoder keeps
+   block (see "Depends Index" in Section 2.3.2).  The decoder keeps
    track of which entries have been added to its dynamic table.  The
    stream for a header with BLOCKING flag set is considered blocked by
    the decoder and can not be processed until all entries in the range
@@ -215,10 +219,6 @@ Internet-Draft                    QCRAM                    February 2018
    o  Acknowledgement of header frame processing is carried by
       HEADER_ACK frames, running from decoder to encoder.
 
-   o  Finally, the contents of HEADERS and PUSH_PROMISE frames on
-      request streams reference the QPACK table state.
-
-
 
 
 Krasic, et al.           Expires August 31, 2018                [Page 4]
@@ -226,25 +226,35 @@ Krasic, et al.           Expires August 31, 2018                [Page 4]
 Internet-Draft                    QCRAM                    February 2018
 
 
+   o  Finally, the contents of HEADERS and PUSH_PROMISE frames on
+      request streams reference the QPACK table state.
+
    This section describes the instructions which are possible on each
    stream type.
 
-   In order to ensure table consistency, all modifications of the header
-   table occur on the control stream rather than on request streams.
-   Request streams contain only indexed and literal header entries.
+   In order to ensure table consistency and simplify update management,
+   all table updates occur on the control stream rather than on request
+   streams.  Request streams contain only header blocks, which do not
+   modify the state of the table.
 
 2.1.  HEADERS Frames on the Control Stream
+
+   Table updates can add a table entry, possibly using existing entries
+   to avoid transmitting redundant information.  The name can be
+   transmitted as a reference to an existing entry in either table or as
+   a string literal.  For entries which already exist in the dynamic
+   table, the full entry can also be used by reference, creating a
+   duplicate entry.
 
 2.1.1.  Insert
 
    An addition to the header table starts with the '1' one-bit pattern.
-   If the header field name matches the header field name of an entry
-   stored in the static table or the dynamic table, the header field
-   name can be represented using the index of that entry.  In this case,
-   the "S" bit indicates whether the reference is to the static (S=1) or
-   dynamic (S=0) table and the index of the entry is represented as an
-   integer with an 7-bit prefix (see Section 5.1 of [RFC7541]).  This
-   value is always non-zero.
+   This instruction can reference an existing table entry and use its
+   name.  The "S" bit indicates whether the entry is in the static table
+   (where "S" is 1) or the dynamic table (where "S" is 0).  The index of
+   the entry is represented as an integer with an 6-bit prefix (see
+   Section 5.1 of [RFC7541]).  Table indices are always non-zero; a zero
+   index is reserved for literal names.
 
         0   1   2   3   4   5   6   7
       +---+---+---+---+---+---+---+---+
@@ -267,16 +277,6 @@ Internet-Draft                    QCRAM                    February 2018
 
 
 
-
-
-
-
-
-
-
-
-
-
 Krasic, et al.           Expires August 31, 2018                [Page 5]
 
 Internet-Draft                    QCRAM                    February 2018
@@ -284,8 +284,8 @@ Internet-Draft                    QCRAM                    February 2018
 
         0   1   2   3   4   5   6   7
       +---+---+---+---+---+---+---+---+
-      | 1 |             0             |
-      +---+---------------------------+
+      | 1 | 0 |           0           |
+      +---+---+-----------------------+
       | H |     Name Length (7+)      |
       +---+---------------------------+
       |  Name String (Length octets)  |
@@ -303,8 +303,10 @@ Internet-Draft                    QCRAM                    February 2018
 
 2.1.2.  Duplicate
 
-   An entry currently in the dynamic table can be re-inserted into the
-   dynamic table without resending the header.
+   Duplication of an existing entry in the dynamic table starts with the
+   '0' one-bit pattern.  The index of the existing entry is represented
+   as an integer with a 7-bit prefix.  Table indices are always non-
+   zero; a table index of zero MUST be treated as a decoding error.
 
         0   1   2   3   4   5   6   7
       +---+---+---+---+---+---+---+---+
@@ -313,23 +315,21 @@ Internet-Draft                    QCRAM                    February 2018
 
                             Figure 1: Duplicate
 
-   This is useful to mitigate the eviction of older entries which are
-   frequently referenced, both to avoid the need to resend the header
-   and to avoid the entry in the table blocking the ability to insert
-   new headers.
+   The existing entry is re-inserted into the dynamic table without
+   resending either the name or the value.  This is useful to mitigate
+   the eviction of older entries which are frequently referenced, both
+   to avoid the need to resend the header and to avoid the entry in the
+   table blocking the ability to insert new headers.
 
 2.2.  HEADER_ACK Frames
 
    HEADER_ACK frames on the control stream carry information used to
    ensure consistency of the dynamic table.  Information is sent from
    the QCRAM decoder to the QCRAM encoder; that is, the server informs
-   the client about the processing of the client's header blocks, and
-   the client informs the server about the processing of the server's
-   header blocks.
+   the client about the processing of the client's header blocks and
+   table updates, and the client informs the server about the processing
+   of the server's header blocks and table updates.
 
-   Each frame represents a header block which the QCRAM decoder has
-   fully processed.  It is used by the peer's QCRAM encoder to determine
-   whether subsequent indexed representations that might reference that
 
 
 
@@ -338,18 +338,24 @@ Krasic, et al.           Expires August 31, 2018                [Page 6]
 Internet-Draft                    QCRAM                    February 2018
 
 
-   block are vulnerable to head-of-line blocking, and to prevent
-   eviction races.
+   Each frame represents a header block or table update which the QCRAM
+   decoder has fully processed.  It is used by the peer's QCRAM encoder
+   to determine whether subsequent indexed representations that might
+   reference impacted entries are vulnerable to head-of-line blocking,
+   and to prevent eviction races.
 
    The frame payload contains contains a variable-length integer (as
    defined in [QUIC-TRANSPORT]) which indicates the stream on which the
-   header block was processed.  The same Stream ID can be identified
-   multiple times, as multiple header-containing blocks can be sent on a
-   single stream in the case of intermediate responses, trailers, pushed
-   requests, etc. as well as on the Control Streams.  Since header
-   frames on each stream are received and processed in order, this gives
-   the encoder precise feedback on which header blocks within a stream
-   have been fully processed.
+   header block was processed.  The same Stream ID can be identified in
+   multiple frames, as multiple header blocks can be sent on a single
+   request or push stream.  (Requests can have trailers; responses can
+   have intermediate status codes and PUSH_PROMISE frames.)  As the
+   control stream carries multiple table updates, the control stream can
+   also be identified in multiple frames.
+
+   Since header frames on each stream are received and processed in
+   order, this gives the encoder precise feedback on which header blocks
+   within a stream have been fully processed.
 
 2.3.  Request Streams
 
@@ -371,19 +377,13 @@ Internet-Draft                    QCRAM                    February 2018
 
                 Figure 2: Absolute indexing (BLOCKING=0x0)
 
-   Section 2.3.1.1 describes the role of "Base Index".
+   Section 2.3.2 describes the role of "Base Index".
 
    When the BLOCKING flag is 0x1, a the prefix additionally contains a
    second HPACK integer (8-bit prefix) 'Depends':
 
-       0 1 2 3 4 5 6 7
-      +-+-+-+-+-+-+-+-+
-      |Base Index (8+)|
-      +---------------+
-      |Depends    (8+)|
-      +---------------+
 
-                Figure 3: Absolute indexing (BLOCKING=0x1)
+
 
 
 
@@ -394,13 +394,22 @@ Krasic, et al.           Expires August 31, 2018                [Page 7]
 Internet-Draft                    QCRAM                    February 2018
 
 
+       0 1 2 3 4 5 6 7
+      +-+-+-+-+-+-+-+-+
+      |Base Index (8+)|
+      +---------------+
+      |Depends    (8+)|
+      +---------------+
+
+                Figure 3: Absolute indexing (BLOCKING=0x1)
+
    Depends is used to identify header dependencies (see Section 1.2).
    The encoder computes a value "Depends Index" which is the largest
    (absolute) index referenced by the following header block.  To help
    keep the prefix smaller, "Depends Index" is converted to a relative
    value: "Depends = Base Index - Depends Index".
 
-2.3.1.1.  Hybrid absolute-relative indexing
+2.3.2.  Hybrid absolute-relative indexing
 
    HPACK indexed entries refer to an entry by its current position in
    the dynamic table.  As Figure 1 of [RFC7541] illustrates, newer
@@ -433,6 +442,14 @@ Internet-Draft                    QCRAM                    February 2018
    ordering between streams is not guaranteed, the value of "baseIndex"
    can not be synchronized implicitly.  Instead then, QCRAM sends
    encoder's "Base Index" explicitly as part of the prefix (see
+
+
+
+Krasic, et al.           Expires August 31, 2018                [Page 8]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    Section 2.3.1), so that the decoder can compute the same absolute
    indices that the encoder used:
 
@@ -443,21 +460,14 @@ Internet-Draft                    QCRAM                    February 2018
    different order than encoded, the absolute indices will still
    identify the correct table entries.
 
-
-
-Krasic, et al.           Expires August 31, 2018                [Page 8]
-
-Internet-Draft                    QCRAM                    February 2018
-
-
    It is an error if the HPACK decoder encounters an indexed
    representation that refers to an entry missing from the table, and
    the connection MUST be closed with the
    "HTTP_HPACK_DECOMPRESSION_FAILED" error code.
 
-2.3.2.  Instructions
+2.3.3.  Instructions
 
-2.3.2.1.  Indexed Header Field Representation
+2.3.3.1.  Indexed Header Field Representation
 
    An indexed header field representation identifies an entry in either
    the static table or the dynamic table and causes that header field to
@@ -467,7 +477,7 @@ Internet-Draft                    QCRAM                    February 2018
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 1 | S |      Index (6+)       |
-   +---+---------------------------+
+   +---+---+-----------------------+
 
                            Indexed Header Field
 
@@ -480,7 +490,7 @@ Internet-Draft                    QCRAM                    February 2018
    The index value of 0 is not used.  It MUST be treated as a decoding
    error if found in an indexed header field representation.
 
-2.3.2.2.  Literal Header Field Representation
+2.3.3.2.  Literal Header Field Representation
 
    A literal header field representation starts with the '0' 1-bit
    pattern and causes a header field to be added the decoded header
@@ -488,6 +498,14 @@ Internet-Draft                    QCRAM                    February 2018
 
    The second bit, 'N', indicates whether an intermediary is permitted
    to add this header to the dynamic header table on subsequent hops.
+
+
+
+Krasic, et al.           Expires August 31, 2018                [Page 9]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
    When the 'N' bit is set, the encoded header MUST always be encoded
    with this specific literal representation.  In particular, when a
    peer sends a header field that it received represented as a literal
@@ -498,19 +516,12 @@ Internet-Draft                    QCRAM                    February 2018
 
    If the header field name matches the header field name of an entry
    stored in the static table or the dynamic table, the header field
-
-
-
-Krasic, et al.           Expires August 31, 2018                [Page 9]
-
-Internet-Draft                    QCRAM                    February 2018
-
-
    name can be represented using the index of that entry.  In this case,
    the "S" bit indicates whether the reference is to the static (S=1) or
    dynamic (S=0) table and the index of the entry is represented as an
-   integer with an 5-bit prefix (see Section 5.1 of [RFC7541]).  This
-   value is always non-zero.
+   integer with an 5-bit prefix (see Section 5.1 of [RFC7541]).  Valid
+   table indices are always non-zero; a table index of zero MUST be
+   treated as a decoding error.
 
         0   1   2   3   4   5   6   7
       +---+---+---+---+---+---+---+---+
@@ -542,18 +553,7 @@ Internet-Draft                    QCRAM                    February 2018
 
                    Literal Header Field -- Literal Name
 
-   Either form of header field name representation is followed by the
-   header field value represented as a string literal (see Section 5.2
-   of [RFC7541]).
 
-3.  Encoding Strategies
-
-3.1.  Reference Tracking
-
-   An encoder MUST ensure that an indexed representation is not received
-   by the encoder after the referenced entry has already been evicted,
-   and might wish to ensure that the decoder will not suffer head-of-
-   line blocking when encoding particular references.
 
 
 
@@ -562,9 +562,23 @@ Krasic, et al.           Expires August 31, 2018               [Page 10]
 Internet-Draft                    QCRAM                    February 2018
 
 
+   Either form of header field name representation is followed by the
+   header field value represented as a string literal (see Section 5.2
+   of [RFC7541]).
+
+3.  Encoding Strategies
+
+3.1.  Reference Tracking
+
+   An encoder MUST ensure that a header block which references a dynamic
+   table entry is not received by the decoder after the referenced entry
+   has already been evicted, and might wish to ensure that the decoder
+   will not suffer head-of-line blocking when encoding particular
+   references.
+
    In order to enable this, the encoder MUST track outstanding
-   (unacknowledged) header blocks on request streams and MAY track
-   outstanding header blocks on the control stream.
+   (unacknowledged) header blocks and MAY track outstanding table
+   updates.
 
    When the encoder receives feedback from the decoder, it dereferences
    table entries that were indexed in the acknowledged header.  To track
@@ -594,22 +608,8 @@ Internet-Draft                    QCRAM                    February 2018
    references, the encoder SHOULD emit an Indexed-Duplicate
    representation instead (see Section 2.1.2).
 
-3.2.  Blocked Decoding
 
-   For header blocks encoded in non-blocking mode, the encoder needs to
-   forego indexed representations that refer to vulnerable entries (see
-   Section 1.2).  An implementation could extend the header table entry
-   with a boolean to track vulnerability.  However, the number of
-   entries in the table that are vulnerable is likely to be small in
-   practice, much less than the total number of entries, so a data
-   tracking only vulnerable (un-acknowledged) entries, separate from the
-   main header table, might be more space efficient.
 
-   To track blocked streams, an ordered map (e.g. multi-map) from
-   "Depends Index" values to streams can be used.  Whenever the decoder
-   processes a header block on the control stream, it can drain any
-   members of the blocked streams map that now have their dependencies
-   satisfied.
 
 
 
@@ -617,6 +617,22 @@ Krasic, et al.           Expires August 31, 2018               [Page 11]
 
 Internet-Draft                    QCRAM                    February 2018
 
+
+3.2.  Blocked Decoding
+
+   For header blocks encoded in non-blocking mode, the encoder needs to
+   forego indexed representations that refer to table updates which have
+   not yet been acknowledged with Section 2.2.  An implementation could
+   extend the header table entry with a boolean to track acknowledgement
+   state.  However, the number of entries in the table that are
+   unacknowledged is likely to be small in practice, much less than the
+   total number of entries, so tracking only un-acknowledged entries
+   separate from the main header table might be more space efficient.
+
+   To track blocked streams, the necessary "Depends Index" values for
+   each stream can be used.  Whenever the decoder processes a table
+   update, it can begin decoding any blocked streams that now have their
+   dependencies satisfied.
 
 3.3.  Speculative table updates
 
@@ -642,10 +658,21 @@ Internet-Draft                    QCRAM                    February 2018
 
 5.  IANA Considerations
 
-   This document registers a new frame type, HEADER_ACK, for HTTP/QUIC.
-   This will need to be added to the IANA Considerations of [QUIC-HTTP].
+   None.
 
 6.  References
+
+
+
+
+
+
+
+
+Krasic, et al.           Expires August 31, 2018               [Page 12]
+
+Internet-Draft                    QCRAM                    February 2018
+
 
 6.1.  Normative References
 
@@ -664,15 +691,6 @@ Internet-Draft                    QCRAM                    February 2018
               Iyengar, J. and M. Thomson, "QUIC: A UDP-Based Multiplexed
               and Secure Transport", draft-ietf-quic-transport-09 (work
               in progress), January 2018.
-
-
-
-
-
-Krasic, et al.           Expires August 31, 2018               [Page 12]
-
-Internet-Draft                    QCRAM                    February 2018
-
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -705,6 +723,13 @@ Acknowledgments
 
    o  Dmitri Tikhonov
 
+
+
+Krasic, et al.           Expires August 31, 2018               [Page 13]
+
+Internet-Draft                    QCRAM                    February 2018
+
+
 Authors' Addresses
 
    Charles 'Buck' Krasic
@@ -719,35 +744,10 @@ Authors' Addresses
    Email: mbishop@evequefou.be
 
 
-
-
-
-
-
-
-Krasic, et al.           Expires August 31, 2018               [Page 13]
-
-Internet-Draft                    QCRAM                    February 2018
-
-
    Alan Frindell (editor)
    Facebook
 
    Email: afrind@fb.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

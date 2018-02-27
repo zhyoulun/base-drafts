@@ -292,7 +292,8 @@ address {
 <link href="#rfc.section.2.2" rel="Chapter" title="2.2 HEADER_ACK Frames">
 <link href="#rfc.section.2.3" rel="Chapter" title="2.3 Request Streams">
 <link href="#rfc.section.2.3.1" rel="Chapter" title="2.3.1 Index Encoding">
-<link href="#rfc.section.2.3.2" rel="Chapter" title="2.3.2 Instructions">
+<link href="#rfc.section.2.3.2" rel="Chapter" title="2.3.2 Hybrid absolute-relative indexing">
+<link href="#rfc.section.2.3.3" rel="Chapter" title="2.3.3 Instructions">
 <link href="#rfc.section.3" rel="Chapter" title="3 Encoding Strategies">
 <link href="#rfc.section.3.1" rel="Chapter" title="3.1 Reference Tracking">
 <link href="#rfc.section.3.1.1" rel="Chapter" title="3.1.1 Blocked Eviction">
@@ -399,7 +400,9 @@ address {
 </li>
 <ul><li>2.3.1.   <a href="#rfc.section.2.3.1">Index Encoding</a>
 </li>
-<li>2.3.2.   <a href="#rfc.section.2.3.2">Instructions</a>
+<li>2.3.2.   <a href="#rfc.section.2.3.2">Hybrid absolute-relative indexing</a>
+</li>
+<li>2.3.3.   <a href="#rfc.section.2.3.3">Instructions</a>
 </li>
 </ul></ul><li>3.   <a href="#rfc.section.3">Encoding Strategies</a>
 </li>
@@ -450,8 +453,8 @@ address {
 <p id="rfc.section.1.2.p.2">The encoder can choose on a per-header-block basis whether to favor higher compression ratio (by permitting vulnerable references) or HoL resilience (by avoiding them). This is signaled by the BLOCKING flag in HEADERS and PUSH_PROMISE frames (see <a href="#QUIC-HTTP" class="xref">[QUIC-HTTP]</a>).</p>
 <p id="rfc.section.1.2.p.3">If a header block contains no vulnerable header fields, BLOCKING MUST be 0.  This implies that the header fields are represented either as references to dynamic table entries which are known to have been received, or as Literal header fields (see Section 6.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
 <p id="rfc.section.1.2.p.4">If a header block contains any header field which references dynamic table state which the peer might not have received yet, the BLOCKING flag MUST be set.  If the peer does not yet have the appropriate state, such blocks might not be processed on arrival.</p>
-<p id="rfc.section.1.2.p.5">The header block contains a prefix (<a href="#absolute-index" class="xref">Section 2.3.1</a>). This prefix contains table offset information that establishes total ordering among all headers, regardless of reordering in the transport (see <a href="#overview-absolute" class="xref">Section 2.3.1.1</a>).</p>
-<p id="rfc.section.1.2.p.6">In blocking mode, the prefix additionally identifies the minimum state required to process any vulnerable references in the header block (see <samp>Depends Index</samp> in <a href="#overview-absolute" class="xref">Section 2.3.1.1</a>).  The decoder keeps track of which entries have been added to its dynamic table.  The stream for a header with BLOCKING flag set is considered blocked by the decoder and can not be processed until all entries in the range <samp>[1, Depends Index]</samp> have been added.  While blocked, header field data MUST remain in the blocked stream&#8217;s flow control window.</p>
+<p id="rfc.section.1.2.p.5">The header block contains a prefix (<a href="#absolute-index" class="xref">Section 2.3.1</a>). This prefix contains table offset information that establishes total ordering among all headers, regardless of reordering in the transport (see <a href="#overview-absolute" class="xref">Section 2.3.2</a>).</p>
+<p id="rfc.section.1.2.p.6">In blocking mode, the prefix additionally identifies the minimum state required to process any vulnerable references in the header block (see <samp>Depends Index</samp> in <a href="#overview-absolute" class="xref">Section 2.3.2</a>).  The decoder keeps track of which entries have been added to its dynamic table.  The stream for a header with BLOCKING flag set is considered blocked by the decoder and can not be processed until all entries in the range <samp>[1, Depends Index]</samp> have been added.  While blocked, header field data MUST remain in the blocked stream&#8217;s flow control window.</p>
 <h1 id="rfc.section.2">
 <a href="#rfc.section.2">2.</a> <a href="#wire-format" id="wire-format">Wire Format</a>
 </h1>
@@ -464,14 +467,15 @@ address {
 <li>Finally, the contents of HEADERS and PUSH_PROMISE frames on request streams reference the QPACK table state.</li>
 </ul>
 <p id="rfc.section.2.p.3">This section describes the instructions which are possible on each stream type.</p>
-<p id="rfc.section.2.p.4">In order to ensure table consistency, all modifications of the header table occur on the control stream rather than on request streams. Request streams contain only indexed and literal header entries.</p>
+<p id="rfc.section.2.p.4">In order to ensure table consistency and simplify update management, all table updates occur on the control stream rather than on request streams. Request streams contain only header blocks, which do not modify the state of the table.</p>
 <h2 id="rfc.section.2.1">
 <a href="#rfc.section.2.1">2.1.</a> <a href="#headers-frames-on-the-control-stream" id="headers-frames-on-the-control-stream">HEADERS Frames on the Control Stream</a>
 </h2>
+<p id="rfc.section.2.1.p.1">Table updates can add a table entry, possibly using existing entries to avoid transmitting redundant information.  The name can be transmitted as a reference to an existing entry in either table or as a string literal. For entries which already exist in the dynamic table, the full entry can also be used by reference, creating a duplicate entry.</p>
 <h3 id="rfc.section.2.1.1">
 <a href="#rfc.section.2.1.1">2.1.1.</a> <a href="#insert" id="insert">Insert</a>
 </h3>
-<p id="rfc.section.2.1.1.p.1">An addition to the header table starts with the &#8216;1&#8217; one-bit pattern. If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header field name can be represented using the index of that entry. In this case, the <samp>S</samp> bit indicates whether the reference is to the static (S=1) or dynamic (S=0) table and the index of the entry is represented as an integer with an 7-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).  This value is always non-zero.</p>
+<p id="rfc.section.2.1.1.p.1">An addition to the header table starts with the &#8216;1&#8217; one-bit pattern. This instruction can reference an existing table entry and use its name. The <samp>S</samp> bit indicates whether the entry is in the static table (where <samp>S</samp> is 1) or the dynamic table (where <samp>S</samp> is 0). The index of the entry is represented as an integer with an 6-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>). Table indices are always non-zero; a zero index is reserved for literal names.</p>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -487,8 +491,8 @@ address {
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
-   | 1 |             0             |
-   +---+---------------------------+
+   | 1 | 0 |           0           |
+   +---+---+-----------------------+
    | H |     Name Length (7+)      |
    +---+---------------------------+
    |  Name String (Length octets)  |
@@ -503,7 +507,7 @@ address {
 <h3 id="rfc.section.2.1.2">
 <a href="#rfc.section.2.1.2">2.1.2.</a> <a href="#indexed-duplicate" id="indexed-duplicate">Duplicate</a>
 </h3>
-<p id="rfc.section.2.1.2.p.1">An entry currently in the dynamic table can be re-inserted into the dynamic table without resending the header.</p>
+<p id="rfc.section.2.1.2.p.1">Duplication of an existing entry in the dynamic table starts with the &#8216;0&#8217; one-bit pattern.  The index of the existing entry is represented as an integer with a 7-bit prefix. Table indices are always non-zero; a table index of zero MUST be treated as a decoding error.</p>
 <div id="rfc.figure.1"></div>
 <div id="fig-index-with-duplication"></div>
 <pre>
@@ -513,13 +517,14 @@ address {
    +---+---------------------------+
 </pre>
 <p class="figure">Figure 1: Duplicate</p>
-<p id="rfc.section.2.1.2.p.2">This is useful to mitigate the eviction of older entries which are frequently referenced, both to avoid the need to resend the header and to avoid the entry in the table blocking the ability to insert new headers.</p>
+<p id="rfc.section.2.1.2.p.2">The existing entry is re-inserted into the dynamic table without resending either the name or the value. This is useful to mitigate the eviction of older entries which are frequently referenced, both to avoid the need to resend the header and to avoid the entry in the table blocking the ability to insert new headers.</p>
 <h2 id="rfc.section.2.2">
-<a href="#rfc.section.2.2">2.2.</a> <a href="#headerack-frames" id="headerack-frames">HEADER_ACK Frames</a>
+<a href="#rfc.section.2.2">2.2.</a> <a href="#feedback" id="feedback">HEADER_ACK Frames</a>
 </h2>
-<p id="rfc.section.2.2.p.1">HEADER_ACK frames on the control stream carry information used to ensure consistency of the dynamic table. Information is sent from the QCRAM decoder to the QCRAM encoder; that is, the server informs the client about the processing of the client&#8217;s header blocks, and the client informs the server about the processing of the server&#8217;s header blocks.</p>
-<p id="rfc.section.2.2.p.2">Each frame represents a header block which the QCRAM decoder has fully processed.  It is used by the peer&#8217;s QCRAM encoder to determine whether subsequent indexed representations that might reference that block are vulnerable to head-of-line blocking, and to prevent eviction races.</p>
-<p id="rfc.section.2.2.p.3">The frame payload contains contains a variable-length integer (as defined in <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a>) which indicates the stream on which the header block was processed. The same Stream ID can be identified multiple times, as multiple header-containing blocks can be sent on a single stream in the case of intermediate responses, trailers, pushed requests, etc. as well as on the Control Streams.  Since header frames on each stream are received and processed in order, this gives the encoder precise feedback on which header blocks within a stream have been fully processed.</p>
+<p id="rfc.section.2.2.p.1">HEADER_ACK frames on the control stream carry information used to ensure consistency of the dynamic table. Information is sent from the QCRAM decoder to the QCRAM encoder; that is, the server informs the client about the processing of the client&#8217;s header blocks and table updates, and the client informs the server about the processing of the server&#8217;s header blocks and table updates.</p>
+<p id="rfc.section.2.2.p.2">Each frame represents a header block or table update which the QCRAM decoder has fully processed.  It is used by the peer&#8217;s QCRAM encoder to determine whether subsequent indexed representations that might reference impacted entries are vulnerable to head-of-line blocking, and to prevent eviction races.</p>
+<p id="rfc.section.2.2.p.3">The frame payload contains contains a variable-length integer (as defined in <a href="#QUIC-TRANSPORT" class="xref">[QUIC-TRANSPORT]</a>) which indicates the stream on which the header block was processed. The same Stream ID can be identified in multiple frames, as multiple header blocks can be sent on a single request or push stream.  (Requests can have trailers; responses can have intermediate status codes and PUSH_PROMISE frames.) As the control stream carries multiple table updates, the control stream can also be identified in multiple frames.</p>
+<p id="rfc.section.2.2.p.4">Since header frames on each stream are received and processed in order, this gives the encoder precise feedback on which header blocks within a stream have been fully processed.</p>
 <h2 id="rfc.section.2.3">
 <a href="#rfc.section.2.3">2.3.</a> <a href="#request-streams" id="request-streams">Request Streams</a>
 </h2>
@@ -537,7 +542,7 @@ address {
    +---------------+
 </pre>
 <p class="figure">Figure 2: Absolute indexing (BLOCKING=0x0)</p>
-<p><a href="#overview-absolute" class="xref">Section 2.3.1.1</a> describes the role of <samp>Base Index</samp>.</p>
+<p><a href="#overview-absolute" class="xref">Section 2.3.2</a> describes the role of <samp>Base Index</samp>.</p>
 <p id="rfc.section.2.3.1.p.3">When the BLOCKING flag is 0x1, a the prefix additionally contains a second HPACK integer (8-bit prefix) &#8216;Depends&#8217;:</p>
 <div id="rfc.figure.3"></div>
 <div id="fig-prefix-long"></div>
@@ -551,42 +556,42 @@ address {
 </pre>
 <p class="figure">Figure 3: Absolute indexing (BLOCKING=0x1)</p>
 <p id="rfc.section.2.3.1.p.4">Depends is used to identify header dependencies (see <a href="#overview-hol-avoidance" class="xref">Section 1.2</a>).  The encoder computes a value <samp>Depends Index</samp> which is the largest (absolute) index referenced by the following header block.  To help keep the prefix smaller, <samp>Depends Index</samp> is converted to a relative value: <samp>Depends = Base Index - Depends Index</samp>.</p>
-<h4 id="rfc.section.2.3.1.1">
-<a href="#rfc.section.2.3.1.1">2.3.1.1.</a> <a href="#overview-absolute" id="overview-absolute">Hybrid absolute-relative indexing</a>
-</h4>
-<p id="rfc.section.2.3.1.1.p.1">HPACK indexed entries refer to an entry by its current position in the dynamic table.  As Figure 1 of <a href="#RFC7541" class="xref">[RFC7541]</a> illustrates, newer entries have smaller indices, and older entries are evicted first if the table is full.  Under this scheme, each insertion to the table causes the index of all existing entries to change (implicitly).  Implicit index updates are acceptable for HTTP/2 because TCP is totally ordered, but are problematic in the out-of-order context of QUIC.</p>
-<p id="rfc.section.2.3.1.1.p.2">QCRAM uses a hybrid absolute-relative indexing approach.</p>
-<p id="rfc.section.2.3.1.1.p.3">When the encoder adds a new entry to its header table, it can compute an absolute index:</p>
-<p><samp>entry.absoluteIndex = baseIndex++; </samp></p>
-<p id="rfc.section.2.3.1.1.p.5">Since literals with indexing are only sent on the control stream, the decoder can be guaranteed to compute the same absolute index values when it adds corresponding entries to its table, just as in HPACK and HTTP/2.</p>
-<p id="rfc.section.2.3.1.1.p.6">When encoding indexed representations, the following holds for (relative) HPACK indices:</p>
-<p><samp>relative index = baseIndex - entry.absoluteIndex + staticTable.size</samp></p>
-<p id="rfc.section.2.3.1.1.p.8">Header blocks on request and push streams do not modify the dynamic table state, so they never change the <samp>baseIndex</samp>.  However, since ordering between streams is not guaranteed, the value of <samp>baseIndex</samp> can not be synchronized implicitly.  Instead then, QCRAM sends encoder&#8217;s <samp>Base Index</samp> explicitly as part of the prefix (see <a href="#absolute-index" class="xref">Section 2.3.1</a>), so that the decoder can compute the same absolute indices that the encoder used:</p>
-<p><samp>absoluteIndex = prefix.baseIndex + staticTable.size - relativeIndex;</samp></p>
-<p id="rfc.section.2.3.1.1.p.10">In this way, even if request or push stream headers are decoded in a different order than encoded, the absolute indices will still identify the correct table entries.</p>
-<p id="rfc.section.2.3.1.1.p.11">It is an error if the HPACK decoder encounters an indexed representation that refers to an entry missing from the table, and the connection MUST be closed with the <samp>HTTP_HPACK_DECOMPRESSION_FAILED</samp> error code.</p>
 <h3 id="rfc.section.2.3.2">
-<a href="#rfc.section.2.3.2">2.3.2.</a> <a href="#instructions" id="instructions">Instructions</a>
+<a href="#rfc.section.2.3.2">2.3.2.</a> <a href="#overview-absolute" id="overview-absolute">Hybrid absolute-relative indexing</a>
 </h3>
-<h4 id="rfc.section.2.3.2.1">
-<a href="#rfc.section.2.3.2.1">2.3.2.1.</a> <a href="#indexed-header-field-representation" id="indexed-header-field-representation">Indexed Header Field Representation</a>
+<p id="rfc.section.2.3.2.p.1">HPACK indexed entries refer to an entry by its current position in the dynamic table.  As Figure 1 of <a href="#RFC7541" class="xref">[RFC7541]</a> illustrates, newer entries have smaller indices, and older entries are evicted first if the table is full.  Under this scheme, each insertion to the table causes the index of all existing entries to change (implicitly).  Implicit index updates are acceptable for HTTP/2 because TCP is totally ordered, but are problematic in the out-of-order context of QUIC.</p>
+<p id="rfc.section.2.3.2.p.2">QCRAM uses a hybrid absolute-relative indexing approach.</p>
+<p id="rfc.section.2.3.2.p.3">When the encoder adds a new entry to its header table, it can compute an absolute index:</p>
+<p><samp>entry.absoluteIndex = baseIndex++; </samp></p>
+<p id="rfc.section.2.3.2.p.5">Since literals with indexing are only sent on the control stream, the decoder can be guaranteed to compute the same absolute index values when it adds corresponding entries to its table, just as in HPACK and HTTP/2.</p>
+<p id="rfc.section.2.3.2.p.6">When encoding indexed representations, the following holds for (relative) HPACK indices:</p>
+<p><samp>relative index = baseIndex - entry.absoluteIndex + staticTable.size</samp></p>
+<p id="rfc.section.2.3.2.p.8">Header blocks on request and push streams do not modify the dynamic table state, so they never change the <samp>baseIndex</samp>.  However, since ordering between streams is not guaranteed, the value of <samp>baseIndex</samp> can not be synchronized implicitly.  Instead then, QCRAM sends encoder&#8217;s <samp>Base Index</samp> explicitly as part of the prefix (see <a href="#absolute-index" class="xref">Section 2.3.1</a>), so that the decoder can compute the same absolute indices that the encoder used:</p>
+<p><samp>absoluteIndex = prefix.baseIndex + staticTable.size - relativeIndex;</samp></p>
+<p id="rfc.section.2.3.2.p.10">In this way, even if request or push stream headers are decoded in a different order than encoded, the absolute indices will still identify the correct table entries.</p>
+<p id="rfc.section.2.3.2.p.11">It is an error if the HPACK decoder encounters an indexed representation that refers to an entry missing from the table, and the connection MUST be closed with the <samp>HTTP_HPACK_DECOMPRESSION_FAILED</samp> error code.</p>
+<h3 id="rfc.section.2.3.3">
+<a href="#rfc.section.2.3.3">2.3.3.</a> <a href="#instructions" id="instructions">Instructions</a>
+</h3>
+<h4 id="rfc.section.2.3.3.1">
+<a href="#rfc.section.2.3.3.1">2.3.3.1.</a> <a href="#indexed-header-field-representation" id="indexed-header-field-representation">Indexed Header Field Representation</a>
 </h4>
-<p id="rfc.section.2.3.2.1.p.1">An indexed header field representation identifies an entry in either the static table or the dynamic table and causes that header field to be added to the decoded header list, as described in Section 3.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>.</p>
+<p id="rfc.section.2.3.3.1.p.1">An indexed header field representation identifies an entry in either the static table or the dynamic table and causes that header field to be added to the decoded header list, as described in Section 3.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>.</p>
 <pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
 | 1 | S |      Index (6+)       |
-+---+---------------------------+
++---+---+-----------------------+
 </pre>
 <p class="figure">Indexed Header Field</p>
-<p id="rfc.section.2.3.2.1.p.2">An indexed header field starts with the &#8216;1&#8217; 1-bit pattern, followed by the <samp>S</samp> bit indicating whether the reference is into the static (S=1) or dynamic (S=0) table. Finally, the index of the matching header field is represented as an integer with a 6-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
-<p id="rfc.section.2.3.2.1.p.3">The index value of 0 is not used.  It MUST be treated as a decoding error if found in an indexed header field representation.</p>
-<h4 id="rfc.section.2.3.2.2">
-<a href="#rfc.section.2.3.2.2">2.3.2.2.</a> <a href="#literal-header-field-representation" id="literal-header-field-representation">Literal Header Field Representation</a>
+<p id="rfc.section.2.3.3.1.p.2">An indexed header field starts with the &#8216;1&#8217; 1-bit pattern, followed by the <samp>S</samp> bit indicating whether the reference is into the static (S=1) or dynamic (S=0) table. Finally, the index of the matching header field is represented as an integer with a 6-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
+<p id="rfc.section.2.3.3.1.p.3">The index value of 0 is not used.  It MUST be treated as a decoding error if found in an indexed header field representation.</p>
+<h4 id="rfc.section.2.3.3.2">
+<a href="#rfc.section.2.3.3.2">2.3.3.2.</a> <a href="#literal-header-field-representation" id="literal-header-field-representation">Literal Header Field Representation</a>
 </h4>
-<p id="rfc.section.2.3.2.2.p.1">A literal header field representation starts with the &#8216;0&#8217; 1-bit pattern and causes a header field to be added the decoded header list.</p>
-<p id="rfc.section.2.3.2.2.p.2">The second bit, &#8216;N&#8217;, indicates whether an intermediary is permitted to add this header to the dynamic header table on subsequent hops. When the &#8216;N&#8217; bit is set, the encoded header MUST always be encoded with this specific literal representation. In particular, when a peer sends a header field that it received represented as a literal header field with the &#8216;N&#8217; bit set, it MUST use the same representation to forward this header field.  This bit is intended for protecting header field values that are not to be put at risk by compressing them (see Section 7.1 of <a href="#RFC7541" class="xref">[RFC7541]</a> for more details).</p>
-<p id="rfc.section.2.3.2.2.p.3">If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header field name can be represented using the index of that entry. In this case, the <samp>S</samp> bit indicates whether the reference is to the static (S=1) or dynamic (S=0) table and the index of the entry is represented as an integer with an 5-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>). This value is always non-zero.</p>
+<p id="rfc.section.2.3.3.2.p.1">A literal header field representation starts with the &#8216;0&#8217; 1-bit pattern and causes a header field to be added the decoded header list.</p>
+<p id="rfc.section.2.3.3.2.p.2">The second bit, &#8216;N&#8217;, indicates whether an intermediary is permitted to add this header to the dynamic header table on subsequent hops. When the &#8216;N&#8217; bit is set, the encoded header MUST always be encoded with this specific literal representation. In particular, when a peer sends a header field that it received represented as a literal header field with the &#8216;N&#8217; bit set, it MUST use the same representation to forward this header field.  This bit is intended for protecting header field values that are not to be put at risk by compressing them (see Section 7.1 of <a href="#RFC7541" class="xref">[RFC7541]</a> for more details).</p>
+<p id="rfc.section.2.3.3.2.p.3">If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header field name can be represented using the index of that entry. In this case, the <samp>S</samp> bit indicates whether the reference is to the static (S=1) or dynamic (S=0) table and the index of the entry is represented as an integer with an 5-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>). Valid table indices are always non-zero; a table index of zero MUST be treated as a decoding error.</p>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -598,7 +603,7 @@ address {
    +-------------------------------+
 </pre>
 <p class="figure">Literal Header Field -- Indexed Name</p>
-<p id="rfc.section.2.3.2.2.p.4">Otherwise, the header field name is represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>). A value 0 is used in place of the 6-bit index, followed by the header field name.</p>
+<p id="rfc.section.2.3.3.2.p.4">Otherwise, the header field name is represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>). A value 0 is used in place of the 6-bit index, followed by the header field name.</p>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -614,15 +619,15 @@ address {
    +-------------------------------+
 </pre>
 <p class="figure">Literal Header Field -- Literal Name</p>
-<p id="rfc.section.2.3.2.2.p.5">Either form of header field name representation is followed by the header field value represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
+<p id="rfc.section.2.3.3.2.p.5">Either form of header field name representation is followed by the header field value represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
 <h1 id="rfc.section.3">
 <a href="#rfc.section.3">3.</a> <a href="#encoding-strategies" id="encoding-strategies">Encoding Strategies</a>
 </h1>
 <h2 id="rfc.section.3.1">
 <a href="#rfc.section.3.1">3.1.</a> <a href="#reference-tracking" id="reference-tracking">Reference Tracking</a>
 </h2>
-<p id="rfc.section.3.1.p.1">An encoder MUST ensure that an indexed representation is not received by the encoder after the referenced entry has already been evicted, and might wish to ensure that the decoder will not suffer head-of-line blocking when encoding particular references.</p>
-<p id="rfc.section.3.1.p.2">In order to enable this, the encoder MUST track outstanding (unacknowledged) header blocks on request streams and MAY track outstanding header blocks on the control stream.</p>
+<p id="rfc.section.3.1.p.1">An encoder MUST ensure that a header block which references a dynamic table entry is not received by the decoder after the referenced entry has already been evicted, and might wish to ensure that the decoder will not suffer head-of-line blocking when encoding particular references.</p>
+<p id="rfc.section.3.1.p.2">In order to enable this, the encoder MUST track outstanding (unacknowledged) header blocks and MAY track outstanding table updates.</p>
 <p id="rfc.section.3.1.p.3">When the encoder receives feedback from the decoder, it dereferences table entries that were indexed in the acknowledged header.  To track which entries must be dereferenced, it can maintain a map from unacknowledged headers to lists of (absolute) indices.  The simplest place to store the actual reference count might be the table entries.  In practice the number of entries in the table with a non-zero reference count is likely to stay quite small.  A data structure tracking only entries with non-zero reference counts, separate from the main header table, could be more space efficient.</p>
 <h3 id="rfc.section.3.1.1">
 <a href="#rfc.section.3.1.1">3.1.1.</a> <a href="#blocked-eviction" id="blocked-eviction">Blocked Eviction</a>
@@ -633,8 +638,8 @@ address {
 <h2 id="rfc.section.3.2">
 <a href="#rfc.section.3.2">3.2.</a> <a href="#blocked-decoding" id="blocked-decoding">Blocked Decoding</a>
 </h2>
-<p id="rfc.section.3.2.p.1">For header blocks encoded in non-blocking mode, the encoder needs to forego indexed representations that refer to vulnerable entries (see <a href="#overview-hol-avoidance" class="xref">Section 1.2</a>).  An implementation could extend the header table entry with a boolean to track vulnerability.  However, the number of entries in the table that are vulnerable is likely to be small in practice, much less than the total number of entries, so a data tracking only vulnerable (un-acknowledged) entries, separate from the main header table, might be more space efficient.</p>
-<p id="rfc.section.3.2.p.2">To track blocked streams, an ordered map (e.g. multi-map) from <samp>Depends Index</samp> values to streams can be used.  Whenever the decoder processes a header block on the control stream, it can drain any members of the blocked streams map that now have their dependencies satisfied.</p>
+<p id="rfc.section.3.2.p.1">For header blocks encoded in non-blocking mode, the encoder needs to forego indexed representations that refer to table updates which have not yet been acknowledged with <a href="#feedback" class="xref">Section 2.2</a>.  An implementation could extend the header table entry with a boolean to track acknowledgement state.  However, the number of entries in the table that are unacknowledged is likely to be small in practice, much less than the total number of entries, so tracking only un-acknowledged entries separate from the main header table might be more space efficient.</p>
+<p id="rfc.section.3.2.p.2">To track blocked streams, the necessary <samp>Depends Index</samp> values for each stream can be used.  Whenever the decoder processes a table update, it can begin decoding any blocked streams that now have their dependencies satisfied.</p>
 <h2 id="rfc.section.3.3">
 <a href="#rfc.section.3.3">3.3.</a> <a href="#speculative-updates" id="speculative-updates">Speculative table updates</a>
 </h2>
@@ -650,7 +655,7 @@ address {
 <h1 id="rfc.section.5">
 <a href="#rfc.section.5">5.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a>
 </h1>
-<p id="rfc.section.5.p.1">This document registers a new frame type, HEADER_ACK, for HTTP/QUIC. This will need to be added to the IANA Considerations of <a href="#QUIC-HTTP" class="xref">[QUIC-HTTP]</a>.</p>
+<p id="rfc.section.5.p.1">None.</p>
 <h1 id="rfc.references">
 <a href="#rfc.references">6.</a> References</h1>
 <h2 id="rfc.references.1">

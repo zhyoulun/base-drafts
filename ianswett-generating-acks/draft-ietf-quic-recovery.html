@@ -301,6 +301,7 @@ address {
 <link href="#rfc.section.3.3.3" rel="Chapter" title="3.3.3 Handshake Timeout">
 <link href="#rfc.section.3.4" rel="Chapter" title="3.4 Generating Acknowledgements">
 <link href="#rfc.section.3.4.1" rel="Chapter" title="3.4.1 Ack Ranges">
+<link href="#rfc.section.3.4.2" rel="Chapter" title="3.4.2 Receiver Tracking of ACK Frames">
 <link href="#rfc.section.3.5" rel="Chapter" title="3.5 Pseudocode">
 <link href="#rfc.section.3.5.1" rel="Chapter" title="3.5.1 Constants of interest">
 <link href="#rfc.section.3.5.2" rel="Chapter" title="3.5.2 Variables of interest">
@@ -351,7 +352,7 @@ address {
 
   <meta name="dct.creator" content="Iyengar, J., Ed. and I. Swett, Ed." />
   <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-quic-recovery-latest" />
-  <meta name="dct.issued" scheme="ISO8601" content="2018-02-25" />
+  <meta name="dct.issued" scheme="ISO8601" content="2018-02-27" />
   <meta name="dct.abstract" content="This document describes loss detection and congestion control mechanisms for QUIC." />
   <meta name="description" content="This document describes loss detection and congestion control mechanisms for QUIC." />
 
@@ -375,8 +376,8 @@ address {
 <td class="right">Google</td>
 </tr>
 <tr>
-<td class="left">Expires: August 29, 2018</td>
-<td class="right">February 25, 2018</td>
+<td class="left">Expires: August 31, 2018</td>
+<td class="right">February 27, 2018</td>
 </tr>
 
     	
@@ -395,7 +396,7 @@ address {
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at https://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on August 29, 2018.</p>
+<p>This Internet-Draft will expire on August 31, 2018.</p>
 <h1 id="rfc.copyrightnotice"><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
 <p>Copyright (c) 2018 IETF Trust and the persons identified as the document authors.  All rights reserved.</p>
 <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) in effect on the date of publication of this document.  Please review these documents carefully, as they describe your rights and restrictions with respect to this document.  Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</p>
@@ -442,6 +443,8 @@ address {
 </ul><li>3.4.   <a href="#rfc.section.3.4">Generating Acknowledgements</a>
 </li>
 <ul><li>3.4.1.   <a href="#rfc.section.3.4.1">Ack Ranges</a>
+</li>
+<li>3.4.2.   <a href="#rfc.section.3.4.2">Receiver Tracking of ACK Frames</a>
 </li>
 </ul><li>3.5.   <a href="#rfc.section.3.5">Pseudocode</a>
 </li>
@@ -670,17 +673,18 @@ address {
 </h2>
 <p id="rfc.section.3.4.p.1">QUIC SHOULD delay sending acknowledgements in response to packets, but MUST NOT excessively delay acknowledgements of packets containing non-ack frames.  Specifically, implementaions MUST attempt to enforce a maximum ack delay to avoid causing the peer spurious timeouts.  The default maximum ack delay in QUIC is 25ms.</p>
 <p id="rfc.section.3.4.p.2">An acknowledgement MAY be sent for every second full-sized segment, as TCP does <a href="#RFC5681" class="xref">[RFC5681]</a>, or may be sent less frequently, as long as the delay does not exceed the maximum ack delay.  QUIC recovery algorithms do not assume the peer generates an acknowledgement immediately when receiving a second full-sized segment.</p>
-<p id="rfc.section.3.4.p.3">Out-of-order packets SHOULD be acknowledged more quickly, in order to accelerate loss recovery.  The receiver SHOULD send an immediate ACK when it receives a packet that fills in a gap in the packet numbers if it has already acknowledged a larger packet number.  If it has not sent an acknowledgement for the larger packet and there are no other recent gaps, then it may revert to the standard delayed ack algorithm.</p>
+<p id="rfc.section.3.4.p.3">Out-of-order packets SHOULD be acknowledged more quickly, in order to accelerate loss recovery.  Specifically, the receiver SHOULD send an immediate ACK when it receieves a packet with a packet number more than 1 larger than the previous largest received packet number. The receiver SHOULD also send an immediate ACK when it receives a packet that fills in a gap in the packet numbers.  If no packet larger than the packet that fills a gap has been acknowledged, then the peer will not invoke fast recovery and it may use the standard delayed ack algorithm.  This circumstance may arise from delaying ack transmission when processing multiple packets.</p>
 <h3 id="rfc.section.3.4.1">
 <a href="#rfc.section.3.4.1">3.4.1.</a> <a href="#ack-ranges" id="ack-ranges">Ack Ranges</a>
 </h3>
-<p id="rfc.section.3.4.1.p.1">When an ACK frame is sent, one or more ranges of acknowledged packets may be included.  Including older packets reduces the chances previous ACK frames were lost, causing spurious retransmits, at the cost of larger acks.</p>
-<p id="rfc.section.3.4.1.p.2">ACK frames SHOULD always acknowledge the most recently received packets, and the more out of order packets are, the more important it is to send an updated ACK frame quickly, in order to prevent the peer from declaring a packet as lost.</p>
+<p id="rfc.section.3.4.1.p.1">When an ACK frame is sent, one or more ranges of acknowledged packets are included.  Including older packets reduces the chance of spurious retransmits caused by losing previously sent ACK frames, at the cost of larger ACK frames.</p>
+<p id="rfc.section.3.4.1.p.2">ACK frames SHOULD always acknowledge the most recently received packets, and the more out-of-order the packets are, the more important it is to send an updated ACK frame quickly, to prevent the peer from declaring a packet as lost and spuriusly retransmitting the frames it contains.</p>
 <p id="rfc.section.3.4.1.p.3">Below is one recommended approach for determining what packets to include in an ACK frame.</p>
-<h4 id="rfc.section.3.4.1.1">
-<a href="#rfc.section.3.4.1.1">3.4.1.1.</a> <a href="#track-the-most-recently-acknowledged-ack-frame" id="track-the-most-recently-acknowledged-ack-frame">Track the most recently acknowledged ACK frame</a>
-</h4>
-<p id="rfc.section.3.4.1.1.p.1">When a packet containing an ACK frame is sent, the largest acked in that frame is saved.  When a packet containing an ACK frame is acknowledged, the receiver stops acknowledging packets less than or equal to the largest acked in the sent ACK frame.  This approach is not sensitive to packet loss and allows for over 1 round trip of reordering.</p>
+<h3 id="rfc.section.3.4.2">
+<a href="#rfc.section.3.4.2">3.4.2.</a> <a href="#receiver-tracking-of-ack-frames" id="receiver-tracking-of-ack-frames">Receiver Tracking of ACK Frames</a>
+</h3>
+<p id="rfc.section.3.4.2.p.1">When a packet containing an ACK frame is sent, the largest acked in that frame may be saved.  When a packet containing an ACK frame is acknowledged, the receiver can stop acknowledging packets less than or equal to the largest acked in the sent ACK frame.</p>
+<p id="rfc.section.3.4.2.p.2">This approach does not guarantee every acknowledgement is seen by the sender before it is no longer included in the ack frame, because packets could be received out of order and all subsequent ACK frames containing them could be lost.  It does guarantee the sender is making forward progress and allows for a minumum of one RTT of reordering in cases without ACK frame loss.</p>
 <h2 id="rfc.section.3.5">
 <a href="#rfc.section.3.5">3.5.</a> <a href="#pseudocode" id="pseudocode">Pseudocode</a>
 </h2>

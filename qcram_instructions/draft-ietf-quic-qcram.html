@@ -608,7 +608,7 @@ address {
 <a href="#rfc.section.2.4.3">2.4.3.</a> <a href="#instructions" id="instructions">Instructions</a>
 </h3>
 <h4 id="rfc.section.2.4.3.1">
-<a href="#rfc.section.2.4.3.1">2.4.3.1.</a> <a href="#indexed-header-field-representation" id="indexed-header-field-representation">Indexed Header Field Representation</a>
+<a href="#rfc.section.2.4.3.1">2.4.3.1.</a> <a href="#indexed-header-field" id="indexed-header-field">Indexed Header Field</a>
 </h4>
 <p id="rfc.section.2.4.3.1.p.1">An indexed header field representation identifies an entry in either the static table or the dynamic table and causes that header field to be added to the decoded header list, as described in Section 3.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>.</p>
 <pre>
@@ -621,30 +621,33 @@ address {
 <p id="rfc.section.2.4.3.1.p.2">An indexed header field starts with the &#8216;1&#8217; 1-bit pattern, followed by the <samp>S</samp> bit indicating whether the reference is into the static (S=1) or dynamic (S=0) table. Finally, the index of the matching header field is represented as an integer with a 6-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
 <p id="rfc.section.2.4.3.1.p.3">The index value of 0 is not used.  It MUST be treated as a decoding error if found in an indexed header field representation.</p>
 <h4 id="rfc.section.2.4.3.2">
-<a href="#rfc.section.2.4.3.2">2.4.3.2.</a> <a href="#literal-header-field-representation" id="literal-header-field-representation">Literal Header Field Representation</a>
+<a href="#rfc.section.2.4.3.2">2.4.3.2.</a> <a href="#literal-header-field-with-name-reference" id="literal-header-field-with-name-reference">Literal Header Field With Name Reference</a>
 </h4>
-<p id="rfc.section.2.4.3.2.p.1">A literal header field representation starts with the &#8216;0&#8217; 1-bit pattern and causes a header field to be added the decoded header list.</p>
-<p id="rfc.section.2.4.3.2.p.2">The second bit, &#8216;N&#8217;, indicates whether an intermediary is permitted to add this header to the dynamic header table on subsequent hops. When the &#8216;N&#8217; bit is set, the encoded header MUST always be encoded with this specific literal representation. In particular, when a peer sends a header field that it received represented as a literal header field with the &#8216;N&#8217; bit set, it MUST use the same representation to forward this header field.  This bit is intended for protecting header field values that are not to be put at risk by compressing them (see Section 7.1 of <a href="#RFC7541" class="xref">[RFC7541]</a> for more details).</p>
-<p id="rfc.section.2.4.3.2.p.3">If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header field name can be represented using the index of that entry. In this case, the <samp>S</samp> bit indicates whether the reference is to the static (S=1) or dynamic (S=0) table and the index of the entry is represented as an integer with an 5-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>). Valid table indices are always non-zero; a table index of zero MUST be treated as a decoding error.</p>
+<p id="rfc.section.2.4.3.2.p.1">A header where the header field name matches the header field name of an entry stored in the static table or the dynamic table starts with the &#8216;00&#8217; two-bit pattern.</p>
+<p id="rfc.section.2.4.3.2.p.2">The third bit, &#8216;N&#8217;, indicates whether an intermediary is permitted to add this header to the dynamic header table on subsequent hops. When the &#8216;N&#8217; bit is set, the encoded header MUST always be encoded with a literal representation. In particular, when a peer sends a header field that it received represented as a literal header field with the &#8216;N&#8217; bit set, it MUST use a literal representation to forward this header field.  This bit is intended for protecting header field values that are not to be put at risk by compressing them (see Section 7.1 of <a href="#RFC7541" class="xref">[RFC7541]</a> for more details).</p>
+<p id="rfc.section.2.4.3.2.p.3">The header field name is represented using the index of that entry, which is represented as an integer with a 4-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).  The <samp>S</samp> bit indicates whether the reference is to the static (S=1) or dynamic (S=0) table.  Table indices are always non-zero; a zero index MUST be treated as a decoding error.</p>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
-   | 0 | N | S |  Name Index (5+)  |
+   | 0 | 0 | N | S |Name Index (4+)|
    +---+---+-----------------------+
    | H |     Value Length (7+)     |
    +---+---------------------------+
    | Value String (Length octets)  |
    +-------------------------------+
 </pre>
-<p class="figure">Literal Header Field -- Indexed Name</p>
-<p id="rfc.section.2.4.3.2.p.4">Otherwise, the header field name is represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>). A value 0 is used in place of the 6-bit index, followed by the header field name.</p>
+<p class="figure">Literal Header Field With Name Reference</p>
+<h4 id="rfc.section.2.4.3.3">
+<a href="#rfc.section.2.4.3.3">2.4.3.3.</a> <a href="#literal-header-field-without-name-reference" id="literal-header-field-without-name-reference">Literal Header Field Without Name Reference</a>
+</h4>
+<p id="rfc.section.2.4.3.3.p.1">An addition to the header table where both the header field name and the header field value are represented as string literals (see <a href="#primitives" class="xref">Section 2.1</a>) starts with the &#8216;01&#8217; two-bit pattern.</p>
+<p id="rfc.section.2.4.3.3.p.2">The third bit, &#8216;N&#8217;, indicates whether an intermediary is permitted to add this header to the dynamic header table on subsequent hops. When the &#8216;N&#8217; bit is set, the encoded header MUST always be encoded with a literal representation. In particular, when a peer sends a header field that it received represented as a literal header field with the &#8216;N&#8217; bit set, it MUST use a literal representation to forward this header field.  This bit is intended for protecting header field values that are not to be put at risk by compressing them (see Section 7.1 of <a href="#RFC7541" class="xref">[RFC7541]</a> for more details).</p>
+<p id="rfc.section.2.4.3.3.p.3">The name is represented as a 5-bit prefix string literal, while the value is represented as an 8-bit prefix string literal.</p>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
-   | 0 | N |           0           |
-   +---+---+-----------------------+
-   | H |     Name Length (7+)      |
-   +---+---------------------------+
+   | 0 | 1 | N | H |Name Length(4+)|
+   +---+---+---+-------------------+
    |  Name String (Length octets)  |
    +---+---------------------------+
    | H |     Value Length (7+)     |
@@ -652,8 +655,7 @@ address {
    | Value String (Length octets)  |
    +-------------------------------+
 </pre>
-<p class="figure">Literal Header Field -- Literal Name</p>
-<p id="rfc.section.2.4.3.2.p.5">Either form of header field name representation is followed by the header field value represented as a string literal (see Section 5.2 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
+<p class="figure">Literal Header Field Without Name Reference</p>
 <h1 id="rfc.section.3">
 <a href="#rfc.section.3">3.</a> <a href="#encoding-strategies" id="encoding-strategies">Encoding Strategies</a>
 </h1>

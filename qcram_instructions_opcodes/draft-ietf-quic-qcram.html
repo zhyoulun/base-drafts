@@ -291,6 +291,7 @@ address {
 <link href="#rfc.section.2.2.1" rel="Chapter" title="2.2.1 Insert With Name Reference">
 <link href="#rfc.section.2.2.2" rel="Chapter" title="2.2.2 Insert Without Name Reference">
 <link href="#rfc.section.2.2.3" rel="Chapter" title="2.2.3 Duplicate">
+<link href="#rfc.section.2.2.4" rel="Chapter" title="2.2.4 Dynamic Table Size Update">
 <link href="#rfc.section.2.3" rel="Chapter" title="2.3 HEADER_ACK Frames">
 <link href="#rfc.section.2.4" rel="Chapter" title="2.4 Request Streams">
 <link href="#rfc.section.2.4.1" rel="Chapter" title="2.4.1 Index Encoding">
@@ -311,7 +312,7 @@ address {
 <link href="#rfc.authors" rel="Chapter">
 
 
-  <meta name="generator" content="xml2rfc version 2.9.4 - https://tools.ietf.org/tools/xml2rfc" />
+  <meta name="generator" content="xml2rfc version 2.9.6 - https://tools.ietf.org/tools/xml2rfc" />
   <link rel="schema.dct" href="http://purl.org/dc/terms/" />
 
   <meta name="dct.creator" content="Krasic, C., Bishop, M., and A. Frindell, Ed." />
@@ -399,6 +400,8 @@ address {
 <li>2.2.2.   <a href="#rfc.section.2.2.2">Insert Without Name Reference</a>
 </li>
 <li>2.2.3.   <a href="#rfc.section.2.2.3">Duplicate</a>
+</li>
+<li>2.2.4.   <a href="#rfc.section.2.2.4">Dynamic Table Size Update</a>
 </li>
 </ul><li>2.3.   <a href="#rfc.section.2.3">HEADER_ACK Frames</a>
 </li>
@@ -522,17 +525,33 @@ address {
 <h3 id="rfc.section.2.2.3">
 <a href="#rfc.section.2.2.3">2.2.3.</a> <a href="#indexed-duplicate" id="indexed-duplicate">Duplicate</a>
 </h3>
-<p id="rfc.section.2.2.3.p.1">Duplication of an existing entry in the dynamic table starts with the &#8216;00&#8217; two-bit pattern.  The index of the existing entry is represented as an integer with a 6-bit prefix. Table indices are always non-zero; a table index of zero MUST be treated as a decoding error.</p>
+<p id="rfc.section.2.2.3.p.1">Duplication of an existing entry in the dynamic table starts with the &#8216;000&#8217; three-bit pattern.  The index of the existing entry is represented as an integer with a 5-bit prefix. Table indices are always non-zero; a table index of zero MUST be treated as a decoding error.</p>
 <div id="rfc.figure.1"></div>
 <div id="fig-index-with-duplication"></div>
 <pre>
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
-   | 0 | 0 |      Index (6+)       |
+   | 0 | 0 | 0 |    Index (5+)     |
    +---+---------------------------+
 </pre>
 <p class="figure">Figure 1: Duplicate</p>
 <p id="rfc.section.2.2.3.p.2">The existing entry is re-inserted into the dynamic table without resending either the name or the value. This is useful to mitigate the eviction of older entries which are frequently referenced, both to avoid the need to resend the header and to avoid the entry in the table blocking the ability to insert new headers.</p>
+<h3 id="rfc.section.2.2.4">
+<a href="#rfc.section.2.2.4">2.2.4.</a> <a href="#dynamic-table-size-update" id="dynamic-table-size-update">Dynamic Table Size Update</a>
+</h3>
+<p id="rfc.section.2.2.4.p.1">A dynamic table size update signals a change to the size of the dynamic table.</p>
+<div id="rfc.figure.2"></div>
+<div id="fig-size-change"></div>
+<pre>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 |   Max size (5+)   |
++---+---------------------------+
+</pre>
+<p class="figure">Figure 2: Maximum Dynamic Table Size Change</p>
+<p id="rfc.section.2.2.4.p.2">A dynamic table size update starts with the &#8216;001&#8217; 3-bit pattern, followed by the new maximum size, represented as an integer with a 5-bit prefix (see Section 5.1 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
+<p id="rfc.section.2.2.4.p.3">The new maximum size MUST be lower than or equal to the limit determined by the protocol using QCRAM.  A value that exceeds this limit MUST be treated as a decoding error.  In HTTP/QUIC, this limit is the value of the SETTINGS_HEADER_TABLE_SIZE parameter (see <a href="#QUIC-HTTP" class="xref">[QUIC-HTTP]</a>) received from the decoder.</p>
+<p id="rfc.section.2.2.4.p.4">Reducing the maximum size of the dynamic table can cause entries to be evicted (see Section 4.3 of <a href="#RFC7541" class="xref">[RFC7541]</a>).</p>
 <h2 id="rfc.section.2.3">
 <a href="#rfc.section.2.3">2.3.</a> <a href="#feedback" id="feedback">HEADER_ACK Frames</a>
 </h2>
@@ -548,7 +567,7 @@ address {
 <a href="#rfc.section.2.4.1">2.4.1.</a> <a href="#absolute-index" id="absolute-index">Index Encoding</a>
 </h3>
 <p id="rfc.section.2.4.1.p.1">Header data is prefixed by an integer: <samp>Base Index</samp>.  <samp>Base index</samp> is the cumulative number of entries added to the dynamic table prior to encoding the current block, including any entries already evicted.  It is encoded as a single 8-bit prefix integer:</p>
-<div id="rfc.figure.2"></div>
+<div id="rfc.figure.3"></div>
 <div id="fig-base-index"></div>
 <pre>
     0 1 2 3 4 5 6 7
@@ -556,10 +575,10 @@ address {
    |Base Index (8+)|
    +---------------+
 </pre>
-<p class="figure">Figure 2: Absolute indexing (BLOCKING=0x0)</p>
+<p class="figure">Figure 3: Absolute indexing (BLOCKING=0x0)</p>
 <p><a href="#overview-absolute" class="xref">Section 2.4.2</a> describes the role of <samp>Base Index</samp>.</p>
 <p id="rfc.section.2.4.1.p.3">When the BLOCKING flag is 0x1, a the prefix additionally contains a second HPACK integer (8-bit prefix) &#8216;Depends&#8217;:</p>
-<div id="rfc.figure.3"></div>
+<div id="rfc.figure.4"></div>
 <div id="fig-prefix-long"></div>
 <pre>
     0 1 2 3 4 5 6 7
@@ -569,7 +588,7 @@ address {
    |Depends    (8+)|
    +---------------+
 </pre>
-<p class="figure">Figure 3: Absolute indexing (BLOCKING=0x1)</p>
+<p class="figure">Figure 4: Absolute indexing (BLOCKING=0x1)</p>
 <p id="rfc.section.2.4.1.p.4">Depends is used to identify header dependencies (see <a href="#overview-hol-avoidance" class="xref">Section 1.2</a>).  The encoder computes a value <samp>Depends Index</samp> which is the largest (absolute) index referenced by the following header block.  To help keep the prefix smaller, <samp>Depends Index</samp> is converted to a relative value: <samp>Depends = Base Index - Depends Index</samp>.</p>
 <h3 id="rfc.section.2.4.2">
 <a href="#rfc.section.2.4.2">2.4.2.</a> <a href="#overview-absolute" id="overview-absolute">Hybrid absolute-relative indexing</a>

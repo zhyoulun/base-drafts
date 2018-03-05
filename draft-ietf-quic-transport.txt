@@ -623,7 +623,7 @@ Internet-Draft           QUIC Transport Protocol              March 2018
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+
-   |0|C|K| Type (5)|
+   |0|C|K|1|0|T T T|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                                                               |
    +                     [Connection ID (64)]                      +
@@ -654,7 +654,31 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       protection keys that are used to protect the packet.  See
       [QUIC-TLS] for details.
 
-   Short Packet Type:  The remaining 5 bits of octet 0 include one of 32
+   [[Editor's Note: this section should be removed and the bit
+   definitions changed before this draft goes to the IESG.]]
+
+   Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
+
+   [[Editor's Note: this section should be removed and the bit
+   definitions changed before this draft goes to the IESG.]]
+
+   Google QUIC Demultipexing Bit:  The fifth bit (0x8) of octet 0 is set
+      to 0.  This allows implementations of Google QUIC to distinguish
+      Google QUIC packets from short header packets sent by a client
+      because Google QUIC servers expect the connection ID to always be
+
+
+
+Iyengar & Thomson       Expires September 6, 2018              [Page 12]
+
+Internet-Draft           QUIC Transport Protocol              March 2018
+
+
+      present.  The special interpretation of this bit SHOULD be removed
+      from this specification when Google QUIC has finished
+      transitioning to the new header format.
+
+   Short Packet Type:  The remaining 3 bits of octet 0 include one of 8
       packet types.  Table 2 lists the types that are defined for short
       packets.
 
@@ -666,14 +690,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       packet type.  This field can be 1, 2 or 4 octets long depending on
       the short packet type.
 
-
-
-
-Iyengar & Thomson       Expires September 6, 2018              [Page 12]
-
-Internet-Draft           QUIC Transport Protocol              March 2018
-
-
    Protected Payload:  Packets with a short header always include a
       1-RTT protected payload.
 
@@ -684,11 +700,11 @@ Internet-Draft           QUIC Transport Protocol              March 2018
                        +------+--------------------+
                        | Type | Packet Number Size |
                        +------+--------------------+
-                       | 0x1F | 1 octet            |
+                       | 0x0  | 1 octet            |
                        |      |                    |
-                       | 0x1E | 2 octets           |
+                       | 0x1  | 2 octets           |
                        |      |                    |
-                       | 0x1D | 4 octets           |
+                       | 0x2  | 4 octets           |
                        +------+--------------------+
 
                     Table 2: Short Header Packet Types
@@ -707,28 +723,18 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    be identified as a Version Negotiation packet based on the Version
    field.
 
-   The Version Negotiation packet is a response to a client packet that
-   contains a version that is not supported by the server, and is only
-   sent by servers.
-
-   The layout of a Version Negotiation packet is:
-
-
-
-
-
-
-
-
-
-
-
 
 
 Iyengar & Thomson       Expires September 6, 2018              [Page 13]
 
 Internet-Draft           QUIC Transport Protocol              March 2018
 
+
+   The Version Negotiation packet is a response to a client packet that
+   contains a version that is not supported by the server, and is only
+   sent by servers.
+
+   The layout of a Version Negotiation packet is:
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -773,12 +779,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    carried in Initial (Section 5.4.1), Retry (Section 5.4.2) and
    Handshake (Section 5.4.3) packets.
 
-   All these packets use the long header and contain the current QUIC
-   version in the version field.
-
-   In order to prevent tampering by version-unaware middleboxes,
-   handshake packets are protected with a connection- and version-
-
 
 
 Iyengar & Thomson       Expires September 6, 2018              [Page 14]
@@ -786,6 +786,11 @@ Iyengar & Thomson       Expires September 6, 2018              [Page 14]
 Internet-Draft           QUIC Transport Protocol              March 2018
 
 
+   All these packets use the long header and contain the current QUIC
+   version in the version field.
+
+   In order to prevent tampering by version-unaware middleboxes,
+   handshake packets are protected with a connection- and version-
    specific key, as described in [QUIC-TLS].  This protection does not
    provide confidentiality or integrity against on-path attackers, but
    provides some level of protection against off-path attackers.
@@ -828,12 +833,7 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    ID field.  The client MUST use this connection ID for any subsequent
    packets that it sends.
 
-   The packet number field echoes the packet number field from the
-   triggering client packet.
 
-   A Retry packet is never explicitly acknowledged in an ACK frame by a
-   client.  Receiving another Initial packet implicitly acknowledges a
-   Retry packet.
 
 
 
@@ -841,6 +841,13 @@ Iyengar & Thomson       Expires September 6, 2018              [Page 15]
 
 Internet-Draft           QUIC Transport Protocol              March 2018
 
+
+   The packet number field echoes the packet number field from the
+   triggering client packet.
+
+   A Retry packet is never explicitly acknowledged in an ACK frame by a
+   client.  Receiving another Initial packet implicitly acknowledges a
+   Retry packet.
 
    After receiving a Retry packet, the client uses a new Initial packet
    containing the next cryptographic handshake message.  The client
@@ -882,14 +889,7 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    Servers MUST NOT send more than three Handshake packets without
    receiving a packet from a verified source address.  Source addresses
    can be verified through an address validation token, receipt of the
-   final cryptographic message from the client, or by receiving a valid
-   PATH_RESPONSE frame from the client.
 
-   If the server expects to generate more than three Handshake packets
-   in response to an Initial packet, it SHOULD include a PATH_CHALLENGE
-   frame in each Handshake packet that it sends.  After receiving at
-   least one valid PATH_RESPONSE frame, the server can send its
-   remaining Handshake packets.  Servers can instead perform address
 
 
 
@@ -898,6 +898,14 @@ Iyengar & Thomson       Expires September 6, 2018              [Page 16]
 Internet-Draft           QUIC Transport Protocol              March 2018
 
 
+   final cryptographic message from the client, or by receiving a valid
+   PATH_RESPONSE frame from the client.
+
+   If the server expects to generate more than three Handshake packets
+   in response to an Initial packet, it SHOULD include a PATH_CHALLENGE
+   frame in each Handshake packet that it sends.  After receiving at
+   least one valid PATH_RESPONSE frame, the server can send its
+   remaining Handshake packets.  Servers can instead perform address
    validation using a Retry packet; this requires less state on the
    server, but could involve additional computational effort depending
    on implementation choices.
@@ -938,14 +946,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    long headers contain a Connection ID.  Short headers indicate the
    presence of a Connection ID using the Omit Connection ID flag.  When
    present, the Connection ID is in the same location in all packet
-   headers, making it straightforward for middleboxes, such as load
-   balancers, to locate and use it.
-
-   The client MUST choose a random connection ID and use it in Initial
-   packets (Section 5.4.1) and 0-RTT packets (Section 5.5).
-
-   When the server receives a Initial packet and decides to proceed with
-   the handshake, it chooses a new value for the connection ID and sends
 
 
 
@@ -954,6 +954,14 @@ Iyengar & Thomson       Expires September 6, 2018              [Page 17]
 Internet-Draft           QUIC Transport Protocol              March 2018
 
 
+   headers, making it straightforward for middleboxes, such as load
+   balancers, to locate and use it.
+
+   The client MUST choose a random connection ID and use it in Initial
+   packets (Section 5.4.1) and 0-RTT packets (Section 5.5).
+
+   When the server receives a Initial packet and decides to proceed with
+   the handshake, it chooses a new value for the connection ID and sends
    that in a Retry (Section 5.4.2) or Handshake (Section 5.4.3) packet.
    The server MAY choose to use the value that the client initially
    selects.
@@ -995,14 +1003,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    then a packet containing a 16-bit value of 0x1f94 will be decoded as
    0xaa831f94.
 
-   The sender MUST use a packet number size able to represent more than
-   twice as large a range than the difference between the largest
-   acknowledged packet and packet number being sent.  A peer receiving
-   the packet will then correctly decode the packet number, unless the
-   packet is delayed in transit such that it arrives after many higher-
-   numbered packets have been received.  An endpoint SHOULD use a large
-   enough packet number encoding to allow the packet number to be
-
 
 
 Iyengar & Thomson       Expires September 6, 2018              [Page 18]
@@ -1010,6 +1010,13 @@ Iyengar & Thomson       Expires September 6, 2018              [Page 18]
 Internet-Draft           QUIC Transport Protocol              March 2018
 
 
+   The sender MUST use a packet number size able to represent more than
+   twice as large a range than the difference between the largest
+   acknowledged packet and packet number being sent.  A peer receiving
+   the packet will then correctly decode the packet number, unless the
+   packet is delayed in transit such that it arrives after many higher-
+   numbered packets have been received.  An endpoint SHOULD use a large
+   enough packet number encoding to allow the packet number to be
    recovered even if the packet arrives after packets that are sent
    afterwards.
 
@@ -1050,13 +1057,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    The payload of all packets, after removing packet protection,
    consists of a sequence of frames, as shown in Figure 4.  Version
    Negotiation and Stateless Reset do not contain frames.
-
-
-
-
-
-
-
 
 
 

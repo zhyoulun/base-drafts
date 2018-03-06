@@ -526,14 +526,16 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |1|   Type (7)  |DCIL(4)|SCIL(4)|
+   +-+-+-+-+-+-+-+-+
+   |1|   Type (7)  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Version (32)                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |DCIL(4)|SCIL(4)|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |               Destination Connection ID (0/64..176)         ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                 Source Connection ID (0/64..176)            ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                         Version (32)                          |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                       Packet Number (32)                      |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -555,8 +557,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
 
 
-
-
 Iyengar & Thomson       Expires September 7, 2018              [Page 10]
 
 Internet-Draft           QUIC Transport Protocol              March 2018
@@ -565,6 +565,10 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    Long Packet Type:  The remaining seven bits of octet 0 contain the
       packet type.  This field can indicate one of 128 packet types.
       The types specified for this version are listed in Table 1.
+
+   Version:  The QUIC Version is a 32-bit field that follows the Type.
+      This field indicates which version of QUIC is in use and
+      determines how the rest of the protocol fields are interpreted.
 
    DCIL and SCIL:  Octet 1 contains the lengths of the two connection ID
       fields that follow it.  These lengths are encoded as two 4-bit
@@ -587,13 +591,9 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       2 and is either 0 octets in length or between 8 and 22 octets.
       Section 5.6 describes the use of this field in more detail.
 
-   Version:  The QUIC Version is a 32-bit field that follows the Source
-      Connection ID.  This field indicates which version of QUIC is in
-      use and determines how the rest of the protocol fields are
-      interpreted.
-
    Packet Number:  The Packet Number is a 32-bit field that follows the
-      Version.  Section 5.7 describes the use of packet numbers.
+      two connection IDs.  Section 5.7 describes the use of packet
+      numbers.
 
    Payload:  All remaining octets in the packet are the payload of the
       packet.
@@ -718,10 +718,10 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 5.3.  Version Negotiation Packet
 
    A Version Negotiation packet is inherently not version-specific, and
-   does not use the packet headers defined above.  Upon receipt by a
-   client, it will appear to be a packet using the long header, but will
-   be identified as a Version Negotiation packet based on the Version
-   field.
+   does not use the long packet header (see Section 5.1.  Upon receipt
+   by a client, it will appear to be a packet using the long header, but
+   will be identified as a Version Negotiation packet based on the
+   Version field having a value of 0.
 
 
 
@@ -738,14 +738,16 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |1|  Unused (7) |DCIL(4)|SCIL(4)|
+   +-+-+-+-+-+-+-+-+
+   |1|  Unused (7) |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          Version (32)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |DCIL(4)|SCIL(4)|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |               Destination Connection ID (0/64..176)         ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                 Source Connection ID (0/64..176)            ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                          Version (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                    Supported Version 1 (32)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -760,6 +762,9 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
    The value in the Unused field is selected randomly by the server.
 
+   The Version field of a Version Negotiation packet MUST be set to
+   0x00000000.
+
    The server MUST include the value from the Source Connection ID field
    of the packet it receives in the Destination Connection ID field.
    The value for Source Connection ID MUST be copied from the
@@ -769,15 +774,10 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    the Version Negotiation packet was not generated by an off-path
    attacker.
 
-   The Version field of a Version Negotiation packet MUST be set to
-   0x00000000.
-
    The remainder of the Version Negotiation packet is a list of 32-bit
    versions which the server supports.
 
-   A Version Negotiation packet cannot be explicitly acknowledged in an
-   ACK frame by a client.  Receiving another Initial packet implicitly
-   acknowledges a Version Negotiation packet.
+
 
 
 
@@ -785,6 +785,10 @@ Iyengar & Thomson       Expires September 7, 2018              [Page 14]
 
 Internet-Draft           QUIC Transport Protocol              March 2018
 
+
+   A Version Negotiation packet cannot be explicitly acknowledged in an
+   ACK frame by a client.  Receiving another Initial packet implicitly
+   acknowledges a Version Negotiation packet.
 
    See Section 7.2 for a description of the version negotiation process.
 
@@ -830,10 +834,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    offset of 0 (see Section 7.5) and the complete cryptographic
    handshake message MUST fit in a single packet (see Section 7.3).
 
-   The client uses the Initial packet type for any packet that contains
-   an initial cryptographic handshake message.  This includes all cases
-   where a new packet containing the initial cryptographic message needs
-
 
 
 
@@ -842,6 +842,9 @@ Iyengar & Thomson       Expires September 7, 2018              [Page 15]
 Internet-Draft           QUIC Transport Protocol              March 2018
 
 
+   The client uses the Initial packet type for any packet that contains
+   an initial cryptographic handshake message.  This includes all cases
+   where a new packet containing the initial cryptographic message needs
    to be created, this includes the packets sent after receiving a
    Version Negotiation (Section 5.3) or Retry packet (Section 5.4.2).
 
@@ -887,9 +890,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    stateless retry material.  It MUST NOT contain any other frames.  The
    next STREAM frame sent by the server will also start at stream offset
    0.
-
-
-
 
 
 

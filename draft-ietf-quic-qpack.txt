@@ -11,12 +11,12 @@ Expires: September 13, 2018                          Akamai Technologies
                                                           March 12, 2018
 
 
-                 Header Compression for HTTP over QUIC
-                      draft-ietf-quic-qcram-latest
+              QPACK: Header Compression for HTTP over QUIC
+                      draft-ietf-quic-qpack-latest
 
 Abstract
 
-   This specification defines QCRAM, a compression format for
+   This specification defines QPACK, a compression format for
    efficiently representing HTTP header fields, to be used in HTTP over
    QUIC.  This is a variation of HPACK header compression that seeks to
    reduce head-of-line blocking.
@@ -29,7 +29,7 @@ Note to Readers
 
    Working Group information can be found at https://github.com/quicwg
    [2]; source code and issues list for this draft can be found at
-   https://github.com/quicwg/base-drafts/labels/-qcram [3].
+   https://github.com/quicwg/base-drafts/labels/-qpack [3].
 
 Status of This Memo
 
@@ -55,7 +55,7 @@ Status of This Memo
 
 Krasic, et al.         Expires September 13, 2018               [Page 1]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 Copyright Notice
@@ -111,7 +111,7 @@ Table of Contents
 
 Krasic, et al.         Expires September 13, 2018               [Page 2]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    header compression.  A key goal of the design of QUIC is to improve
@@ -132,14 +132,14 @@ Internet-Draft                    QCRAM                       March 2018
    [RFC7540].  The description of HPACK is [RFC7541], with important
    terminology in Section 1.3.
 
-   QCRAM modifies HPACK to allow correctness in the presence of out-of-
+   QPACK modifies HPACK to allow correctness in the presence of out-of-
    order delivery, with flexibility for implementations to balance
    between resilience against HoL blocking and optimal compression
    ratio.  The design goals are to closely approach the compression
    ratio of HPACK with substantially less head-of-line blocking under
    the same loss conditions.
 
-   QCRAM is intended to be a relatively non-intrusive extension to
+   QPACK is intended to be a relatively non-intrusive extension to
    HPACK; an implementation should be easily shared within stacks
    supporting both HTTP/2 over (TLS+)TCP and HTTP/QUIC.
 
@@ -167,7 +167,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 3]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    references are called "vulnerable," because the loss of a different
@@ -223,7 +223,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 4]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.2.  Header Block Prefix
@@ -272,14 +272,14 @@ Internet-Draft                    QCRAM                       March 2018
    totally ordered, but are problematic in the out-of-order context of
    QUIC.
 
-   QCRAM uses a hybrid absolute-relative indexing approach.
+   QPACK uses a hybrid absolute-relative indexing approach.
 
 
 
 
 Krasic, et al.         Expires September 13, 2018               [Page 5]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    When the encoder adds a new entry to its header table, it can compute
@@ -300,7 +300,7 @@ Internet-Draft                    QCRAM                       March 2018
    Header blocks on request and push streams do not modify the dynamic
    table state, so they never change the "baseIndex".  However, since
    ordering between streams is not guaranteed, the value of "baseIndex"
-   can not be synchronized implicitly.  Instead then, QCRAM sends
+   can not be synchronized implicitly.  Instead then, QPACK sends
    encoder's "Base Index" explicitly as part of the prefix (see
    Section 2.2), so that the decoder can compute the same absolute
    indices that the encoder used:
@@ -319,10 +319,10 @@ Internet-Draft                    QCRAM                       March 2018
 
 2.4.  Preventing Eviction Races
 
-   Due to out-of-order arrival, QCRAM's eviction algorithm requires
+   Due to out-of-order arrival, QPACK's eviction algorithm requires
    changes (relative to HPACK) to avoid the possibility that an indexed
    representation is decoded after the referenced entry has already been
-   evicted.  QCRAM employs a two-phase eviction algorithm, in which the
+   evicted.  QPACK employs a two-phase eviction algorithm, in which the
    encoder will not evict entries that have outstanding (unacknowledged)
    references.
 
@@ -335,7 +335,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 6]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.4.1.  Blocked Evictions
@@ -391,7 +391,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 7]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 3.2.  Additional state beyond HPACK.
@@ -409,7 +409,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 3.2.2.  Safe evictions
 
-   Section Section 2.4 describes how QCRAM avoids invalid references
+   Section Section 2.4 describes how QPACK avoids invalid references
    that might result from out-of-order delivery.  When the encoder
    processes a HEADER_ACK, it dereferences table entries that were
    indexed in the acknowledged header.  To track which entries must be
@@ -447,7 +447,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 8]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    member of the added- entries sub-ranges set.  Again, the complexity
@@ -457,10 +457,10 @@ Internet-Draft                    QCRAM                       March 2018
 3.2.4.  Fixed overhead.
 
    HPACK defines overhead as 32 bytes ([RFC7541], Section 4.1).  As
-   described above, QCRAM adds some per-connection state, and possibly
+   described above, QPACK adds some per-connection state, and possibly
    some per-entry state to track acknowledgment status and eviction
    reference count.  A larger value than 32 might be more accurate for
-   QCRAM.
+   QPACK.
 
 4.  Security Considerations
 
@@ -503,7 +503,7 @@ Internet-Draft                    QCRAM                       March 2018
 
 Krasic, et al.         Expires September 13, 2018               [Page 9]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 6.3.  URIs
@@ -512,7 +512,7 @@ Internet-Draft                    QCRAM                       March 2018
 
    [2] https://github.com/quicwg
 
-   [3] https://github.com/quicwg/base-drafts/labels/-qcram
+   [3] https://github.com/quicwg/base-drafts/labels/-qpack
 
 Acknowledgments
 

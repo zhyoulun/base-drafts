@@ -398,14 +398,16 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |1|   Type (7)  |DCIL(4)|SCIL(4)|
+   +-+-+-+-+-+-+-+-+
+   |1|   Type (7)  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Version (32)                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |DCIL(4)|SCIL(4)|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |               Destination Connection ID (0/32..144)         ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                 Source Connection ID (0/32..144)            ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                         Version (32)                          |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                       Packet Number (32)                      |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -429,6 +431,10 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       packet type.  This field can indicate one of 128 packet types.
       The types specified for this version are listed in Table 1.
 
+   Version:  The QUIC Version is a 32-bit field that follows the Type.
+      This field indicates which version of QUIC is in use and
+      determines how the rest of the protocol fields are interpreted.
+
    DCIL and SCIL:  Octet 1 contains the lengths of the two connection ID
       fields that follow it.  These lengths are encoded as two 4-bit
       unsigned integers.  The Destination Connection ID Length (DCIL)
@@ -436,12 +442,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       Connection ID Length (SCIL) field occupies the 4 low bits of the
       octet.  An encoded length of 0 indicates that the connection ID is
       also 0 octets in length.  Non-zero encoded lengths are increased
-      by 3 to get the full length of the connection ID, producing a
-      length between 4 and 18 octets inclusive.  For example, an octet
-      with the value 0x50 describes an 8-octet Destination Connection ID
-      and a zero-length Source Connection ID.
-
-
 
 
 
@@ -449,6 +449,11 @@ Iyengar & Thomson      Expires September 14, 2018               [Page 8]
 
 Internet-Draft           QUIC Transport Protocol              March 2018
 
+
+      by 3 to get the full length of the connection ID, producing a
+      length between 4 and 18 octets inclusive.  For example, an octet
+      with the value 0x50 describes an 8-octet Destination Connection ID
+      and a zero-length Source Connection ID.
 
    Destination Connection ID:  The Destination Connection ID field
       follows the connection ID lengths and is either 0 octets in length
@@ -460,13 +465,9 @@ Internet-Draft           QUIC Transport Protocol              March 2018
       between 4 and 18 octets.  Section 4.6 describes the use of this
       field in more detail.
 
-   Version:  The QUIC Version is a 32-bit field that follows the Source
-      Connection ID.  This field indicates which version of QUIC is in
-      use and determines how the rest of the protocol fields are
-      interpreted.
-
    Packet Number:  The Packet Number is a 32-bit field that follows the
-      Version.  Section 4.7 describes the use of packet numbers.
+      two connection IDs.  Section 4.7 describes the use of packet
+      numbers.
 
    Payload:  All remaining octets in the packet are the payload of the
       packet.
@@ -497,7 +498,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    The interpretation of the fields and the payload are specific to a
    version and packet type.  Type-specific semantics for this version
    are described in the following sections.
-
 
 
 
@@ -601,10 +601,10 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 4.3.  Version Negotiation Packet
 
    A Version Negotiation packet is inherently not version-specific, and
-   does not use the packet headers defined above.  Upon receipt by a
-   client, it will appear to be a packet using the long header, but will
-   be identified as a Version Negotiation packet based on the Version
-   field.
+   does not use the long packet header (see Section 4.1.  Upon receipt
+   by a client, it will appear to be a packet using the long header, but
+   will be identified as a Version Negotiation packet based on the
+   Version field having a value of 0.
 
    The Version Negotiation packet is a response to a client packet that
    contains a version that is not supported by the server, and is only
@@ -622,14 +622,16 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |1|  Unused (7) |DCIL(4)|SCIL(4)|
+   +-+-+-+-+-+-+-+-+
+   |1|  Unused (7) |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          Version (32)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |DCIL(4)|SCIL(4)|
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |               Destination Connection ID (0/32..144)         ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                 Source Connection ID (0/32..144)            ...
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                          Version (32)                         |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |                    Supported Version 1 (32)                 ...
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -644,6 +646,9 @@ Internet-Draft           QUIC Transport Protocol              March 2018
 
    The value in the Unused field is selected randomly by the server.
 
+   The Version field of a Version Negotiation packet MUST be set to
+   0x00000000.
+
    The server MUST include the value from the Source Connection ID field
    of the packet it receives in the Destination Connection ID field.
    The value for Source Connection ID MUST be copied from the
@@ -653,9 +658,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    the Version Negotiation packet was not generated by an off-path
    attacker.
 
-   The Version field of a Version Negotiation packet MUST be set to
-   0x00000000.
-
    The remainder of the Version Negotiation packet is a list of 32-bit
    versions which the server supports.
 
@@ -664,8 +666,6 @@ Internet-Draft           QUIC Transport Protocol              March 2018
    acknowledges a Version Negotiation packet.
 
    See Section 6.2 for a description of the version negotiation process.
-
-
 
 
 

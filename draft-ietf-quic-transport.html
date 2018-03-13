@@ -813,14 +813,16 @@ address {
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|1|   Type (7)  |DCIL(4)|SCIL(4)|
++-+-+-+-+-+-+-+-+
+|1|   Type (7)  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                         Version (32)                          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|DCIL(4)|SCIL(4)|
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |               Destination Connection ID (0/32..144)         ...
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                 Source Connection ID (0/32..144)            ...
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                         Version (32)                          |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                       Packet Number (32)                      |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -836,16 +838,16 @@ address {
 <dd style="margin-left: 8">The most significant bit (0x80) of octet 0 (the first octet) is set to 1 for long headers.</dd>
 <dt>Long Packet Type:</dt>
 <dd style="margin-left: 8">The remaining seven bits of octet 0 contain the packet type.  This field can indicate one of 128 packet types.  The types specified for this version are listed in <a href="#long-packet-types" class="xref">Table 1</a>.</dd>
+<dt>Version:</dt>
+<dd style="margin-left: 8">The QUIC Version is a 32-bit field that follows the Type.  This field indicates which version of QUIC is in use and determines how the rest of the protocol fields are interpreted.</dd>
 <dt>DCIL and SCIL:</dt>
 <dd style="margin-left: 8">Octet 1 contains the lengths of the two connection ID fields that follow it.  These lengths are encoded as two 4-bit unsigned integers. The Destination Connection ID Length (DCIL) field occupies the 4 high bits of the octet and the Source Connection ID Length (SCIL) field occupies the 4 low bits of the octet.  An encoded length of 0 indicates that the connection ID is also 0 octets in length.  Non-zero encoded lengths are increased by 3 to get the full length of the connection ID, producing a length between 4 and 18 octets inclusive.  For example, an octet with the value 0x50 describes an 8-octet Destination Connection ID and a zero-length Source Connection ID.</dd>
 <dt>Destination Connection ID:</dt>
 <dd style="margin-left: 8">The Destination Connection ID field follows the connection ID lengths and is either 0 octets in length or between 4 and 18 octets. <a href="#connection-id" class="xref">Section 4.6</a> describes the use of this field in more detail.</dd>
 <dt>Source Connection ID:</dt>
 <dd style="margin-left: 8">The Source Connection ID field follows the Destination Connection ID and is either 0 octets in length or between 4 and 18 octets. <a href="#connection-id" class="xref">Section 4.6</a> describes the use of this field in more detail.</dd>
-<dt>Version:</dt>
-<dd style="margin-left: 8">The QUIC Version is a 32-bit field that follows the Source Connection ID.  This field indicates which version of QUIC is in use and determines how the rest of the protocol fields are interpreted.</dd>
 <dt>Packet Number:</dt>
-<dd style="margin-left: 8">The Packet Number is a 32-bit field that follows the Version.  <a href="#packet-numbers" class="xref">Section 4.7</a> describes the use of packet numbers.</dd>
+<dd style="margin-left: 8">The Packet Number is a 32-bit field that follows the two connection IDs.  <a href="#packet-numbers" class="xref">Section 4.7</a> describes the use of packet numbers.</dd>
 <dt>Payload:</dt>
 <dd style="margin-left: 8">All remaining octets in the packet are the payload of the packet.</dd>
 </dl>
@@ -969,7 +971,7 @@ address {
 <h2 id="rfc.section.4.3">
 <a href="#rfc.section.4.3">4.3.</a> <a href="#packet-version" id="packet-version">Version Negotiation Packet</a>
 </h2>
-<p id="rfc.section.4.3.p.1">A Version Negotiation packet is inherently not version-specific, and does not use the packet headers defined above. Upon receipt by a client, it will appear to be a packet using the long header, but will be identified as a Version Negotiation packet based on the Version field.</p>
+<p id="rfc.section.4.3.p.1">A Version Negotiation packet is inherently not version-specific, and does not use the long packet header (see <a href="#long-header" class="xref">Section 4.1</a>. Upon receipt by a client, it will appear to be a packet using the long header, but will be identified as a Version Negotiation packet based on the Version field having a value of 0.</p>
 <p id="rfc.section.4.3.p.2">The Version Negotiation packet is a response to a client packet that contains a version that is not supported by the server, and is only sent by servers.</p>
 <p id="rfc.section.4.3.p.3">The layout of a Version Negotiation packet is:</p>
 <div id="rfc.figure.3"></div>
@@ -977,14 +979,16 @@ address {
 <pre>
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|1|  Unused (7) |DCIL(4)|SCIL(4)|
++-+-+-+-+-+-+-+-+
+|1|  Unused (7) |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                          Version (32)                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|DCIL(4)|SCIL(4)|
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |               Destination Connection ID (0/32..144)         ...
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                 Source Connection ID (0/32..144)            ...
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                          Version (32)                         |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                    Supported Version 1 (32)                 ...
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -997,8 +1001,8 @@ address {
 </pre>
 <p class="figure">Figure 3: Version Negotiation Packet</p>
 <p id="rfc.section.4.3.p.4">The value in the Unused field is selected randomly by the server.</p>
-<p id="rfc.section.4.3.p.5">The server MUST include the value from the Source Connection ID field of the packet it receives in the Destination Connection ID field.  The value for Source Connection ID MUST be copied from the Destination Connection ID of the received packet, which is initially randomly selected by a client.  Echoing both connection IDs gives clients some assurance that the server received the packet and that the Version Negotiation packet was not generated by an off-path attacker.</p>
-<p id="rfc.section.4.3.p.6">The Version field of a Version Negotiation packet MUST be set to 0x00000000.</p>
+<p id="rfc.section.4.3.p.5">The Version field of a Version Negotiation packet MUST be set to 0x00000000.</p>
+<p id="rfc.section.4.3.p.6">The server MUST include the value from the Source Connection ID field of the packet it receives in the Destination Connection ID field.  The value for Source Connection ID MUST be copied from the Destination Connection ID of the received packet, which is initially randomly selected by a client.  Echoing both connection IDs gives clients some assurance that the server received the packet and that the Version Negotiation packet was not generated by an off-path attacker.</p>
 <p id="rfc.section.4.3.p.7">The remainder of the Version Negotiation packet is a list of 32-bit versions which the server supports.</p>
 <p id="rfc.section.4.3.p.8">A Version Negotiation packet cannot be explicitly acknowledged in an ACK frame by a client.  Receiving another Initial packet implicitly acknowledges a Version Negotiation packet.</p>
 <p id="rfc.section.4.3.p.9">See <a href="#version-negotiation" class="xref">Section 6.2</a> for a description of the version negotiation process.</p>

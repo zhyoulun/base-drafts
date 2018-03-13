@@ -382,9 +382,10 @@ address {
 <link href="#rfc.section.11.4" rel="Chapter" title="11.4 Application Protocol Error Codes">
 <link href="#rfc.section.12" rel="Chapter" title="12 Security and Privacy Considerations">
 <link href="#rfc.section.12.1" rel="Chapter" title="12.1 Spoofed ACK Attack">
-<link href="#rfc.section.12.2" rel="Chapter" title="12.2 Slowloris Attacks">
-<link href="#rfc.section.12.3" rel="Chapter" title="12.3 Stream Fragmentation and Reassembly Attacks">
-<link href="#rfc.section.12.4" rel="Chapter" title="12.4 Stream Commitment Attack">
+<link href="#rfc.section.12.2" rel="Chapter" title="12.2 Opportunistic ACK Attack">
+<link href="#rfc.section.12.3" rel="Chapter" title="12.3 Slowloris Attacks">
+<link href="#rfc.section.12.4" rel="Chapter" title="12.4 Stream Fragmentation and Reassembly Attacks">
+<link href="#rfc.section.12.5" rel="Chapter" title="12.5 Stream Commitment Attack">
 <link href="#rfc.section.13" rel="Chapter" title="13 IANA Considerations">
 <link href="#rfc.section.13.1" rel="Chapter" title="13.1 QUIC Transport Parameter Registry">
 <link href="#rfc.section.13.2" rel="Chapter" title="13.2 QUIC Transport Error Codes Registry">
@@ -671,11 +672,13 @@ address {
 </li>
 <ul><li>12.1.   <a href="#rfc.section.12.1">Spoofed ACK Attack</a>
 </li>
-<li>12.2.   <a href="#rfc.section.12.2">Slowloris Attacks</a>
+<li>12.2.   <a href="#rfc.section.12.2">Opportunistic ACK Attack</a>
 </li>
-<li>12.3.   <a href="#rfc.section.12.3">Stream Fragmentation and Reassembly Attacks</a>
+<li>12.3.   <a href="#rfc.section.12.3">Slowloris Attacks</a>
 </li>
-<li>12.4.   <a href="#rfc.section.12.4">Stream Commitment Attack</a>
+<li>12.4.   <a href="#rfc.section.12.4">Stream Fragmentation and Reassembly Attacks</a>
+</li>
+<li>12.5.   <a href="#rfc.section.12.5">Stream Commitment Attack</a>
 </li>
 </ul><li>13.   <a href="#rfc.section.13">IANA Considerations</a>
 </li>
@@ -1884,8 +1887,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.7.15.p.1">Receivers send ACK frames (type=0x0d) to inform senders which packets they have received and processed.  A sent packet that has never been acknowledged is missing. The ACK frame contains any number of ACK blocks.  ACK blocks are ranges of acknowledged packets.</p>
 <p id="rfc.section.7.15.p.2">Unlike TCP SACKs, QUIC acknowledgements are irrevocable.  Once a packet has been acknowledged, even if it does not appear in a future ACK frame, it remains acknowledged.</p>
 <p id="rfc.section.7.15.p.3">A client MUST NOT acknowledge Retry packets.  Retry packets include the packet number from the Initial packet it responds to.  Version Negotiation packets cannot be acknowledged because they do not contain a packet number.  Rather than relying on ACK frames, these packets are implicitly acknowledged by the next Initial packet sent by the client.</p>
-<p id="rfc.section.7.15.p.4">A sender MAY intentionally skip packet numbers to introduce entropy into the connection, to avoid opportunistic acknowledgement attacks.  The sender SHOULD close the connection if an unsent packet number is acknowledged.  The format of the ACK frame is efficient at expressing even long blocks of missing packets, allowing for large, unpredictable gaps.</p>
-<p id="rfc.section.7.15.p.5">An ACK frame is shown below.</p>
+<p id="rfc.section.7.15.p.4">An ACK frame is shown below.</p>
 <div id="rfc.figure.7"></div>
 <div id="ack-format"></div>
 <pre>
@@ -1902,7 +1904,7 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 </pre>
 <p class="figure">Figure 7: ACK Frame Format</p>
-<p id="rfc.section.7.15.p.6">The fields in the ACK frame are as follows:</p>
+<p id="rfc.section.7.15.p.5">The fields in the ACK frame are as follows:</p>
 <p></p>
 
 <dl>
@@ -2521,22 +2523,26 @@ Gap = HKDF-Expand-Label(packet_number_secret,
 <p id="rfc.section.12.1.p.2">There are two possible mitigations to this attack.  The simplest one is that a server can unilaterally create a gap in packet-number space.  In the non-attack scenario, the client will send an ACK frame with the larger value for largest acknowledged.  In the attack scenario, the attacker could acknowledge a packet in the gap.  If the server sees an acknowledgment for a packet that was never sent, the connection can be aborted.</p>
 <p id="rfc.section.12.1.p.3">The second mitigation is that the server can require that acknowledgments for sent packets match the encryption level of the sent packet.  This mitigation is useful if the connection has an ephemeral forward-secure key that is generated and used for every new connection.  If a packet sent is protected with a forward-secure key, then any acknowledgments that are received for them MUST also be forward-secure protected.  Since the attacker will not have the forward secure key, the attacker will not be able to generate forward-secure protected packets with ACK frames.</p>
 <h2 id="rfc.section.12.2">
-<a href="#rfc.section.12.2">12.2.</a> <a href="#slowloris-attacks" id="slowloris-attacks">Slowloris Attacks</a>
+<a href="#rfc.section.12.2">12.2.</a> <a href="#opportunistic-ack-attack" id="opportunistic-ack-attack">Opportunistic ACK Attack</a>
 </h2>
-<p id="rfc.section.12.2.p.1">The attacks commonly known as Slowloris <a href="#SLOWLORIS" class="xref">[SLOWLORIS]</a> try to keep many connections to the target endpoint open and hold them open as long as possible.  These attacks can be executed against a QUIC endpoint by generating the minimum amount of activity necessary to avoid being closed for inactivity.  This might involve sending small amounts of data, gradually opening flow control windows in order to control the sender rate, or manufacturing ACK frames that simulate a high loss rate.</p>
-<p id="rfc.section.12.2.p.2">QUIC deployments SHOULD provide mitigations for the Slowloris attacks, such as increasing the maximum number of clients the server will allow, limiting the number of connections a single IP address is allowed to make, imposing restrictions on the minimum transfer speed a connection is allowed to have, and restricting the length of time an endpoint is allowed to stay connected.</p>
+<p id="rfc.section.12.2.p.1">An endpoint that acknowledges packets it has not received might cause a congestion controller to permit sending at rates beyond what the network supports.  An endpoint MAY skip packet numbers when sending packets to detect this behavior.  An endpoint can then immediately close the connection (see <a href="#immediate-close" class="xref">Section 6.9.3</a>).</p>
 <h2 id="rfc.section.12.3">
-<a href="#rfc.section.12.3">12.3.</a> <a href="#stream-fragmentation-and-reassembly-attacks" id="stream-fragmentation-and-reassembly-attacks">Stream Fragmentation and Reassembly Attacks</a>
+<a href="#rfc.section.12.3">12.3.</a> <a href="#slowloris-attacks" id="slowloris-attacks">Slowloris Attacks</a>
 </h2>
-<p id="rfc.section.12.3.p.1">An adversarial endpoint might intentionally fragment the data on stream buffers in order to cause disproportionate memory commitment.  An adversarial endpoint could open a stream and send some STREAM frames containing arbitrary fragments of the stream content.</p>
-<p id="rfc.section.12.3.p.2">The attack is mitigated if flow control windows correspond to available memory.  However, some receivers will over-commit memory and advertise flow control offsets in the aggregate that exceed actual available memory.  The over-commitment strategy can lead to better performance when endpoints are well behaved, but renders endpoints vulnerable to the stream fragmentation attack.</p>
-<p id="rfc.section.12.3.p.3">QUIC deployments SHOULD provide mitigations against the stream fragmentation attack.  Mitigations could consist of avoiding over-committing memory, delaying reassembly of STREAM frames, implementing heuristics based on the age and duration of reassembly holes, or some combination.</p>
+<p id="rfc.section.12.3.p.1">The attacks commonly known as Slowloris <a href="#SLOWLORIS" class="xref">[SLOWLORIS]</a> try to keep many connections to the target endpoint open and hold them open as long as possible.  These attacks can be executed against a QUIC endpoint by generating the minimum amount of activity necessary to avoid being closed for inactivity.  This might involve sending small amounts of data, gradually opening flow control windows in order to control the sender rate, or manufacturing ACK frames that simulate a high loss rate.</p>
+<p id="rfc.section.12.3.p.2">QUIC deployments SHOULD provide mitigations for the Slowloris attacks, such as increasing the maximum number of clients the server will allow, limiting the number of connections a single IP address is allowed to make, imposing restrictions on the minimum transfer speed a connection is allowed to have, and restricting the length of time an endpoint is allowed to stay connected.</p>
 <h2 id="rfc.section.12.4">
-<a href="#rfc.section.12.4">12.4.</a> <a href="#stream-commitment-attack" id="stream-commitment-attack">Stream Commitment Attack</a>
+<a href="#rfc.section.12.4">12.4.</a> <a href="#stream-fragmentation-and-reassembly-attacks" id="stream-fragmentation-and-reassembly-attacks">Stream Fragmentation and Reassembly Attacks</a>
 </h2>
-<p id="rfc.section.12.4.p.1">An adversarial endpoint can open lots of streams, exhausting state on an endpoint.  The adversarial endpoint could repeat the process on a large number of connections, in a manner similar to SYN flooding attacks in TCP.</p>
-<p id="rfc.section.12.4.p.2">Normally, clients will open streams sequentially, as explained in <a href="#stream-id" class="xref">Section 9.1</a>.  However, when several streams are initiated at short intervals, transmission error may cause STREAM DATA frames opening streams to be received out of sequence.  A receiver is obligated to open intervening streams if a higher-numbered stream ID is received.  Thus, on a new connection, opening stream 2000001 opens 1 million streams, as required by the specification.</p>
-<p id="rfc.section.12.4.p.3">The number of active streams is limited by the concurrent stream limit transport parameter, as explained in <a href="#stream-concurrency" class="xref">Section 9.4</a>.  If chosen judisciously, this limit mitigates the effect of the stream commitment attack.  However, setting the limit too low could affect performance when applications expect to open large number of streams.</p>
+<p id="rfc.section.12.4.p.1">An adversarial endpoint might intentionally fragment the data on stream buffers in order to cause disproportionate memory commitment.  An adversarial endpoint could open a stream and send some STREAM frames containing arbitrary fragments of the stream content.</p>
+<p id="rfc.section.12.4.p.2">The attack is mitigated if flow control windows correspond to available memory.  However, some receivers will over-commit memory and advertise flow control offsets in the aggregate that exceed actual available memory.  The over-commitment strategy can lead to better performance when endpoints are well behaved, but renders endpoints vulnerable to the stream fragmentation attack.</p>
+<p id="rfc.section.12.4.p.3">QUIC deployments SHOULD provide mitigations against the stream fragmentation attack.  Mitigations could consist of avoiding over-committing memory, delaying reassembly of STREAM frames, implementing heuristics based on the age and duration of reassembly holes, or some combination.</p>
+<h2 id="rfc.section.12.5">
+<a href="#rfc.section.12.5">12.5.</a> <a href="#stream-commitment-attack" id="stream-commitment-attack">Stream Commitment Attack</a>
+</h2>
+<p id="rfc.section.12.5.p.1">An adversarial endpoint can open lots of streams, exhausting state on an endpoint.  The adversarial endpoint could repeat the process on a large number of connections, in a manner similar to SYN flooding attacks in TCP.</p>
+<p id="rfc.section.12.5.p.2">Normally, clients will open streams sequentially, as explained in <a href="#stream-id" class="xref">Section 9.1</a>.  However, when several streams are initiated at short intervals, transmission error may cause STREAM DATA frames opening streams to be received out of sequence.  A receiver is obligated to open intervening streams if a higher-numbered stream ID is received.  Thus, on a new connection, opening stream 2000001 opens 1 million streams, as required by the specification.</p>
+<p id="rfc.section.12.5.p.3">The number of active streams is limited by the concurrent stream limit transport parameter, as explained in <a href="#stream-concurrency" class="xref">Section 9.4</a>.  If chosen judisciously, this limit mitigates the effect of the stream commitment attack.  However, setting the limit too low could affect performance when applications expect to open large number of streams.</p>
 <h1 id="rfc.section.13">
 <a href="#rfc.section.13">13.</a> <a href="#iana-considerations" id="iana-considerations">IANA Considerations</a>
 </h1>

@@ -817,7 +817,7 @@ Get Handshake
 <h2 id="rfc.section.4.4">
 <a href="#rfc.section.4.4">4.4.</a> <a href="#clienthello-size" id="clienthello-size">ClientHello Size</a>
 </h2>
-<p id="rfc.section.4.4.p.1">QUIC requires that the initial handshake packet from a client fit within the payload of a single packet.  The size limits on QUIC packets mean that a record containing a ClientHello needs to fit within 1171 octets.</p>
+<p id="rfc.section.4.4.p.1">QUIC requires that the initial handshake packet from a client fit within the payload of a single packet.  The size limits on QUIC packets mean that a record containing a ClientHello needs to fit within 1131 octets, though endpoints can reduce the size of their connection ID to increase by up to 22 octets.</p>
 <p id="rfc.section.4.4.p.2">A TLS ClientHello can fit within this limit with ample space remaining.  However, there are several variables that could cause this limit to be exceeded.  Implementations are reminded that large session tickets or HelloRetryRequest cookies, multiple or large key shares, and long lists of supported ciphers, signature algorithms, versions, QUIC transport parameters, and other negotiable parameters and extensions could cause this message to grow.</p>
 <p id="rfc.section.4.4.p.3">For servers, the size of the session tickets and HelloRetryRequest cookie extension can have an effect on a client&#8217;s ability to connect.  Choosing a small value increases the probability that these values can be successfully used by a client.</p>
 <p id="rfc.section.4.4.p.4">The TLS implementation does not need to ensure that the ClientHello is sufficiently large.  QUIC PADDING frames are added to increase the size of the packet as necessary.</p>
@@ -868,11 +868,11 @@ struct {
 <h3 id="rfc.section.5.2.2">
 <a href="#rfc.section.5.2.2">5.2.2.</a> <a href="#handshake-secrets" id="handshake-secrets">Handshake Secrets</a>
 </h3>
-<p id="rfc.section.5.2.2.p.1">Packets that carry the TLS handshake (Initial, Retry, and Handshake) are protected with a secret derived from the connection ID used in the client&#8217;s Initial packet.  Specifically:</p>
+<p id="rfc.section.5.2.2.p.1">Packets that carry the TLS handshake (Initial, Retry, and Handshake) are protected with a secret derived from the Destination Connection ID field from the client&#8217;s Initial packet.  Specifically:</p>
 <pre>
 handshake_salt = 0x9c108f98520a5c5c32968e950e8a2c5fe06d6c38
 handshake_secret =
-    HKDF-Extract(handshake_salt, client_connection_id)
+    HKDF-Extract(handshake_salt, client_dst_connection_id)
 
 client_handshake_secret =
    QHKDF-Expand(handshake_secret, "client hs", Hash.length)
@@ -881,6 +881,12 @@ server_handshake_secret =
 </pre>
 <p id="rfc.section.5.2.2.p.2">The hash function for HKDF when deriving handshake secrets and keys is SHA-256 <a href="#FIPS180" class="xref">[FIPS180]</a>.  The connection ID used with QHKDF-Expand is the connection ID chosen by the client.</p>
 <p id="rfc.section.5.2.2.p.3">The handshake salt is a 20 octet sequence shown in the figure in hexadecimal notation. Future versions of QUIC SHOULD generate a new salt value, thus ensuring that the keys are different for each version of QUIC. This prevents a middlebox that only recognizes one version of QUIC from seeing or modifying the contents of handshake packets from future versions.</p>
+<p></p>
+
+<dl>
+<dt>Note:</dt>
+<dd style="margin-left: 8">The Destination Connection ID is of arbitrary length, and it could be zero length if the server sends a Retry packet with a zero-length Source Connection ID field.  In this case, the handshake keys provide no assurance to the client that the server received its packet; the client has to rely on the exchange that included the Retry packet for that property.</dd>
+</dl>
 <h3 id="rfc.section.5.2.3">
 <a href="#rfc.section.5.2.3">5.2.3.</a> <a href="#zero-rtt-secrets" id="zero-rtt-secrets">0-RTT Secret</a>
 </h3>

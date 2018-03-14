@@ -117,29 +117,29 @@ Internet-Draft             QUIC Loss Detection                March 2018
      4.5.  Retransmission Timeout  . . . . . . . . . . . . . . . . .  22
      4.6.  Pacing  . . . . . . . . . . . . . . . . . . . . . . . . .  22
      4.7.  Pseudocode  . . . . . . . . . . . . . . . . . . . . . . .  22
-       4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  22
+       4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  23
        4.7.2.  Variables of interest . . . . . . . . . . . . . . . .  23
        4.7.3.  Initialization  . . . . . . . . . . . . . . . . . . .  23
-       4.7.4.  On Packet Sent  . . . . . . . . . . . . . . . . . . .  23
+       4.7.4.  On Packet Sent  . . . . . . . . . . . . . . . . . . .  24
        4.7.5.  On Packet Acknowledgement . . . . . . . . . . . . . .  24
        4.7.6.  On Packets Lost . . . . . . . . . . . . . . . . . . .  24
-       4.7.7.  On Retransmission Timeout Verified  . . . . . . . . .  24
+       4.7.7.  On Retransmission Timeout Verified  . . . . . . . . .  25
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  25
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  25
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .  25
      6.2.  Informative References  . . . . . . . . . . . . . . . . .  25
      6.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  26
-   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  26
-   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  26
-     B.1.  Since draft-ietf-quic-recovery-09 . . . . . . . . . . . .  26
-     B.2.  Since draft-ietf-quic-recovery-08 . . . . . . . . . . . .  26
+   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  27
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  27
+     B.1.  Since draft-ietf-quic-recovery-09 . . . . . . . . . . . .  27
+     B.2.  Since draft-ietf-quic-recovery-08 . . . . . . . . . . . .  27
      B.3.  Since draft-ietf-quic-recovery-07 . . . . . . . . . . . .  27
      B.4.  Since draft-ietf-quic-recovery-06 . . . . . . . . . . . .  27
      B.5.  Since draft-ietf-quic-recovery-05 . . . . . . . . . . . .  27
      B.6.  Since draft-ietf-quic-recovery-04 . . . . . . . . . . . .  27
      B.7.  Since draft-ietf-quic-recovery-03 . . . . . . . . . . . .  27
      B.8.  Since draft-ietf-quic-recovery-02 . . . . . . . . . . . .  27
-     B.9.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  27
+     B.9.  Since draft-ietf-quic-recovery-01 . . . . . . . . . . . .  28
      B.10. Since draft-ietf-quic-recovery-00 . . . . . . . . . . . .  28
      B.11. Since draft-iyengar-quic-loss-recovery-01 . . . . . . . .  28
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  28
@@ -1205,14 +1205,34 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
 4.6.  Pacing
 
-   It is RECOMMENDED that a sender pace sending of all data,
-   distributing the congestion window over the SRTT.  This document does
-   not specify a pacer.  As an example pacer, implementers are referred
-   to the Fair Queue packet scheduler (fq qdisc) in Linux (3.11 onwards)
-   as a well-known and publicly available implementation of a flow
-   pacer.
+   This document does not specify a pacer, but it is RECOMMENDED that a
+   sender pace sending of all data based on input from the congestion
+   controller.  For example, a pacer might distribute the congestion
+   window over the SRTT when used with a window-based controller, and a
+   pacer might use the rate estimate of a rate-based controller.
+
+   An implementation should take care to architect its congestion
+   controller to work well with a pacer.  For instance, a pacer might
+   wrap the congestion controller and control the availability of the
+   congestion window, or a pacer might pace out packets handed to it by
+   the congestion controller.
+
+   As an example of a well-known and publicly available implementation
+   of a flow pacer, implementers are referred to the Fair Queue packet
+   scheduler (fq qdisc) in Linux (3.11 onwards).
 
 4.7.  Pseudocode
+
+
+
+
+
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 22]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
 
 4.7.1.  Constants of interest
 
@@ -1225,14 +1245,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
    kInitialWindow (default 10 * kDefaultMss):  Default limit on the
       amount of outstanding data in bytes.
-
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 22]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
    kMinimumWindow (default 2 * kDefaultMss):  Default minimum congestion
       window.
@@ -1267,6 +1279,17 @@ Internet-Draft             QUIC Loss Detection                March 2018
    At the beginning of the connection, initialize the congestion control
    variables as follows:
 
+
+
+
+
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 23]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
       congestion_window = kInitialWindow
       bytes_in_flight = 0
       end_of_recovery = 0
@@ -1279,16 +1302,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
       OnPacketSentCC(bytes_sent):
         bytes_in_flight += bytes_sent
-
-
-
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 23]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
 4.7.5.  On Packet Acknowledgement
 
@@ -1317,6 +1330,22 @@ Internet-Draft             QUIC Loss Detection                March 2018
    Invoked by loss detection from DetectLostPackets when new packets are
    detected lost.
 
+
+
+
+
+
+
+
+
+
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 24]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
       OnPacketsLost(lost_packets):
         // Remove lost packets from bytes_in_flight.
         for (lost_packet : lost_packets):
@@ -1337,14 +1366,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
       OnRetransmissionTimeoutVerified()
         congestion_window = kMinimumWindow
-
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 24]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
 5.  IANA Considerations
 
@@ -1374,6 +1395,13 @@ Internet-Draft             QUIC Loss Detection                March 2018
               Counting (ABC)", RFC 3465, DOI 10.17487/RFC3465, February
               2003, <https://www.rfc-editor.org/info/rfc3465>.
 
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 25]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
    [RFC4653]  Bhandarkar, S., Reddy, A., Allman, M., and E. Blanton,
               "Improving the Robustness of TCP to Non-Congestion
               Events", RFC 4653, DOI 10.17487/RFC4653, August 2006,
@@ -1394,13 +1422,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
               Transmission Protocol (SCTP)", RFC 5827,
               DOI 10.17487/RFC5827, May 2010,
               <https://www.rfc-editor.org/info/rfc5827>.
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 25]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
    [RFC6298]  Paxson, V., Allman, M., Chu, J., and M. Sargent,
               "Computing TCP's Retransmission Timer", RFC 6298,
@@ -1429,6 +1450,14 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
    [2] https://github.com/quicwg
 
+
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 26]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
    [3] https://github.com/quicwg/base-drafts/labels/-recovery
 
 Appendix A.  Acknowledgments
@@ -1445,18 +1474,6 @@ B.1.  Since draft-ietf-quic-recovery-09
 B.2.  Since draft-ietf-quic-recovery-08
 
    o  Clarified pacing and RTO (#967, #977)
-
-
-
-
-
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 26]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
 B.3.  Since draft-ietf-quic-recovery-07
 
@@ -1490,6 +1507,13 @@ B.8.  Since draft-ietf-quic-recovery-02
 
    o  Add congestion control (#545, #395)
 
+
+
+Iyengar & Swett        Expires September 15, 2018              [Page 27]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
    o  Require connection abort if a skipped packet was acknowledged
       (#415)
 
@@ -1506,13 +1530,6 @@ B.9.  Since draft-ietf-quic-recovery-01
    o  Clarified loss recovery for handshake packets
 
    o  Fixed references and made TCP references informative
-
-
-
-Iyengar & Swett        Expires September 15, 2018              [Page 27]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
 
 B.10.  Since draft-ietf-quic-recovery-00
 
@@ -1538,23 +1555,6 @@ Authors' Addresses
    Google
 
    Email: ianswett@google.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

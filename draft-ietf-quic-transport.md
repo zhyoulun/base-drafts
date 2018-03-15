@@ -1876,6 +1876,12 @@ connection IDs, but it MUST ensure that it applies the associated packet number
 gaps for connection IDs that it skips in addition to the packet number gap
 associated with the connection ID that it does use.
 
+Clients MAY change connection ID at any time based on implementation-specific
+concerns.  For example, after a period of network inactivity NAT rebinding might
+occur when the client begins sending data again. A client might wish to break
+linkability by employing a new connection ID when resuming traffic after
+inactivity.
+
 A server that receives a packet that is marked with a new connection ID recovers
 the packet number by adding the cumulative packet number gap to its expected
 packet number.  A server SHOULD discard packets that contain a smaller gap than

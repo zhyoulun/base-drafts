@@ -566,8 +566,8 @@ address {
 <p></p>
 
 <ul>
-<li>Congestion-controlled frames are those that count towards bytes in flight and need acknowledgement.  The most common are STREAM frames, which typically contain application data.</li>
-<li>Congestion-controlled packets are those that contain at least one congestion-controlled frame.</li>
+<li>Retransmittable frames are those that count towards bytes in flight and need acknowledgement.  The most common are STREAM frames, which typically contain application data.</li>
+<li>Retransmittable packets are those that contain at least one retransmittable frame.</li>
 <li>Crypto handshake data is sent on stream 0, and uses the reliability machinery of QUIC underneath.</li>
 <li>ACK frames contain acknowledgment information.  ACK frames contain one or more ranges of acknowledged packets.</li>
 </ul>
@@ -616,8 +616,8 @@ address {
 <h3 id="rfc.section.3.2.2">
 <a href="#rfc.section.3.2.2">3.2.2.</a> <a href="#early-retransmit" id="early-retransmit">Early Retransmit</a>
 </h3>
-<p id="rfc.section.3.2.2.p.1">Unacknowledged packets close to the tail may have fewer than kReorderingThreshold congestion-controlled packets sent after them.  Loss of such packets cannot be detected via Fast Retransmit. To enable ack-based loss detection of such packets, receipt of an acknowledgment for the last outstanding congestion-controlled packet triggers the Early Retransmit process, as follows.</p>
-<p id="rfc.section.3.2.2.p.2">If there are unacknowledged congestion-controlled packets still pending, they should be marked as lost. To compensate for the reduced reordering resilience, the sender SHOULD set an alarm for a small period of time. If the unacknowledged congestion-controlled packets are not acknowledged during this time, then these packets MUST be marked as lost.</p>
+<p id="rfc.section.3.2.2.p.1">Unacknowledged packets close to the tail may have fewer than kReorderingThreshold retransmittable packets sent after them.  Loss of such packets cannot be detected via Fast Retransmit. To enable ack-based loss detection of such packets, receipt of an acknowledgment for the last outstanding retransmittable packet triggers the Early Retransmit process, as follows.</p>
+<p id="rfc.section.3.2.2.p.2">If there are unacknowledged retransmittable packets still pending, they should be marked as lost. To compensate for the reduced reordering resilience, the sender SHOULD set an alarm for a small period of time. If the unacknowledged retransmittable packets are not acknowledged during this time, then these packets MUST be marked as lost.</p>
 <p id="rfc.section.3.2.2.p.3">An endpoint SHOULD set the alarm such that a packet is marked as lost no earlier than 1.25 * max(SRTT, latest_RTT) since when it was sent.</p>
 <p id="rfc.section.3.2.2.p.4">Using max(SRTT, latest_RTT) protects from the two following cases:</p>
 <p></p>
@@ -636,7 +636,7 @@ address {
 <a href="#rfc.section.3.3.1">3.3.1.</a> <a href="#tlp" id="tlp">Tail Loss Probe</a>
 </h3>
 <p id="rfc.section.3.3.1.p.1">The algorithm described in this section is an adaptation of the Tail Loss Probe algorithm proposed for TCP <a href="#TLP" class="xref">[TLP]</a>.</p>
-<p id="rfc.section.3.3.1.p.2">A packet sent at the tail is particularly vulnerable to slow loss detection, since acks of subsequent packets are needed to trigger ack-based detection. To ameliorate this weakness of tail packets, the sender schedules an alarm when the last congestion-controlled packet before quiescence is transmitted. When this alarm fires, a Tail Loss Probe (TLP) packet is sent to evoke an acknowledgement from the receiver.</p>
+<p id="rfc.section.3.3.1.p.2">A packet sent at the tail is particularly vulnerable to slow loss detection, since acks of subsequent packets are needed to trigger ack-based detection. To ameliorate this weakness of tail packets, the sender schedules an alarm when the last retrasnmittable packet before quiescence is transmitted. When this alarm fires, a Tail Loss Probe (TLP) packet is sent to evoke an acknowledgement from the receiver.</p>
 <p id="rfc.section.3.3.1.p.3">The alarm duration, or Probe Timeout (PTO), is set based on the following conditions:</p>
 <p></p>
 
@@ -649,7 +649,7 @@ address {
 <p id="rfc.section.3.3.1.p.7">A PTO value of at least 1.5*SRTT ensures that the ACK is overdue.  The 1.5 is based on <a href="#TLP" class="xref">[TLP]</a>, but implementations MAY experiment with other constants.</p>
 <p id="rfc.section.3.3.1.p.8">To reduce latency, it is RECOMMENDED that the sender set and allow the TLP alarm to fire twice before setting an RTO alarm. In other words, when the TLP alarm fires the first time, a TLP packet is sent, and it is RECOMMENDED that the TLP alarm be scheduled for a second time. When the TLP alarm fires the second time, a second TLP packet is sent, and an RTO alarm SHOULD be scheduled <a href="#rto" class="xref">Section 3.3.2</a>.</p>
 <p id="rfc.section.3.3.1.p.9">A TLP packet SHOULD carry new data when possible. If new data is unavailable or new data cannot be sent due to flow control, a TLP packet MAY retransmit unacknowledged data to potentially reduce recovery time. Since a TLP alarm is used to send a probe into the network prior to establishing any packet loss, prior unacknowledged packets SHOULD NOT be marked as lost when a TLP alarm fires.</p>
-<p id="rfc.section.3.3.1.p.10">A sender may not know that a packet being sent is a tail packet.  Consequently, a sender may have to arm or adjust the TLP alarm on every sent congestion-controlled packet.</p>
+<p id="rfc.section.3.3.1.p.10">A sender may not know that a packet being sent is a tail packet.  Consequently, a sender may have to arm or adjust the TLP alarm on every sent retransmittable packet.</p>
 <h3 id="rfc.section.3.3.2">
 <a href="#rfc.section.3.3.2">3.3.2.</a> <a href="#rto" id="rto">Retransmission Timeout</a>
 </h3>
@@ -763,7 +763,7 @@ address {
 <dt>max_ack_delay:</dt>
 <dd style="margin-left: 8">The maximum ack delay in an incoming ACK frame for this connection.  Excludes ack delays for ack only packets and those that create an RTT sample less than min_rtt.</dd>
 <dt>reordering_threshold:</dt>
-<dd style="margin-left: 8">The largest packet number gap between the largest acked congestion-controlled packet and an unacknowledged congestion-controlled packet before it is declared lost.</dd>
+<dd style="margin-left: 8">The largest packet number gap between the largest acked retransmittable packet and an unacknowledged retransmittable packet before it is declared lost.</dd>
 <dt>time_reordering_fraction:</dt>
 <dd style="margin-left: 8">The reordering window as a fraction of max(smoothed_rtt, latest_rtt).</dd>
 <dt>loss_time:</dt>
@@ -804,7 +804,7 @@ address {
 
 <ul>
 <li>packet_number: The packet number of the sent packet.</li>
-<li>is_ack_only: A boolean that indicates whether a packet only contains an ACK frame.  If true, it is still expected an ack will be received for this packet, but it is not congestion-controlled.</li>
+<li>is_ack_only: A boolean that indicates whether a packet only contains an ACK frame.  If true, it is still expected an ack will be received for this packet, but it is not retransmittable.</li>
 <li>is_handshake_packet: A boolean that indicates whether a packet contains handshake data.</li>
 <li>sent_bytes: The number of bytes sent in the packet, not including UDP or IP overhead, but including QUIC framing overhead.</li>
 </ul>
@@ -896,7 +896,7 @@ address {
 <h4 id="rfc.section.3.5.7.2">
 <a href="#rfc.section.3.5.7.2">3.5.7.2.</a> <a href="#tail-loss-probe-and-retransmission-alarm" id="tail-loss-probe-and-retransmission-alarm">Tail Loss Probe and Retransmission Alarm</a>
 </h4>
-<p id="rfc.section.3.5.7.2.p.1">Tail loss probes <a href="#TLP" class="xref">[TLP]</a> and retransmission timeouts <a href="#RFC6298" class="xref">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding congestion-controlled packets, but an acknowledgement has not been received in a timely manner.</p>
+<p id="rfc.section.3.5.7.2.p.1">Tail loss probes <a href="#TLP" class="xref">[TLP]</a> and retransmission timeouts <a href="#RFC6298" class="xref">[RFC6298]</a> are an alarm based mechanism to recover from cases when there are outstanding retransmittable packets, but an acknowledgement has not been received in a timely manner.</p>
 <p id="rfc.section.3.5.7.2.p.2">The TLP and RTO timers are armed when there is not unacknowledged handshake data.  The TLP alarm is set until the max number of TLP packets have been sent, and then the RTO timer is set.</p>
 <h4 id="rfc.section.3.5.7.3">
 <a href="#rfc.section.3.5.7.3">3.5.7.3.</a> <a href="#early-retransmit-alarm" id="early-retransmit-alarm">Early Retransmit Alarm</a>
@@ -909,7 +909,7 @@ address {
 <pre>
  SetLossDetectionAlarm():
     // Don't arm the alarm if there are no packets with
-    // congestion-controlled data in flight.
+    // retransmittable data in flight.
     if (bytes_in_flight == 0):
       loss_detection_alarm.cancel()
       return
@@ -1078,7 +1078,7 @@ DetectLostPackets(largest_acked):
 
 <dl>
 <dt>bytes_in_flight:</dt>
-<dd style="margin-left: 8">The sum of the size in bytes of all sent packets that contain at least one congestion-controlled frame, and have not been acked or declared lost. The size does not include IP or UDP overhead.  Packets only containing ACK frames do not count towards bytes_in_flight to ensure congestion control does not impede congestion feedback.</dd>
+<dd style="margin-left: 8">The sum of the size in bytes of all sent packets that contain at least one retransmittable frame, and have not been acked or declared lost. The size does not include IP or UDP overhead.  Packets only containing ACK frames do not count towards bytes_in_flight to ensure congestion control does not impede congestion feedback.</dd>
 <dt>congestion_window:</dt>
 <dd style="margin-left: 8">Maximum number of bytes-in-flight that may be sent.</dd>
 <dt>end_of_recovery:</dt>

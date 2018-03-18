@@ -127,19 +127,75 @@ considered blocked by the decoder and can not be processed until all entries in
 the range `[1, Depends Index]` have been added.  While blocked, header
 field data MUST remain in the blocked stream's flow control window.
 
-# HPACK extensions
+# Wire Format
 
-## Allowed Instructions
+QPACK instructions occur in three locations:
 
-HEADERS frames on the Control Stream SHOULD contain only Literal with
-Incremental Indexing and Indexed with Duplication (see {{indexed-duplicate}})
-representations.  Frames on this stream modify the dynamic table state
-without generating output to any particular request.
+ - Table updates are carried by a unidirectional stream from encoder to
+   decoder.
+   Instructions on this stream modify the dynamic table state
+   without generating output to any particular request.
+ - Acknowledgements of table modifications and header processing are carried by
+   a unidirectional stream from decoder to encoder.
+ - Finally, the contents of HEADERS and PUSH_PROMISE frames on request streams
+   reference the QPACK table state.
 
-HEADERS and PUSH_PROMISE frames on request and push streams MUST NOT contain
-Literal with Incremental Indexing and Indexed with Duplication representations.
-Frames on these streams reference the dynamic table in a particular state
-without modifying it, but emit the headers for an HTTP request or response.
+## QPACK Encoder Stream
+
+Each set of encoder insructions is prefaced by its length, encoded as a variable
+length integer with an 8-bit prefix.  The only valid instructions on this stream
+are Table Size Update, Literal with Incremental Indexing and Indexed with
+Duplication (see {{indexed-duplicate}}).
+
+~~~~~~~~~~  drawing
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | Length    (8+)| Instruction Block (*) |
+   +---------------+-----------------------+
+~~~~~~~~~~
+
+## QPACK Decoder Stream
+
+### Table Size Synchronize
+
+After processing a set of instructions on the encoder stream, the decoder will
+emit a Table State Synchronize instruction on the decoder stream.  The
+instruction specifies the total number of dynamic table inserts and duplications
+since the last Table State Synchronize.  The encoder uses this value to
+determine which table entries are vulnerable to head-of-line blocking.  A
+decoder MAY coalesce multiple synchronization updates into a single update.
+
+~~~~~~~~~~  drawing
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+
+   |1| Inserts (7+)|
+   +---------------+
+~~~~~~~~~~
+
+### Header Ack
+
+After processing a header block on a request or push stream, the decoder emits a
+Header Ack instruction on the decoder stream with the request stream's stream
+ID.  It is used by the peer's QPACK encoder to prevent eviction races.
+
+The same Stream ID can be identified multiple times, as multiple header blocks
+can be sent on a single stream in the case of intermediate responses, trailers,
+and pushed requests.  Since header frames on each stream are received and
+processed in order, this gives the encoder precise feedback on which header
+blocks within a stream have been fully processed.
+
+~~~~~~~~~~  drawing
+    0 1 2 3 4 5 6 7
+   +-+-+-+-+-+-+-+-+
+   |0|StreamID (7+)|
+   +---------------+
+~~~~~~~~~~
+
+## Request and Push Streams
+
+HEADERS and PUSH_PROMISE frames on request and push streams contain only Indexed
+and Literal instructions.  Frames on these streams emit the headers for an HTTP
+request or response without modifying the state of the dynamic table.
 
 ## Header Block Prefix {#absolute-index}
 

@@ -117,7 +117,7 @@ Internet-Draft             QUIC Loss Detection                March 2018
      4.5.  Retransmission Timeout  . . . . . . . . . . . . . . . . .  23
      4.6.  Pacing  . . . . . . . . . . . . . . . . . . . . . . . . .  23
      4.7.  Pseudocode  . . . . . . . . . . . . . . . . . . . . . . .  23
-       4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  24
+       4.7.1.  Constants of interest . . . . . . . . . . . . . . . .  23
        4.7.2.  Variables of interest . . . . . . . . . . . . . . . .  24
        4.7.3.  Initialization  . . . . . . . . . . . . . . . . . . .  24
        4.7.4.  On Packet Sent  . . . . . . . . . . . . . . . . . . .  25
@@ -129,8 +129,8 @@ Internet-Draft             QUIC Loss Detection                March 2018
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .  26
      6.2.  Informative References  . . . . . . . . . . . . . . . . .  26
      6.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  27
-   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  28
-   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  28
+   Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  27
+   Appendix B.  Change Log . . . . . . . . . . . . . . . . . . . . .  27
      B.1.  Since draft-ietf-quic-recovery-09 . . . . . . . . . . . .  28
      B.2.  Since draft-ietf-quic-recovery-08 . . . . . . . . . . . .  28
      B.3.  Since draft-ietf-quic-recovery-07 . . . . . . . . . . . .  28
@@ -1143,19 +1143,18 @@ Internet-Draft             QUIC Loss Detection                March 2018
      foreach (unacked < largest_acked.packet_number):
        time_since_sent = now() - unacked.time_sent
        delta = largest_acked.packet_number - unacked.packet_number
-       if (time_since_sent > delay_until_lost):
-         lost_packets.insert(unacked)
-       else if (delta > reordering_threshold)
-         lost_packets.insert(unacked)
+       if (time_since_sent > delay_until_lost ||
+           delta > reordering_threshold):
+         sent_packets.remove(unacked.packet_number)
+         if (!unacked.is_ack_only):
+           lost_packets.insert(unacked)
        else if (loss_time == 0 && delay_until_lost != infinite):
          loss_time = now() + delay_until_lost - time_since_sent
 
      // Inform the congestion controller of lost packets and
      // lets it decide whether to retransmit immediately.
-     if (!lost_packets.empty())
+     if (!lost_packets.empty()):
        OnPacketsLost(lost_packets)
-       foreach (packet in lost_packets)
-         sent_packets.remove(packet.packet_number)
 
 3.6.  Discussion
 
@@ -1168,8 +1167,9 @@ Internet-Draft             QUIC Loss Detection                March 2018
    where less than packet per 25ms is delivered, acking every packet is
    beneficial to congestion control and loss recovery.
 
-
-
+   The default initial RTT of 100ms was chosen because it is slightly
+   higher than both the median and mean min_rtt typically observed on
+   the public internet.
 
 
 
@@ -1177,10 +1177,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 21]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-   The default initial RTT of 100ms was chosen because it is slightly
-   higher than both the median and mean min_rtt typically observed on
-   the public internet.
 
 4.  Congestion Control
 
@@ -1225,6 +1221,10 @@ Internet-Draft             QUIC Loss Detection                March 2018
    As such, multiple lost packets only decrease the congestion window
    once as long as they're lost before exiting recovery.  This causes
    QUIC to decrease the congestion window multiple times if
+   retransmisions are lost, but limits the reduction to once per round
+   trip.
+
+
 
 
 
@@ -1233,9 +1233,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 22]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-   retransmisions are lost, but limits the reduction to once per round
-   trip.
 
 4.4.  Tail Loss Probe
 
@@ -1279,8 +1276,11 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
 4.7.  Pseudocode
 
+4.7.1.  Constants of interest
 
-
+   Constants used in congestion control are based on a combination of
+   RFCs, papers, and common practice.  Some may need to be changed or
+   negotiated in order to better suit a variety of environments.
 
 
 
@@ -1289,12 +1289,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 23]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-4.7.1.  Constants of interest
-
-   Constants used in congestion control are based on a combination of
-   RFCs, papers, and common practice.  Some may need to be changed or
-   negotiated in order to better suit a variety of environments.
 
    kDefaultMss (default 1460 bytes):  The default max packet size used
       for calculating default and minimum congestion windows.
@@ -1335,6 +1329,12 @@ Internet-Draft             QUIC Loss Detection                March 2018
    At the beginning of the connection, initialize the congestion control
    variables as follows:
 
+      congestion_window = kInitialWindow
+      bytes_in_flight = 0
+      end_of_recovery = 0
+      ssthresh = infinite
+
+
 
 
 
@@ -1345,11 +1345,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 24]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-      congestion_window = kInitialWindow
-      bytes_in_flight = 0
-      end_of_recovery = 0
-      ssthresh = infinite
 
 4.7.4.  On Packet Sent
 
@@ -1386,22 +1381,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
    Invoked by loss detection from DetectLostPackets when new packets are
    detected lost.
 
-
-
-
-
-
-
-
-
-
-
-
-Iyengar & Swett        Expires September 19, 2018              [Page 25]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
       OnPacketsLost(lost_packets):
         // Remove lost packets from bytes_in_flight.
         for (lost_packet : lost_packets):
@@ -1414,6 +1393,14 @@ Internet-Draft             QUIC Loss Detection                March 2018
           congestion_window *= kLossReductionFactor
           congestion_window = max(congestion_window, kMinimumWindow)
           ssthresh = congestion_window
+
+
+
+
+Iyengar & Swett        Expires September 19, 2018              [Page 25]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
 
 4.7.7.  On Retransmission Timeout Verified
 
@@ -1451,13 +1438,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
               Counting (ABC)", RFC 3465, DOI 10.17487/RFC3465, February
               2003, <https://www.rfc-editor.org/info/rfc3465>.
 
-
-
-Iyengar & Swett        Expires September 19, 2018              [Page 26]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
    [RFC4653]  Bhandarkar, S., Reddy, A., Allman, M., and E. Blanton,
               "Improving the Robustness of TCP to Non-Congestion
               Events", RFC 4653, DOI 10.17487/RFC4653, August 2006,
@@ -1466,6 +1446,17 @@ Internet-Draft             QUIC Loss Detection                March 2018
    [RFC5681]  Allman, M., Paxson, V., and E. Blanton, "TCP Congestion
               Control", RFC 5681, DOI 10.17487/RFC5681, September 2009,
               <https://www.rfc-editor.org/info/rfc5681>.
+
+
+
+
+
+
+
+Iyengar & Swett        Expires September 19, 2018              [Page 26]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
 
    [RFC5682]  Sarolahti, P., Kojo, M., Yamamoto, K., and M. Hata,
               "Forward RTO-Recovery (F-RTO): An Algorithm for Detecting
@@ -1506,14 +1497,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
    [2] https://github.com/quicwg
 
-
-
-
-Iyengar & Swett        Expires September 19, 2018              [Page 27]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
    [3] https://github.com/quicwg/base-drafts/labels/-recovery
 
 Appendix A.  Acknowledgments
@@ -1522,6 +1505,14 @@ Appendix B.  Change Log
 
       *RFC Editor's Note:* Please remove this section prior to
       publication of a final version of this document.
+
+
+
+
+Iyengar & Swett        Expires September 19, 2018              [Page 27]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
 
 B.1.  Since draft-ietf-quic-recovery-09
 
@@ -1563,17 +1554,21 @@ B.8.  Since draft-ietf-quic-recovery-02
 
    o  Add congestion control (#545, #395)
 
+   o  Require connection abort if a skipped packet was acknowledged
+      (#415)
+
+   o  Simplify RTO calculations (#142, #417)
+
+
+
+
+
 
 
 Iyengar & Swett        Expires September 19, 2018              [Page 28]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-   o  Require connection abort if a skipped packet was acknowledged
-      (#415)
-
-   o  Simplify RTO calculations (#142, #417)
 
 B.9.  Since draft-ietf-quic-recovery-01
 
@@ -1611,6 +1606,11 @@ Authors' Addresses
    Google
 
    Email: ianswett@google.com
+
+
+
+
+
 
 
 

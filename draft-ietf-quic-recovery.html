@@ -999,19 +999,18 @@ DetectLostPackets(largest_acked):
   foreach (unacked &lt; largest_acked.packet_number):
     time_since_sent = now() - unacked.time_sent
     delta = largest_acked.packet_number - unacked.packet_number
-    if (time_since_sent &gt; delay_until_lost):
-      lost_packets.insert(unacked)
-    else if (delta &gt; reordering_threshold)
-      lost_packets.insert(unacked)
+    if (time_since_sent &gt; delay_until_lost ||
+        delta &gt; reordering_threshold):
+      sent_packets.remove(unacked.packet_number)
+      if (!unacked.is_ack_only):
+        lost_packets.insert(unacked)
     else if (loss_time == 0 &amp;&amp; delay_until_lost != infinite):
       loss_time = now() + delay_until_lost - time_since_sent
 
   // Inform the congestion controller of lost packets and
   // lets it decide whether to retransmit immediately.
-  if (!lost_packets.empty())
+  if (!lost_packets.empty()):
     OnPacketsLost(lost_packets)
-    foreach (packet in lost_packets)
-      sent_packets.remove(packet.packet_number)
 </pre>
 <h2 id="rfc.section.3.6">
 <a href="#rfc.section.3.6">3.6.</a> <a href="#discussion" id="discussion">Discussion</a>

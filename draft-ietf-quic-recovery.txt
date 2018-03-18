@@ -84,9 +84,9 @@ Table of Contents
        3.2.1.  Fast Retransmit . . . . . . . . . . . . . . . . . . .   6
        3.2.2.  Early Retransmit  . . . . . . . . . . . . . . . . . .   7
      3.3.  Timer-based Detection . . . . . . . . . . . . . . . . . .   8
-       3.3.1.  Tail Loss Probe . . . . . . . . . . . . . . . . . . .   8
-       3.3.2.  Retransmission Timeout  . . . . . . . . . . . . . . .   9
-       3.3.3.  Handshake Timeout . . . . . . . . . . . . . . . . . .  10
+       3.3.1.  Handshake Timeout . . . . . . . . . . . . . . . . . .   8
+       3.3.2.  Tail Loss Probe . . . . . . . . . . . . . . . . . . .   9
+       3.3.3.  Retransmission Timeout  . . . . . . . . . . . . . . .  10
      3.4.  Generating Acknowledgements . . . . . . . . . . . . . . .  11
        3.4.1.  ACK Ranges  . . . . . . . . . . . . . . . . . . . . .  11
        3.4.2.  Receiver Tracking of ACK Frames . . . . . . . . . . .  12
@@ -403,10 +403,54 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
 3.3.  Timer-based Detection
 
-   Timer-based loss detection implements the spirit of TCP's Tail Loss
-   Probe and Retransmission Timeout mechanisms.
+   Timer-based loss detection implements a handshake retransmission
+   timer that is optimized for QUIC as well as the spirit of TCP's Tail
+   Loss Probe and Retransmission Timeout mechanisms.
 
-3.3.1.  Tail Loss Probe
+3.3.1.  Handshake Timeout
+
+   Handshake packets, which contain STREAM frames for stream 0, are
+   critical to QUIC transport and crypto negotiation, so a separate
+   alarm is used for them.
+
+   The initial handshake timeout SHOULD be set to twice the initial RTT.
+
+   At the beginning, there are no prior RTT samples within a connection.
+   Resumed connections over the same network SHOULD use the previous
+   connection's final smoothed RTT value as the resumed connection's
+   initial RTT.
+
+   If no previous RTT is available, or if the network changes, the
+   initial RTT SHOULD be set to 100ms.
+
+   When a handshake packet is sent, the sender SHOULD set an alarm for
+   the handshake timeout period.
+
+   When the alarm fires, the sender MUST retransmit all unacknowledged
+   handshake data, by calling RetransmitAllUnackedHandshakeData().  On
+   each consecutive firing of the handshake alarm, the sender SHOULD
+   double the handshake timeout and set an alarm for this period.
+
+   When an acknowledgement is received for a handshake packet, the new
+   RTT is computed and the alarm SHOULD be set for twice the newly
+   computed smoothed RTT.
+
+   Handshake data may be cancelled by handshake state transitions.  In
+   particular, all non-protected data SHOULD no longer be transmitted
+   once packet protection is available.
+
+   (TODO: Work this section some more.  Add text on client vs. server,
+   and on stateless retry.)
+
+
+
+
+Iyengar & Swett        Expires September 19, 2018               [Page 8]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
+3.3.2.  Tail Loss Probe
 
    The algorithm described in this section is an adaptation of the Tail
    Loss Probe algorithm proposed for TCP [TLP].
@@ -425,7 +469,7 @@ Internet-Draft             QUIC Loss Detection                March 2018
    o  PTO SHOULD be scheduled for max(1.5*SRTT+MaxAckDelay,
       kMinTLPTimeout)
 
-   o  If RTO (Section 3.3.2) is earlier, schedule a TLP alarm in its
+   o  If RTO (Section 3.3.3) is earlier, schedule a TLP alarm in its
       place.  That is, PTO SHOULD be scheduled for min(RTO, PTO).
 
    MaxAckDelay is the maximum ack delay supplied in an incoming ACK
@@ -440,16 +484,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
    packets outstanding.  TCP's TLP assumes if at least 2 packets are
    outstanding, acks will not be delayed.
 
-
-
-
-
-
-Iyengar & Swett        Expires September 19, 2018               [Page 8]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
    A PTO value of at least 1.5*SRTT ensures that the ACK is overdue.
    The 1.5 is based on [TLP], but implementations MAY experiment with
    other constants.
@@ -459,11 +493,19 @@ Internet-Draft             QUIC Loss Detection                March 2018
    words, when the TLP alarm fires the first time, a TLP packet is sent,
    and it is RECOMMENDED that the TLP alarm be scheduled for a second
    time.  When the TLP alarm fires the second time, a second TLP packet
-   is sent, and an RTO alarm SHOULD be scheduled Section 3.3.2.
+   is sent, and an RTO alarm SHOULD be scheduled Section 3.3.3.
 
    A TLP packet SHOULD carry new data when possible.  If new data is
    unavailable or new data cannot be sent due to flow control, a TLP
    packet MAY retransmit unacknowledged data to potentially reduce
+
+
+
+Iyengar & Swett        Expires September 19, 2018               [Page 9]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
+
    recovery time.  Since a TLP alarm is used to send a probe into the
    network prior to establishing any packet loss, prior unacknowledged
    packets SHOULD NOT be marked as lost when a TLP alarm fires.
@@ -472,7 +514,7 @@ Internet-Draft             QUIC Loss Detection                March 2018
    Consequently, a sender may have to arm or adjust the TLP alarm on
    every sent retransmittable packet.
 
-3.3.2.  Retransmission Timeout
+3.3.3.  Retransmission Timeout
 
    A Retransmission Timeout (RTO) alarm is the final backstop for loss
    detection.  The algorithm used in QUIC is based on the RTO algorithm
@@ -499,13 +541,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
    resilience to packet drop in both directions, thus reducing the
    probability of consecutive RTO events.
 
-
-
-Iyengar & Swett        Expires September 19, 2018               [Page 9]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
    QUIC's RTO algorithm differs from TCP in that the firing of an RTO
    alarm is not considered a strong enough signal of packet loss, so
    does not result in an immediate change to congestion window or
@@ -518,6 +553,14 @@ Internet-Draft             QUIC Loss Detection                March 2018
    the ack delay field in the ACK frame.  Since QUIC corrects for this
    delay in its SRTT and RTTVAR computations, it is necessary to add
    this delay explicitly in the TLP and RTO computation.
+
+
+
+
+Iyengar & Swett        Expires September 19, 2018              [Page 10]
+
+Internet-Draft             QUIC Loss Detection                March 2018
+
 
    When an acknowledgment is received for a packet sent on an RTO event,
    any unacknowledged packets with lower packet numbers than those
@@ -533,50 +576,6 @@ Internet-Draft             QUIC Loss Detection                March 2018
    congestion controller.  A sender MUST however count these bytes as
    additional bytes in flight, since this packet adds network load
    without establishing packet loss.
-
-3.3.3.  Handshake Timeout
-
-   Handshake packets, which contain STREAM frames for stream 0, are
-   critical to QUIC transport and crypto negotiation, so a separate
-   alarm is used for them.
-
-   The initial handshake timeout SHOULD be set to twice the initial RTT.
-
-   At the beginning, there are no prior RTT samples within a connection.
-   Resumed connections over the same network SHOULD use the previous
-   connection's final smoothed RTT value as the resumed connection's
-   initial RTT.
-
-   If no previous RTT is available, or if the network changes, the
-   initial RTT SHOULD be set to 100ms.
-
-   When a handshake packet is sent, the sender SHOULD set an alarm for
-   the handshake timeout period.
-
-
-
-
-
-Iyengar & Swett        Expires September 19, 2018              [Page 10]
-
-Internet-Draft             QUIC Loss Detection                March 2018
-
-
-   When the alarm fires, the sender MUST retransmit all unacknowledged
-   handshake data.  On each consecutive firing of the handshake alarm,
-   the sender SHOULD double the handshake timeout and set an alarm for
-   this period.
-
-   When an acknowledgement is received for a handshake packet, the new
-   RTT is computed and the alarm SHOULD be set for twice the newly
-   computed smoothed RTT.
-
-   Handshake data may be cancelled by handshake state transitions.  In
-   particular, all non-protected data SHOULD no longer be transmitted
-   once packet protection is available.
-
-   (TODO: Work this section some more.  Add text on client vs. server,
-   and on stateless retry.)
 
 3.4.  Generating Acknowledgements
 
@@ -609,7 +608,8 @@ Internet-Draft             QUIC Loss Detection                March 2018
    retransmits caused by losing previously sent ACK frames, at the cost
    of larger ACK frames.
 
-
+   ACK frames SHOULD always acknowledge the most recently received
+   packets, and the more out-of-order the packets are, the more
 
 
 
@@ -618,8 +618,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 11]
 Internet-Draft             QUIC Loss Detection                March 2018
 
 
-   ACK frames SHOULD always acknowledge the most recently received
-   packets, and the more out-of-order the packets are, the more
    important it is to send an updated ACK frame quickly, to prevent the
    peer from declaring a packet as lost and spuriusly retransmitting the
    frames it contains.
@@ -666,6 +664,8 @@ Internet-Draft             QUIC Loss Detection                March 2018
    kUsingTimeLossDetection (default false):  Whether time based loss
       detection is in use.  If false, uses FACK style loss detection.
 
+   kMinTLPTimeout (default 10ms):  Minimum time in the future a tail
+      loss probe alarm may be set for.
 
 
 
@@ -673,9 +673,6 @@ Iyengar & Swett        Expires September 19, 2018              [Page 12]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-   kMinTLPTimeout (default 10ms):  Minimum time in the future a tail
-      loss probe alarm may be set for.
 
    kMinRTOTimeout (default 200ms):  Minimum time in the future an RTO
       alarm may be set for.
@@ -723,14 +720,15 @@ Internet-Draft             QUIC Loss Detection                March 2018
    smoothed_rtt:  The smoothed RTT of the connection, computed as
       described in [RFC6298]
 
+   rttvar:  The RTT variance, computed as described in [RFC6298]
+
+
 
 
 Iyengar & Swett        Expires September 19, 2018              [Page 13]
 
 Internet-Draft             QUIC Loss Detection                March 2018
 
-
-   rttvar:  The RTT variance, computed as described in [RFC6298]
 
    min_rtt:  The minimum RTT seen in the connection, ignoring ack delay.
 
@@ -761,6 +759,8 @@ Internet-Draft             QUIC Loss Detection                March 2018
 
    At the beginning of the connection, initialize the loss detection
    variables as follows:
+
+
 
 
 
@@ -1077,7 +1077,7 @@ Internet-Draft             QUIC Loss Detection                March 2018
       OnLossDetectionAlarm():
         if (handshake packets are outstanding):
           // Handshake retransmission alarm.
-          RetransmitAllHandshakePackets()
+          RetransmitAllUnackedHandshakeData()
           handshake_count++
         else if (loss_time != 0):
           // Early retransmit or Time Loss Detection
@@ -1188,8 +1188,8 @@ Internet-Draft             QUIC Loss Detection                March 2018
    QUIC hosts MUST NOT send packets if they would increase
    bytes_in_flight (defined in Section 4.7.2) beyond the available
    congestion window, unless the packet is a probe packet sent after the
-   TLP or RTO alarm fires, as described in Section 3.3.1 and
-   Section 3.3.2.
+   TLP or RTO alarm fires, as described in Section 3.3.2 and
+   Section 3.3.3.
 
 4.1.  Slow Start
 

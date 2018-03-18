@@ -302,9 +302,9 @@ address {
 <link href="#rfc.section.3.2.1" rel="Chapter" title="3.2.1 Fast Retransmit">
 <link href="#rfc.section.3.2.2" rel="Chapter" title="3.2.2 Early Retransmit">
 <link href="#rfc.section.3.3" rel="Chapter" title="3.3 Timer-based Detection">
-<link href="#rfc.section.3.3.1" rel="Chapter" title="3.3.1 Tail Loss Probe">
-<link href="#rfc.section.3.3.2" rel="Chapter" title="3.3.2 Retransmission Timeout">
-<link href="#rfc.section.3.3.3" rel="Chapter" title="3.3.3 Handshake Timeout">
+<link href="#rfc.section.3.3.1" rel="Chapter" title="3.3.1 Handshake Timeout">
+<link href="#rfc.section.3.3.2" rel="Chapter" title="3.3.2 Tail Loss Probe">
+<link href="#rfc.section.3.3.3" rel="Chapter" title="3.3.3 Retransmission Timeout">
 <link href="#rfc.section.3.4" rel="Chapter" title="3.4 Generating Acknowledgements">
 <link href="#rfc.section.3.4.1" rel="Chapter" title="3.4.1 ACK Ranges">
 <link href="#rfc.section.3.4.2" rel="Chapter" title="3.4.2 Receiver Tracking of ACK Frames">
@@ -445,11 +445,11 @@ address {
 </li>
 </ul><li>3.3.   <a href="#rfc.section.3.3">Timer-based Detection</a>
 </li>
-<ul><li>3.3.1.   <a href="#rfc.section.3.3.1">Tail Loss Probe</a>
+<ul><li>3.3.1.   <a href="#rfc.section.3.3.1">Handshake Timeout</a>
 </li>
-<li>3.3.2.   <a href="#rfc.section.3.3.2">Retransmission Timeout</a>
+<li>3.3.2.   <a href="#rfc.section.3.3.2">Tail Loss Probe</a>
 </li>
-<li>3.3.3.   <a href="#rfc.section.3.3.3">Handshake Timeout</a>
+<li>3.3.3.   <a href="#rfc.section.3.3.3">Retransmission Timeout</a>
 </li>
 </ul><li>3.4.   <a href="#rfc.section.3.4">Generating Acknowledgements</a>
 </li>
@@ -631,55 +631,55 @@ address {
 <h2 id="rfc.section.3.3">
 <a href="#rfc.section.3.3">3.3.</a> <a href="#timer-based-detection" id="timer-based-detection">Timer-based Detection</a>
 </h2>
-<p id="rfc.section.3.3.p.1">Timer-based loss detection implements the spirit of TCP&#8217;s Tail Loss Probe and Retransmission Timeout mechanisms.</p>
+<p id="rfc.section.3.3.p.1">Timer-based loss detection implements a handshake retransmission timer that is optimized for QUIC as well as the spirit of TCP&#8217;s Tail Loss Probe and Retransmission Timeout mechanisms.</p>
 <h3 id="rfc.section.3.3.1">
-<a href="#rfc.section.3.3.1">3.3.1.</a> <a href="#tlp" id="tlp">Tail Loss Probe</a>
+<a href="#rfc.section.3.3.1">3.3.1.</a> <a href="#handshake-timeout" id="handshake-timeout">Handshake Timeout</a>
 </h3>
-<p id="rfc.section.3.3.1.p.1">The algorithm described in this section is an adaptation of the Tail Loss Probe algorithm proposed for TCP <a href="#TLP" class="xref">[TLP]</a>.</p>
-<p id="rfc.section.3.3.1.p.2">A packet sent at the tail is particularly vulnerable to slow loss detection, since acks of subsequent packets are needed to trigger ack-based detection. To ameliorate this weakness of tail packets, the sender schedules an alarm when the last retransmittable packet before quiescence is transmitted. When this alarm fires, a Tail Loss Probe (TLP) packet is sent to evoke an acknowledgement from the receiver.</p>
-<p id="rfc.section.3.3.1.p.3">The alarm duration, or Probe Timeout (PTO), is set based on the following conditions:</p>
+<p id="rfc.section.3.3.1.p.1">Handshake packets, which contain STREAM frames for stream 0, are critical to QUIC transport and crypto negotiation, so a separate alarm is used for them.</p>
+<p id="rfc.section.3.3.1.p.2">The initial handshake timeout SHOULD be set to twice the initial RTT.</p>
+<p id="rfc.section.3.3.1.p.3">At the beginning, there are no prior RTT samples within a connection.  Resumed connections over the same network SHOULD use the previous connection&#8217;s final smoothed RTT value as the resumed connection&#8217;s initial RTT.</p>
+<p id="rfc.section.3.3.1.p.4">If no previous RTT is available, or if the network changes, the initial RTT SHOULD be set to 100ms.</p>
+<p id="rfc.section.3.3.1.p.5">When a handshake packet is sent, the sender SHOULD set an alarm for the handshake timeout period.</p>
+<p id="rfc.section.3.3.1.p.6">When the alarm fires, the sender MUST retransmit all unacknowledged handshake data, by calling RetransmitAllUnackedHandshakeData(). On each consecutive firing of the handshake alarm, the sender SHOULD double the handshake timeout and set an alarm for this period.</p>
+<p id="rfc.section.3.3.1.p.7">When an acknowledgement is received for a handshake packet, the new RTT is computed and the alarm SHOULD be set for twice the newly computed smoothed RTT.</p>
+<p id="rfc.section.3.3.1.p.8">Handshake data may be cancelled by handshake state transitions. In particular, all non-protected data SHOULD no longer be transmitted once packet protection is available.</p>
+<p id="rfc.section.3.3.1.p.9">(TODO: Work this section some more. Add text on client vs. server, and on stateless retry.)</p>
+<h3 id="rfc.section.3.3.2">
+<a href="#rfc.section.3.3.2">3.3.2.</a> <a href="#tlp" id="tlp">Tail Loss Probe</a>
+</h3>
+<p id="rfc.section.3.3.2.p.1">The algorithm described in this section is an adaptation of the Tail Loss Probe algorithm proposed for TCP <a href="#TLP" class="xref">[TLP]</a>.</p>
+<p id="rfc.section.3.3.2.p.2">A packet sent at the tail is particularly vulnerable to slow loss detection, since acks of subsequent packets are needed to trigger ack-based detection. To ameliorate this weakness of tail packets, the sender schedules an alarm when the last retransmittable packet before quiescence is transmitted. When this alarm fires, a Tail Loss Probe (TLP) packet is sent to evoke an acknowledgement from the receiver.</p>
+<p id="rfc.section.3.3.2.p.3">The alarm duration, or Probe Timeout (PTO), is set based on the following conditions:</p>
 <p></p>
 
 <ul>
 <li>PTO SHOULD be scheduled for max(1.5*SRTT+MaxAckDelay, kMinTLPTimeout)</li>
-<li>If RTO (<a href="#rto" class="xref">Section 3.3.2</a>) is earlier, schedule a TLP alarm in its place. That is, PTO SHOULD be scheduled for min(RTO, PTO).</li>
+<li>If RTO (<a href="#rto" class="xref">Section 3.3.3</a>) is earlier, schedule a TLP alarm in its place. That is, PTO SHOULD be scheduled for min(RTO, PTO).</li>
 </ul>
-<p id="rfc.section.3.3.1.p.5">MaxAckDelay is the maximum ack delay supplied in an incoming ACK frame.  MaxAckDelay excludes ack delays that aren&#8217;t included in an RTT sample because they&#8217;re too large and excludes those which reference an ack-only packet.</p>
-<p id="rfc.section.3.3.1.p.6">QUIC diverges from TCP by calculating MaxAckDelay dynamically, instead of assuming a constant delayed ack timeout for all connections.  QUIC includes this in all probe timeouts, because it assume the ack delay may come into play, regardless of the number of packets outstanding.  TCP&#8217;s TLP assumes if at least 2 packets are outstanding, acks will not be delayed.</p>
-<p id="rfc.section.3.3.1.p.7">A PTO value of at least 1.5*SRTT ensures that the ACK is overdue.  The 1.5 is based on <a href="#TLP" class="xref">[TLP]</a>, but implementations MAY experiment with other constants.</p>
-<p id="rfc.section.3.3.1.p.8">To reduce latency, it is RECOMMENDED that the sender set and allow the TLP alarm to fire twice before setting an RTO alarm. In other words, when the TLP alarm fires the first time, a TLP packet is sent, and it is RECOMMENDED that the TLP alarm be scheduled for a second time. When the TLP alarm fires the second time, a second TLP packet is sent, and an RTO alarm SHOULD be scheduled <a href="#rto" class="xref">Section 3.3.2</a>.</p>
-<p id="rfc.section.3.3.1.p.9">A TLP packet SHOULD carry new data when possible. If new data is unavailable or new data cannot be sent due to flow control, a TLP packet MAY retransmit unacknowledged data to potentially reduce recovery time. Since a TLP alarm is used to send a probe into the network prior to establishing any packet loss, prior unacknowledged packets SHOULD NOT be marked as lost when a TLP alarm fires.</p>
-<p id="rfc.section.3.3.1.p.10">A sender may not know that a packet being sent is a tail packet.  Consequently, a sender may have to arm or adjust the TLP alarm on every sent retransmittable packet.</p>
-<h3 id="rfc.section.3.3.2">
-<a href="#rfc.section.3.3.2">3.3.2.</a> <a href="#rto" id="rto">Retransmission Timeout</a>
+<p id="rfc.section.3.3.2.p.5">MaxAckDelay is the maximum ack delay supplied in an incoming ACK frame.  MaxAckDelay excludes ack delays that aren&#8217;t included in an RTT sample because they&#8217;re too large and excludes those which reference an ack-only packet.</p>
+<p id="rfc.section.3.3.2.p.6">QUIC diverges from TCP by calculating MaxAckDelay dynamically, instead of assuming a constant delayed ack timeout for all connections.  QUIC includes this in all probe timeouts, because it assume the ack delay may come into play, regardless of the number of packets outstanding.  TCP&#8217;s TLP assumes if at least 2 packets are outstanding, acks will not be delayed.</p>
+<p id="rfc.section.3.3.2.p.7">A PTO value of at least 1.5*SRTT ensures that the ACK is overdue.  The 1.5 is based on <a href="#TLP" class="xref">[TLP]</a>, but implementations MAY experiment with other constants.</p>
+<p id="rfc.section.3.3.2.p.8">To reduce latency, it is RECOMMENDED that the sender set and allow the TLP alarm to fire twice before setting an RTO alarm. In other words, when the TLP alarm fires the first time, a TLP packet is sent, and it is RECOMMENDED that the TLP alarm be scheduled for a second time. When the TLP alarm fires the second time, a second TLP packet is sent, and an RTO alarm SHOULD be scheduled <a href="#rto" class="xref">Section 3.3.3</a>.</p>
+<p id="rfc.section.3.3.2.p.9">A TLP packet SHOULD carry new data when possible. If new data is unavailable or new data cannot be sent due to flow control, a TLP packet MAY retransmit unacknowledged data to potentially reduce recovery time. Since a TLP alarm is used to send a probe into the network prior to establishing any packet loss, prior unacknowledged packets SHOULD NOT be marked as lost when a TLP alarm fires.</p>
+<p id="rfc.section.3.3.2.p.10">A sender may not know that a packet being sent is a tail packet.  Consequently, a sender may have to arm or adjust the TLP alarm on every sent retransmittable packet.</p>
+<h3 id="rfc.section.3.3.3">
+<a href="#rfc.section.3.3.3">3.3.3.</a> <a href="#rto" id="rto">Retransmission Timeout</a>
 </h3>
-<p id="rfc.section.3.3.2.p.1">A Retransmission Timeout (RTO) alarm is the final backstop for loss detection. The algorithm used in QUIC is based on the RTO algorithm for TCP <a href="#RFC5681" class="xref">[RFC5681]</a> and is additionally resilient to spurious RTO events <a href="#RFC5682" class="xref">[RFC5682]</a>.</p>
-<p id="rfc.section.3.3.2.p.2">When the last TLP packet is sent, an alarm is scheduled for the RTO period. When this alarm fires, the sender sends two packets, to evoke acknowledgements from the receiver, and restarts the RTO alarm.</p>
-<p id="rfc.section.3.3.2.p.3">Similar to TCP <a href="#RFC6298" class="xref">[RFC6298]</a>, the RTO period is set based on the following conditions:</p>
+<p id="rfc.section.3.3.3.p.1">A Retransmission Timeout (RTO) alarm is the final backstop for loss detection. The algorithm used in QUIC is based on the RTO algorithm for TCP <a href="#RFC5681" class="xref">[RFC5681]</a> and is additionally resilient to spurious RTO events <a href="#RFC5682" class="xref">[RFC5682]</a>.</p>
+<p id="rfc.section.3.3.3.p.2">When the last TLP packet is sent, an alarm is scheduled for the RTO period. When this alarm fires, the sender sends two packets, to evoke acknowledgements from the receiver, and restarts the RTO alarm.</p>
+<p id="rfc.section.3.3.3.p.3">Similar to TCP <a href="#RFC6298" class="xref">[RFC6298]</a>, the RTO period is set based on the following conditions:</p>
 <p></p>
 
 <ul>
 <li>When the final TLP packet is sent, the RTO period is set to max(SRTT + 4*RTTVAR + MaxAckDelay, kMinRTOTimeout)</li>
 <li>When an RTO alarm fires, the RTO period is doubled.</li>
 </ul>
-<p id="rfc.section.3.3.2.p.5">The sender typically has incurred a high latency penalty by the time an RTO alarm fires, and this penalty increases exponentially in subsequent consecutive RTO events. Sending a single packet on an RTO event therefore makes the connection very sensitive to single packet loss. Sending two packets instead of one significantly increases resilience to packet drop in both directions, thus reducing the probability of consecutive RTO events.</p>
-<p id="rfc.section.3.3.2.p.6">QUIC&#8217;s RTO algorithm differs from TCP in that the firing of an RTO alarm is not considered a strong enough signal of packet loss, so does not result in an immediate change to congestion window or recovery state. An RTO alarm fires only when there&#8217;s a prolonged period of network silence, which could be caused by a change in the underlying network RTT.</p>
-<p id="rfc.section.3.3.2.p.7">QUIC also diverges from TCP by including MaxAckDelay in the RTO period.  QUIC is able to explicitly model delay at the receiver via the ack delay field in the ACK frame.  Since QUIC corrects for this delay in its SRTT and RTTVAR computations, it is necessary to add this delay explicitly in the TLP and RTO computation.</p>
-<p id="rfc.section.3.3.2.p.8">When an acknowledgment is received for a packet sent on an RTO event, any unacknowledged packets with lower packet numbers than those acknowledged MUST be marked as lost.</p>
-<p id="rfc.section.3.3.2.p.9">A packet sent when an RTO alarm fires MAY carry new data if available or unacknowledged data to potentially reduce recovery time. Since this packet is sent as a probe into the network prior to establishing any packet loss, prior unacknowledged packets SHOULD NOT be marked as lost.</p>
-<p id="rfc.section.3.3.2.p.10">A packet sent on an RTO alarm MUST NOT be blocked by the sender&#8217;s congestion controller. A sender MUST however count these bytes as additional bytes in flight, since this packet adds network load without establishing packet loss.</p>
-<h3 id="rfc.section.3.3.3">
-<a href="#rfc.section.3.3.3">3.3.3.</a> <a href="#handshake-timeout" id="handshake-timeout">Handshake Timeout</a>
-</h3>
-<p id="rfc.section.3.3.3.p.1">Handshake packets, which contain STREAM frames for stream 0, are critical to QUIC transport and crypto negotiation, so a separate alarm is used for them.</p>
-<p id="rfc.section.3.3.3.p.2">The initial handshake timeout SHOULD be set to twice the initial RTT.</p>
-<p id="rfc.section.3.3.3.p.3">At the beginning, there are no prior RTT samples within a connection.  Resumed connections over the same network SHOULD use the previous connection&#8217;s final smoothed RTT value as the resumed connection&#8217;s initial RTT.</p>
-<p id="rfc.section.3.3.3.p.4">If no previous RTT is available, or if the network changes, the initial RTT SHOULD be set to 100ms.</p>
-<p id="rfc.section.3.3.3.p.5">When a handshake packet is sent, the sender SHOULD set an alarm for the handshake timeout period.</p>
-<p id="rfc.section.3.3.3.p.6">When the alarm fires, the sender MUST retransmit all unacknowledged handshake data. On each consecutive firing of the handshake alarm, the sender SHOULD double the handshake timeout and set an alarm for this period.</p>
-<p id="rfc.section.3.3.3.p.7">When an acknowledgement is received for a handshake packet, the new RTT is computed and the alarm SHOULD be set for twice the newly computed smoothed RTT.</p>
-<p id="rfc.section.3.3.3.p.8">Handshake data may be cancelled by handshake state transitions. In particular, all non-protected data SHOULD no longer be transmitted once packet protection is available.</p>
-<p id="rfc.section.3.3.3.p.9">(TODO: Work this section some more. Add text on client vs. server, and on stateless retry.)</p>
+<p id="rfc.section.3.3.3.p.5">The sender typically has incurred a high latency penalty by the time an RTO alarm fires, and this penalty increases exponentially in subsequent consecutive RTO events. Sending a single packet on an RTO event therefore makes the connection very sensitive to single packet loss. Sending two packets instead of one significantly increases resilience to packet drop in both directions, thus reducing the probability of consecutive RTO events.</p>
+<p id="rfc.section.3.3.3.p.6">QUIC&#8217;s RTO algorithm differs from TCP in that the firing of an RTO alarm is not considered a strong enough signal of packet loss, so does not result in an immediate change to congestion window or recovery state. An RTO alarm fires only when there&#8217;s a prolonged period of network silence, which could be caused by a change in the underlying network RTT.</p>
+<p id="rfc.section.3.3.3.p.7">QUIC also diverges from TCP by including MaxAckDelay in the RTO period.  QUIC is able to explicitly model delay at the receiver via the ack delay field in the ACK frame.  Since QUIC corrects for this delay in its SRTT and RTTVAR computations, it is necessary to add this delay explicitly in the TLP and RTO computation.</p>
+<p id="rfc.section.3.3.3.p.8">When an acknowledgment is received for a packet sent on an RTO event, any unacknowledged packets with lower packet numbers than those acknowledged MUST be marked as lost.</p>
+<p id="rfc.section.3.3.3.p.9">A packet sent when an RTO alarm fires MAY carry new data if available or unacknowledged data to potentially reduce recovery time. Since this packet is sent as a probe into the network prior to establishing any packet loss, prior unacknowledged packets SHOULD NOT be marked as lost.</p>
+<p id="rfc.section.3.3.3.p.10">A packet sent on an RTO alarm MUST NOT be blocked by the sender&#8217;s congestion controller. A sender MUST however count these bytes as additional bytes in flight, since this packet adds network load without establishing packet loss.</p>
 <h2 id="rfc.section.3.4">
 <a href="#rfc.section.3.4">3.4.</a> <a href="#generating-acknowledgements" id="generating-acknowledgements">Generating Acknowledgements</a>
 </h2>
@@ -955,7 +955,7 @@ address {
    OnLossDetectionAlarm():
      if (handshake packets are outstanding):
        // Handshake retransmission alarm.
-       RetransmitAllHandshakePackets()
+       RetransmitAllUnackedHandshakeData()
        handshake_count++
      else if (loss_time != 0):
        // Early retransmit or Time Loss Detection
@@ -1024,7 +1024,7 @@ DetectLostPackets(largest_acked):
 <a href="#rfc.section.4">4.</a> <a href="#congestion-control" id="congestion-control">Congestion Control</a>
 </h1>
 <p id="rfc.section.4.p.1">QUIC&#8217;s congestion control is based on TCP NewReno <a href="#RFC6582" class="xref">[RFC6582]</a> congestion control to determine the congestion window.  QUIC congestion control is specified in bytes due to finer control and the ease of appropriate byte counting <a href="#RFC3465" class="xref">[RFC3465]</a>.</p>
-<p id="rfc.section.4.p.2">QUIC hosts MUST NOT send packets if they would increase bytes_in_flight (defined in <a href="#vars-of-interest" class="xref">Section 4.7.2</a>) beyond the available congestion window, unless the packet is a probe packet sent after the TLP or RTO alarm fires, as described in <a href="#tlp" class="xref">Section 3.3.1</a> and <a href="#rto" class="xref">Section 3.3.2</a>.</p>
+<p id="rfc.section.4.p.2">QUIC hosts MUST NOT send packets if they would increase bytes_in_flight (defined in <a href="#vars-of-interest" class="xref">Section 4.7.2</a>) beyond the available congestion window, unless the packet is a probe packet sent after the TLP or RTO alarm fires, as described in <a href="#tlp" class="xref">Section 3.3.2</a> and <a href="#rto" class="xref">Section 3.3.3</a>.</p>
 <h2 id="rfc.section.4.1">
 <a href="#rfc.section.4.1">4.1.</a> <a href="#slow-start" id="slow-start">Slow Start</a>
 </h2>

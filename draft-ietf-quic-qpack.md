@@ -225,28 +225,28 @@ with the `HTTP_HPACK_DECOMPRESSION_FAILED` error code.
 
 ## Preventing Eviction Races {#evictions}
 
-Due to out-of-order arrival, QPACK's eviction algorithm requires changes
-(relative to HPACK) to avoid the possibility that an indexed representation is
-decoded after the referenced entry has already been evicted.  QPACK employs a
-two-phase eviction algorithm, in which the encoder will not evict entries that
-have outstanding (unacknowledged) references.
+An eviction race occurs when an entry is evicted from the dynamic table before
+all header blocks referencing that entry have been processed by the decoder.
+If inserting a new header into the dynamic table would cause the eviction
+of an entry with unacknowledged references, the encoder MUST NOT emit the
+insert instruction.  This is called a blocked eviction.
 
-### Blocked Evictions
-
-The encoder MUST NOT permit an entry to be evicted while a reference to that
-entry remains unacknowledged.  If a new header to be inserted into the dynamic
-table would cause the eviction of such an entry, the encoder MUST NOT emit the
-insert instruction until the reference has been processed by the decoder and
-acknowledged.
-
-The encoder can emit a literal representation for the new header in order to
-avoid encoding delays, and MAY insert the header into the table later if
+When the encoder encounters a blocked eviction, the encoder SHOULD
+emit a literal representation for the new header in order to avoid
+encoding delays, and MAY insert the header into the table later if
 desired.
 
-To ensure that the blocked eviction case is rare, references to the oldest
-entries in the dynamic table SHOULD be avoided.  When one of the oldest entries
-in the table is still actively used for references, the encoder SHOULD emit an
-Indexed-Duplicate representation instead (see {{indexed-duplicate}}).
+To ensure that blocked evictions are rare, the encoder SHOULD avoid
+referencing any eviction-prone entries, which are dynamic table entries that may
+be evicted soon.  Rather than reference an eviction-prone entry, the encoder
+SHOULD emit an Indexed-Duplicate representation (see {{indexed-duplicate}}),
+and reference the duplicate instead.
+
+To identify eviction-prone entries, the encoder may maintain a draining index,
+which is the smallest index in the dynamic table that it will emit a
+reference for.  As new entries are inserted, the encoder increments the
+draining index such that the amount of free and draining space in the dyanmic
+table is larger than its target threshold.
 
 ## Refreshing Entries with Duplication {#indexed-duplicate}
 

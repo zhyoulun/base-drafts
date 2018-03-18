@@ -1878,9 +1878,9 @@ associated with the connection ID that it does use.
 
 Clients MAY change connection ID at any time based on implementation-specific
 concerns.  For example, after a period of network inactivity NAT rebinding might
-occur when the client begins sending data again. A client might wish to break
-linkability by employing a new connection ID when resuming traffic after
-inactivity.
+occur when the client begins sending data again. A client might wish to reduce
+linkability by employing a new connection ID when sending traffic after a period
+of inactivity.
 
 A server that receives a packet that is marked with a new connection ID recovers
 the packet number by adding the cumulative packet number gap to its expected

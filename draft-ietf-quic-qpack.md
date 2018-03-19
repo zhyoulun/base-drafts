@@ -101,11 +101,12 @@ are called "vulnerable," because the loss of a different packet can keep
 the reference from being usable.
 
 The decoder can signal that it is willing to process vulnerable references by
-setting SETTINGS_BLOCKING_HEADER_REFERENCES to true.  In this case, the encoder
-can choose on a per-header-block basis whether to favor higher compression ratio
-(by permitting vulnerable references) or HoL resilience (by avoiding them). This
-is signaled by the BLOCKING flag in HEADERS and PUSH_PROMISE frames (see
-{{QUIC-HTTP}}).  Otherwise, the BLOCKING flag MUST be 0.
+setting SETTINGS_BLOCKING_HEADER_REFERENCES to a non-zero value.  In this case,
+the encoder can choose on a per-header-block basis whether to favor higher
+compression ratio (by permitting vulnerable references) or HoL resilience (by
+avoiding them). This is signaled by the BLOCKING flag in HEADERS and
+PUSH_PROMISE frames (see {{QUIC-HTTP}}).  Otherwise, the BLOCKING flag MUST be
+0.
 
 If a header block contains no vulnerable header fields, BLOCKING MUST be 0.
 This implies that the header fields are represented either as references
@@ -116,6 +117,9 @@ If a header block contains any header field which references dynamic table
 state which the peer might not have received yet, the BLOCKING flag MUST be
 set.  If the peer does not yet have the appropriate state, such blocks
 might not be processed on arrival.
+
+An encoder MUST NOT have more header blocks outstanding with the BLOCKING flag
+set than the value of SETTINGS_BLOCKING_HEADER_REFERENCES at any time.
 
 The header block contains a prefix ({{absolute-index}}). This prefix contains
 table offset information that establishes total ordering among all headers,

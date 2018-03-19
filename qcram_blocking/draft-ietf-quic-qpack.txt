@@ -5,18 +5,18 @@
 QUIC                                                           C. Krasic
 Internet-Draft                                               Google, Inc
 Intended status: Standards Track                               M. Bishop
-Expires: September 2, 2018                           Akamai Technologies
+Expires: September 20, 2018                          Akamai Technologies
                                                         A. Frindell, Ed.
                                                                 Facebook
-                                                          March 01, 2018
+                                                          March 19, 2018
 
 
-                 Header Compression for HTTP over QUIC
-                      draft-ietf-quic-qcram-latest
+              QPACK: Header Compression for HTTP over QUIC
+                      draft-ietf-quic-qpack-latest
 
 Abstract
 
-   This specification defines QCRAM, a compression format for
+   This specification defines QPACK, a compression format for
    efficiently representing HTTP header fields, to be used in HTTP over
    QUIC.  This is a variation of HPACK header compression that seeks to
    reduce head-of-line blocking.
@@ -29,7 +29,7 @@ Note to Readers
 
    Working Group information can be found at https://github.com/quicwg
    [2]; source code and issues list for this draft can be found at
-   https://github.com/quicwg/base-drafts/labels/-qcram [3].
+   https://github.com/quicwg/base-drafts/labels/-qpack [3].
 
 Status of This Memo
 
@@ -46,16 +46,16 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on September 2, 2018.
+   This Internet-Draft will expire on September 20, 2018.
 
 
 
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 1]
+Krasic, et al.         Expires September 20, 2018               [Page 1]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 Copyright Notice
@@ -95,7 +95,6 @@ Table of Contents
        3.1.1.  Blocked Eviction  . . . . . . . . . . . . . . . . . .  12
      3.2.  Blocked Decoding  . . . . . . . . . . . . . . . . . . . .  13
      3.3.  Speculative table updates . . . . . . . . . . . . . . . .  13
-       3.3.1.  Fixed overhead. . . . . . . . . . . . . . . . . . . .  13
    4.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
    5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  14
@@ -109,9 +108,10 @@ Table of Contents
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 2]
+
+Krasic, et al.         Expires September 20, 2018               [Page 2]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 1.  Introduction
@@ -137,14 +137,14 @@ Internet-Draft                    QCRAM                       March 2018
    [RFC7540].  The description of HPACK is [RFC7541], with important
    terminology in Section 1.3.
 
-   QCRAM modifies HPACK to allow correctness in the presence of out-of-
+   QPACK modifies HPACK to allow correctness in the presence of out-of-
    order delivery, with flexibility for implementations to balance
    between resilience against HoL blocking and optimal compression
    ratio.  The design goals are to closely approach the compression
    ratio of HPACK with substantially less head-of-line blocking under
    the same loss conditions.
 
-   QCRAM is intended to be a relatively non-intrusive extension to
+   QPACK is intended to be a relatively non-intrusive extension to
    HPACK; an implementation should be easily shared within stacks
    supporting both HTTP/2 over (TLS+)TCP and HTTP/QUIC.
 
@@ -165,9 +165,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 3]
+Krasic, et al.         Expires September 20, 2018               [Page 3]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 1.2.  Avoiding Head-of-Line Blocking in HTTP/QUIC
@@ -178,11 +178,11 @@ Internet-Draft                    QCRAM                       March 2018
    packet can keep the reference from being usable.
 
    The decoder can signal that it is willing to process vulnerable
-   references by setting SETTINGS_BLOCKING_HEADER_REFERENCES to true.
-   In this case, the encoder can choose on a per-header-block basis
-   whether to favor higher compression ratio (by permitting vulnerable
-   references) or HoL resilience (by avoiding them).  This is signaled
-   by the BLOCKING flag in HEADERS and PUSH_PROMISE frames (see
+   references by setting SETTINGS_BLOCKING_HEADER_REFERENCES to a non-
+   zero value.  In this case, the encoder can choose on a per-header-
+   block basis whether to favor higher compression ratio (by permitting
+   vulnerable references) or HoL resilience (by avoiding them).  This is
+   signaled by the BLOCKING flag in HEADERS and PUSH_PROMISE frames (see
    [QUIC-HTTP]).  Otherwise, the BLOCKING flag MUST be 0.
 
    If a header block contains no vulnerable header fields, BLOCKING MUST
@@ -194,6 +194,10 @@ Internet-Draft                    QCRAM                       March 2018
    table state which the peer might not have received yet, the BLOCKING
    flag MUST be set.  If the peer does not yet have the appropriate
    state, such blocks might not be processed on arrival.
+
+   An encoder MUST NOT have more header blocks outstanding with the
+   BLOCKING flag set than the value of
+   SETTINGS_BLOCKING_HEADER_REFERENCES at any time.
 
    The header block contains a prefix (Section 2.4.1).  This prefix
    contains table offset information that establishes total ordering
@@ -214,17 +218,18 @@ Internet-Draft                    QCRAM                       March 2018
    QCRAM instructions occur in three locations, each of which uses a
    separate instruction space:
 
+
+
+
+Krasic, et al.         Expires September 20, 2018               [Page 4]
+
+Internet-Draft                    QPACK                       March 2018
+
+
    o  Table updates are carried by HEADERS frames on the control stream,
       as defined by [QUIC-HTTP].  Frames on this stream modify the
       dynamic table state without generating output to any particular
       request.
-
-
-
-Krasic, et al.          Expires September 2, 2018               [Page 4]
-
-Internet-Draft                    QCRAM                       March 2018
-
 
    o  Acknowledgement of header frame processing is carried by
       HEADER_ACK frames on the control stream, running from decoder to
@@ -272,14 +277,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-
-
-
-
-
-Krasic, et al.          Expires September 2, 2018               [Page 5]
+Krasic, et al.         Expires September 20, 2018               [Page 5]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.2.1.  Insert With Name Reference
@@ -333,9 +333,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 6]
+Krasic, et al.         Expires September 20, 2018               [Page 6]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.2.3.  Duplicate
@@ -389,9 +389,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 7]
+Krasic, et al.         Expires September 20, 2018               [Page 7]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.3.  HEADER_ACK Frames
@@ -445,9 +445,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 8]
+Krasic, et al.         Expires September 20, 2018               [Page 8]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    Section 2.4.2 describes the role of "Base Index".
@@ -481,7 +481,7 @@ Internet-Draft                    QCRAM                       March 2018
    totally ordered, but are problematic in the out-of-order context of
    QUIC.
 
-   QCRAM uses a hybrid absolute-relative indexing approach.
+   QPACK uses a hybrid absolute-relative indexing approach.
 
    When the encoder adds a new entry to its header table, it can compute
    an absolute index:
@@ -501,15 +501,15 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018               [Page 9]
+Krasic, et al.         Expires September 20, 2018               [Page 9]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    Header blocks on request and push streams do not modify the dynamic
    table state, so they never change the "baseIndex".  However, since
    ordering between streams is not guaranteed, the value of "baseIndex"
-   can not be synchronized implicitly.  Instead then, QCRAM sends
+   can not be synchronized implicitly.  Instead then, QPACK sends
    encoder's "Base Index" explicitly as part of the prefix (see
    Section 2.4.1), so that the decoder can compute the same absolute
    indices that the encoder used:
@@ -557,9 +557,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018              [Page 10]
+Krasic, et al.         Expires September 20, 2018              [Page 10]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 2.4.3.2.  Literal Header Field With Name Reference
@@ -613,9 +613,9 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018              [Page 11]
+Krasic, et al.         Expires September 20, 2018              [Page 11]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    values that are not to be put at risk by compressing them (see
@@ -639,6 +639,13 @@ Internet-Draft                    QCRAM                       March 2018
 
 3.  Encoding Strategies
 
+   Due to out-of-order arrival, QPACK's eviction algorithm requires
+   changes (relative to HPACK) to avoid the possibility that an indexed
+   representation is decoded after the referenced entry has already been
+   evicted.  QPACK employs a two-phase eviction algorithm, in which the
+   encoder will not evict entries that have outstanding (unacknowledged)
+   references.
+
 3.1.  Reference Tracking
 
    An encoder MUST ensure that a header block which references a dynamic
@@ -658,21 +665,21 @@ Internet-Draft                    QCRAM                       March 2018
    The encoder MUST NOT permit an entry to be evicted while a reference
    to that entry remains unacknowledged.  If a new header to be inserted
    into the dynamic table would cause the eviction of such an entry, the
+
+
+
+
+Krasic, et al.         Expires September 20, 2018              [Page 12]
+
+Internet-Draft                    QPACK                       March 2018
+
+
    encoder MUST NOT emit the insert instruction until the reference has
    been processed by the decoder and acknowledged.
 
    The encoder can emit a literal representation for the new header in
    order to avoid encoding delays, and MAY insert the header into the
    table later if desired.
-
-
-
-
-
-Krasic, et al.          Expires September 2, 2018              [Page 12]
-
-Internet-Draft                    QCRAM                       March 2018
-
 
    To ensure that the blocked eviction case is rare, references to the
    oldest entries in the dynamic table SHOULD be avoided.  When one of
@@ -704,14 +711,6 @@ Internet-Draft                    QCRAM                       March 2018
    (Section 2.4.1), ensuring they have small indices and hence minimal
    size on the wire.
 
-3.3.1.  Fixed overhead.
-
-   HPACK defines overhead as 32 bytes ([RFC7541], Section 4.1).  As
-   described above, QCRAM adds some per-connection state, and possibly
-   some per-entry state to track acknowledgment status and eviction
-   reference count.  A larger value than 32 might be more accurate for
-   QCRAM.
-
 4.  Security Considerations
 
    TBD.
@@ -725,9 +724,10 @@ Internet-Draft                    QCRAM                       March 2018
 
 
 
-Krasic, et al.          Expires September 2, 2018              [Page 13]
+
+Krasic, et al.         Expires September 20, 2018              [Page 13]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
 6.  References
@@ -736,7 +736,7 @@ Internet-Draft                    QCRAM                       March 2018
 
    [QUIC-HTTP]
               Bishop, M., "Hypertext Transfer Protocol (HTTP) over
-              QUIC", draft-ietf-quic-http-09 (work in progress), January
+              QUIC", draft-ietf-quic-http-10 (work in progress), March
               2018.
 
    [RFC7541]  Peon, R. and H. Ruellan, "HPACK: Header Compression for
@@ -747,8 +747,8 @@ Internet-Draft                    QCRAM                       March 2018
 
    [QUIC-TRANSPORT]
               Iyengar, J. and M. Thomson, "QUIC: A UDP-Based Multiplexed
-              and Secure Transport", draft-ietf-quic-transport-09 (work
-              in progress), January 2018.
+              and Secure Transport", draft-ietf-quic-transport-10 (work
+              in progress), March 2018.
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -761,7 +761,7 @@ Internet-Draft                    QCRAM                       March 2018
 
    [2] https://github.com/quicwg
 
-   [3] https://github.com/quicwg/base-drafts/labels/-qcram
+   [3] https://github.com/quicwg/base-drafts/labels/-qpack
 
 Acknowledgments
 
@@ -781,9 +781,9 @@ Acknowledgments
 
 
 
-Krasic, et al.          Expires September 2, 2018              [Page 14]
+Krasic, et al.         Expires September 20, 2018              [Page 14]
 
-Internet-Draft                    QCRAM                       March 2018
+Internet-Draft                    QPACK                       March 2018
 
 
    o  Dmitri Tikhonov
@@ -837,4 +837,4 @@ Authors' Addresses
 
 
 
-Krasic, et al.          Expires September 2, 2018              [Page 15]
+Krasic, et al.         Expires September 20, 2018              [Page 15]
